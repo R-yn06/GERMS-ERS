@@ -1,0 +1,7 @@
+target/
+application.properties
+.env
+*.iml
+.idea/
+nbproject/private/
+.vscode/settings.json

@@ -1,0 +1,5 @@
+# Language statistics: the project spec measures "Java share" excluding SQL, config, and docs.
+# GitHub (linguist) counts .sql files as PLpgSQL, so exclude database scripts from the stats.
+*.sql linguist-detectable=false
+database/** linguist-detectable=false
+docs/** linguist-documentation
