@@ -1,5 +1,0 @@
-# Copy to application.properties (git-ignored) next to where you run the app, or set env vars
-# GERMS_SUPABASE_URL and GERMS_SUPABASE_ANON_KEY.
-# Use ONLY the public anon / publishable key. Never put a service_role / secret key here; the app refuses to start with one.
-supabase.url=https://YOUR-PROJECT-REF.supabase.co
-supabase.anonKey=YOUR-PUBLIC-ANON-KEY
