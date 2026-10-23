@@ -18,7 +18,6 @@ import java.awt.GridLayout;
 
 /**
  * Phase 1 dashboard: proves the authenticated, RLS-filtered round trip to Supabase with real counts.
- * The full command-center (response tracking, assignments, live feed) arrives in Phase 2.
  */
 public final class DashboardPanel extends JPanel {
     private final AppContext ctx;

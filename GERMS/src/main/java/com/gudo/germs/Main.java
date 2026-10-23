@@ -11,7 +11,7 @@ public final class Main {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            ThemeManager.installSaved();
+            // ThemeManager.installSaved();
             new MainWindow(AppContext.create()).setVisible(true);
         });
     }

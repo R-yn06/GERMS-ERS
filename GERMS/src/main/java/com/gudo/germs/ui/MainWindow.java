@@ -10,7 +10,7 @@ import javax.swing.JPanel;
 import java.awt.CardLayout;
 import java.awt.Dimension;
 
-/** Top-level window; swaps between the login screen and the role-specific shell. */
+
 public final class MainWindow extends JFrame {
     private static final String LOGIN = "login";
     private static final String SHELL = "shell";

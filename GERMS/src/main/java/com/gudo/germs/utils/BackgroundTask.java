@@ -5,7 +5,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Consumer;
 
-/** Runs blocking work off the Event Dispatch Thread and delivers the result back on it. */
+// Runs blocking work off the Event Dispatch Thread and delivers the result back on it. 
 public final class BackgroundTask {
     private BackgroundTask() { }
 

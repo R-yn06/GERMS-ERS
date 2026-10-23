@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Properties;
 
-/** Loads public Supabase settings. Precedence: environment variables, ./application.properties, classpath. */
+// Loads public Supabase settings
 public final class AppConfig {
     private final String supabaseUrl;
     private final String anonKey;

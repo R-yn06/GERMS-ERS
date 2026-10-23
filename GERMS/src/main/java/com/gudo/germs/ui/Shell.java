@@ -29,7 +29,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-/** Signed-in frame content: top bar, role-filtered sidebar, and lazily created module panels. */
+// Signed-in frame content
 public final class Shell extends JPanel {
     private final AppContext ctx;
     private final Profile user;

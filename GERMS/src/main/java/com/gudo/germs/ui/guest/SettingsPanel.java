@@ -12,7 +12,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import java.awt.Font;
 
-/** Settings available to every role (theme now; alert sound and volume in Phase 2). */
+//* Settings available to every role
 public final class SettingsPanel extends JPanel {
     public SettingsPanel(Profile user) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));

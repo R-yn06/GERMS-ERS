@@ -2,7 +2,7 @@ package com.gudo.germs.ui.theme;
 
 import java.awt.Color;
 
-/** Single source of truth for brand colors. Theme-dependent values resolve through ThemeManager. */
+
 public final class GermsColors {
     private GermsColors() { }
 
@@ -21,6 +21,7 @@ public final class GermsColors {
     public static final Color LIGHT_BACKGROUND = Color.decode("#F5F6F8");
     public static final Color LIGHT_SURFACE = Color.decode("#FFFFFF");
     public static final Color LIGHT_TEXT = Color.decode("#202124");
+
 
     public static Color background() { return ThemeManager.isDark() ? DARK_BACKGROUND : LIGHT_BACKGROUND; }
     public static Color surface() { return ThemeManager.isDark() ? DARK_SURFACE : LIGHT_SURFACE; }

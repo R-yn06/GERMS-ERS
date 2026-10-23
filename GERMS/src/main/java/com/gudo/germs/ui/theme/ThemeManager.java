@@ -13,11 +13,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.prefs.Preferences;
 
-/** Installs FlatLaf in light or dark mode with GERMS brand defaults and remembers the choice. */
+// Installs FlatLaf in light or dark mode and remembers
+
 public final class ThemeManager {
     private static final Preferences PREFS = Preferences.userNodeForPackage(ThemeManager.class);
     private static final String KEY_DARK = "theme.dark";
     private static boolean dark;
+
 
     private ThemeManager() { }
 
@@ -30,7 +32,7 @@ public final class ThemeManager {
         PREFS.putBoolean(KEY_DARK, dark);
     }
 
-    /** Safe to call at startup or later; refreshes all open windows. */
+    //refreshes all open windows
     public static void apply(boolean useDark) {
         dark = useDark;
         FlatLaf.setGlobalExtraDefaults(Map.ofEntries(

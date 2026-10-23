@@ -7,7 +7,8 @@ import com.gudo.germs.supabase.RestClient;
 import com.gudo.germs.supabase.SessionManager;
 import com.gudo.germs.supabase.SupabaseHttp;
 
-/** Wires the application's singletons by hand; no DI framework. */
+// Wires the application's singletons manuallu
+
 public final class AppContext {
     public final AppConfig config;
     public final SessionManager sessions;
