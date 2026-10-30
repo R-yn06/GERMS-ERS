@@ -9,8 +9,10 @@ import com.gudo.germs.supabase.RestClient;
 import com.gudo.germs.supabase.SessionManager;
 import com.gudo.germs.supabase.SupabaseHttp;
 
-/** Wires the application's singletons by hand; no DI framework. */
+
 public final class AppContext {
+    private static AppContext instance;
+
     public final AppConfig config;
     public final SessionManager sessions;
     public final RestClient rest;
@@ -26,5 +28,11 @@ public final class AppContext {
         this.incidents = new IncidentService(new SupabaseIncidentRepository(rest));
     }
 
-    public static AppContext create() { return new AppContext(AppConfig.load()); }
+    public static synchronized AppContext get() {
+        if (instance == null) instance = new AppContext(AppConfig.load());
+        return instance;
+    }
+
+   
+    public static AppContext create() { return get(); }
 }

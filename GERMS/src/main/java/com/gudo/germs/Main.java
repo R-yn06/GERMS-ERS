@@ -14,5 +14,7 @@ public final class Main {
             ThemeManager.installSaved();
             new MainWindow(AppContext.create()).setVisible(true);
         });
+
+        
     }
 }
