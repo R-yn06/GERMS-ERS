@@ -1,6 +1,7 @@
 package com.gudo.germs.ui.guest;
 
 import com.gudo.germs.models.Profile;
+import com.gudo.germs.config.AppContext;
 import com.gudo.germs.services.IncidentService;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
@@ -19,16 +20,17 @@ import java.awt.GridLayout;
 
 /** Public, preliminary incident report. It enters the workflow as an unverified Draft for staff to review. */
 public final class GuestReportPanel extends JPanel {
-    private final IncidentService service = IncidentService.get();
+    private final IncidentService service;
     private final JTextField title = new JTextField();
     private final JTextField location = new JTextField();
     private final JComboBox<String> type = new JComboBox<>(
-            new String[] {"Flood", "Fire", "Earthquake", "Typhoon", "Vehicular accident", "Medical emergency", "Other"});
+            new String[] {"Flood", "Fire", "Landslide", "Typhoon", "Vehicular accident", "Medical emergency", "Other"});
     private final JComboBox<String> severity = new JComboBox<>(new String[] {"low", "moderate", "high", "critical"});
     private final JButton submit = new JButton("Submit report");
     private final JLabel message = new JLabel(" ");
 
-    public GuestReportPanel(Profile user) {
+    public GuestReportPanel(AppContext ctx, Profile user) {
+        this.service = ctx.incidents;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));
         JLabel head = new JLabel("Report an Incident");
@@ -70,11 +72,11 @@ public final class GuestReportPanel extends JPanel {
         submit.setEnabled(false);
         String t = title.getText(), l = location.getText();
         String ty = (String) type.getSelectedItem(), sv = (String) severity.getSelectedItem();
-        BackgroundTask.run(() -> service.report(t, ty, l, sv, user.fullName() + " (public report)"), i -> {
+        BackgroundTask.run(() -> service.submitGuestReport(t, ty, l, sv, user.fullName() + " (public report)"), i -> {
             submit.setEnabled(true);
             title.setText("");
             location.setText("");
-            message.setText("Report received. Reference: " + i.id() + ". Awaiting dispatcher verification.");
+            message.setText("Report received. Reference: " + i.reference() + ". Awaiting dispatcher verification.");
             message.setForeground(GermsColors.SUCCESS);
         }, err -> {
             submit.setEnabled(true);

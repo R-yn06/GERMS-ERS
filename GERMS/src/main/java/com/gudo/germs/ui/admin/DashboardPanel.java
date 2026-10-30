@@ -20,15 +20,17 @@ import java.util.List;
 
 /** Dashboard driven by the same IncidentService as the Incidents screen; refreshes via the event bus. */
 public final class DashboardPanel extends JPanel {
-    private final IncidentService service = IncidentService.get();
+    private final IncidentService service;
     private final boolean guest;
     private final StatCard visible = new StatCard("Incidents visible to you", "\u2026", GermsColors.INFO);
     private final StatCard active = new StatCard("Active incidents", "\u2026", GermsColors.CRITICAL);
     private final StatCard critical = new StatCard("Critical & active", "\u2026", GermsColors.WARNING);
     private final StatCard closed = new StatCard("Closed", "\u2026", GermsColors.SUCCESS);
+    private final JLabel note = new JLabel("Incident counts are loaded from Supabase.");
     private Runnable unsubscribe;
 
     public DashboardPanel(AppContext ctx, Profile user) {
+        this.service = ctx.incidents;
         this.guest = user.role().name().equals("GUEST");
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));
@@ -50,8 +52,6 @@ public final class DashboardPanel extends JPanel {
         add(row);
         add(Box.createVerticalStrut(16));
 
-        JLabel note = new JLabel("<html>Counts update <b>instantly</b> when an incident is reported or changes status "
-                + "(in-process event bus). Data is a prepared in-memory sample set; Supabase persistence is a later phase.</html>");
         note.setForeground(GermsColors.SECONDARY_TEXT);
         note.setAlignmentX(LEFT_ALIGNMENT);
         add(note);
@@ -71,6 +71,7 @@ public final class DashboardPanel extends JPanel {
 
     private void load() {
         BackgroundTask.run(() -> service.visibleTo(guest), (List<Incident> list) -> {
+            note.setText("Incident counts are loaded from Supabase.");
             long act = list.stream().filter(i -> i.status().isActive()).count();
             long crit = list.stream().filter(i -> i.status().isActive() && "critical".equals(i.severity())).count();
             long done = list.stream().filter(i -> i.status() == IncidentStatus.CLOSED).count();
@@ -83,6 +84,7 @@ public final class DashboardPanel extends JPanel {
             active.setValue("\u2014");
             critical.setValue("\u2014");
             closed.setValue("\u2014");
+            note.setText("Could not load incident data: " + err.getMessage());
         });
     }
 }

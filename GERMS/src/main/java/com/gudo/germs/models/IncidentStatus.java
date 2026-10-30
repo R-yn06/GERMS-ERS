@@ -28,6 +28,13 @@ public enum IncidentStatus {
     public String key() { return key; }
     public String label() { return label; }
 
+    public static IncidentStatus fromKey(String key) {
+        for (IncidentStatus status : values()) {
+            if (status.key.equals(key)) return status;
+        }
+        throw new IllegalArgumentException("Unknown incident status: " + key);
+    }
+
     /** The single legal forward transition from this state, if any. */
     public Optional<IncidentStatus> next() {
         return switch (this) {

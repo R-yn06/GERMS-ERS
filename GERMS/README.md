@@ -4,8 +4,8 @@ Student project for the Philippine Red Cross, Davao City Chapter. Not endorsed b
 
 ## Setup
 1. **Supabase project**: create one at supabase.com.
-2. **Migrations**: in the SQL editor run, in order, `database/migrations/001_core_schema.sql`, `002_rls_policies.sql`, `003_rpc_functions.sql`, `004_reference_seed.sql`.
-3. **First admin**: follow the comments at the top of `database/seed_data.sql`, then run the file for a labeled sample incident.
+2. **Migrations**: in the SQL editor run, in order, `database/migrations/001_core_schema.sql`, `002_rls_policies.sql`, `003_rpc_functions.sql`, `004_reference_seed.sql`, and `005_response_teams.sql`.
+3. **First admin**: follow the bootstrap comments at the top of `database/seed_data.sql`. The client and setup scripts do not seed sample incidents.
 4. **Client config**: copy `src/main/resources/application.properties.example` to `application.properties` in the project root (git-ignored), or set `GERMS_SUPABASE_URL` and `GERMS_SUPABASE_ANON_KEY`. Use the **anon/publishable** key only. The app refuses service-role or secret keys.
 5. **Run**: `mvn exec:java` (JDK 21). NetBeans: open as Maven project, Run. VS Code: install "Extension Pack for Java", open the folder, run `Main`.
 6. **Package**: `mvn package`, then `java -jar target/germs-0.1.0-SNAPSHOT.jar` (run from the folder holding `application.properties`).

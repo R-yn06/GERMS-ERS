@@ -3,8 +3,10 @@ package com.gudo.germs.ui.incident;
 import com.gudo.germs.models.Incident;
 import com.gudo.germs.models.IncidentStatus;
 import com.gudo.germs.models.Profile;
+import com.gudo.germs.models.ResponseTeam;
 import com.gudo.germs.models.Role;
 import com.gudo.germs.models.TimelineEntry;
+import com.gudo.germs.config.AppContext;
 import com.gudo.germs.services.IncidentService;
 import com.gudo.germs.ui.components.StatusBadge;
 import com.gudo.germs.ui.theme.GermsColors;
@@ -39,10 +41,10 @@ import java.util.List;
 /** Main workflow screen: report an incident, publish it, assign a team, step it through response, close it. */
 public final class IncidentPanel extends JPanel {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("MMM d, HH:mm").withZone(ZoneId.systemDefault());
-    private static final String[] TYPES = {"Flood", "Fire", "Earthquake", "Typhoon", "Vehicular accident", "Medical emergency", "Other"};
+    private static final String[] TYPES = {"Flood", "Fire", "Landslide", "Typhoon", "Vehicular accident", "Medical emergency", "Other"};
     private static final String[] SEVERITIES = {"low", "moderate", "high", "critical"};
 
-    private final IncidentService service = IncidentService.get();
+    private final IncidentService service;
     private final Profile user;
     private final boolean admin;
 
@@ -54,7 +56,7 @@ public final class IncidentPanel extends JPanel {
     private final JLabel heading = new JLabel("Select an incident");
     private final JLabel meta = new JLabel(" ");
     private final JTextArea timeline = new JTextArea();
-    private final JComboBox<String> teamBox = new JComboBox<>(IncidentService.TEAMS.toArray(new String[0]));
+    private final JComboBox<ResponseTeam> teamBox = new JComboBox<>();
     private final JButton assign = new JButton("Assign team");
     private final JButton advance = new JButton("Advance");
     private final JLabel message = new JLabel(" ");
@@ -62,8 +64,9 @@ public final class IncidentPanel extends JPanel {
     private List<Incident> rows = List.of();
     private Runnable unsubscribe;
 
-    public IncidentPanel(Profile user) {
+    public IncidentPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
+        this.service = ctx.incidents;
         this.user = user;
         this.admin = user.role() == Role.ADMIN;
         setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));
@@ -129,9 +132,14 @@ public final class IncidentPanel extends JPanel {
         actions.add(teamRow);
         actions.add(advance);
         assign.addActionListener(e -> doAssign());
+        teamBox.addActionListener(e -> {
+            Incident current = selected();
+            assign.setEnabled(admin && current != null && !current.status().isTerminal()
+                    && teamBox.getSelectedItem() != null);
+        });
         advance.addActionListener(e -> doAdvance());
         if (!admin) {
-            JLabel ro = new JLabel("Responder: you can advance published incidents. Only admins publish drafts and assign teams.");
+            JLabel ro = new JLabel("Only admins can change incident status or assign response teams.");
             ro.setForeground(GermsColors.SECONDARY_TEXT);
             actions.add(ro);
         }
@@ -154,6 +162,7 @@ public final class IncidentPanel extends JPanel {
     @Override public void addNotify() {
         super.addNotify();
         if (unsubscribe == null) unsubscribe = service.bus().subscribe(e -> refresh());
+        loadTeams();
         refresh();
     }
 
@@ -170,13 +179,22 @@ public final class IncidentPanel extends JPanel {
             int sel = -1;
             for (int i = 0; i < list.size(); i++) {
                 Incident inc = list.get(i);
-                model.addRow(new Object[] {inc.id(), inc.title(), StatusBadge.label(inc.severity()),
+                model.addRow(new Object[] {inc.reference(), inc.title(), StatusBadge.label(inc.severity()),
                         inc.status().label(), inc.team() == null ? "\u2014" : inc.team()});
                 if (inc.id().equals(keep)) sel = i;
             }
+
             if (sel >= 0) table.setRowSelectionInterval(sel, sel);
             updateDetail();
         }, err -> showMessage("Could not load incidents: " + err.getMessage(), true));
+    }
+
+    private void loadTeams() {
+        BackgroundTask.run(service::responseTeams, teams -> {
+            teamBox.removeAllItems();
+            for (ResponseTeam team : teams) teamBox.addItem(team);
+            updateDetail();
+        }, err -> showMessage("Could not load response teams: " + err.getMessage(), true));
     }
 
     private Incident selected() {
@@ -196,7 +214,7 @@ public final class IncidentPanel extends JPanel {
             teamBox.setEnabled(false);
             return;
         }
-        heading.setText(i.id() + " \u2013 " + i.title());
+        heading.setText(i.reference() + " \u2013 " + i.title());
         meta.setText(i.type() + "  \u00B7  " + i.location() + "  \u00B7  Reported by " + i.reportedBy());
         StringBuilder sb = new StringBuilder();
         for (TimelineEntry t : i.timeline()) {
@@ -206,27 +224,46 @@ public final class IncidentPanel extends JPanel {
         timeline.setCaretPosition(0);
         var next = i.status().next();
         advance.setText(next.map(n -> "Advance to: " + n.label()).orElse("No further steps (" + i.status().label() + ")"));
-        advance.setEnabled(next.isPresent() && (admin || i.status() != IncidentStatus.DRAFT));
+        advance.setEnabled(next.isPresent() && admin);
         boolean canAssign = admin && !i.status().isTerminal();
-        assign.setEnabled(canAssign);
         teamBox.setEnabled(canAssign);
-        if (i.team() != null) teamBox.setSelectedItem(i.team());
+        for (int index = 0; index < teamBox.getItemCount(); index++) {
+            if (teamBox.getItemAt(index).name().equals(i.team())) {
+                teamBox.setSelectedIndex(index);
+                assign.setEnabled(canAssign);
+                return;
+            }
+        }
+        teamBox.setSelectedItem(null);
+        assign.setEnabled(false);
     }
 
     private void doAdvance() {
         Incident i = selected();
         if (i == null) return;
-        BackgroundTask.run(() -> service.advance(i.id(), user.fullName()),
-                u -> showMessage(u.id() + " is now " + u.status().label() + ".", false),
+        String closureSummary = null;
+        if (i.status().next().orElse(null) == IncidentStatus.CLOSED) {
+            closureSummary = JOptionPane.showInputDialog(this, "Enter the incident closure summary:",
+                    "Close incident", JOptionPane.PLAIN_MESSAGE);
+            if (closureSummary == null) return;
+            if (closureSummary.isBlank()) {
+                showMessage("A closure summary is required.", true);
+                return;
+            }
+        }
+        String summary = closureSummary;
+        BackgroundTask.run(() -> service.advance(i.id(), user.fullName(), summary),
+                u -> showMessage(u.reference() + " is now " + u.status().label() + ".", false),
                 err -> showMessage(err.getMessage(), true));
     }
 
     private void doAssign() {
         Incident i = selected();
         if (i == null) return;
-        String team = (String) teamBox.getSelectedItem();
-        BackgroundTask.run(() -> service.assignTeam(i.id(), team, user.fullName()),
-                u -> showMessage(team + " assigned to " + u.id() + ".", false),
+        ResponseTeam team = (ResponseTeam) teamBox.getSelectedItem();
+        if (team == null) return;
+        BackgroundTask.run(() -> service.assignTeam(i.id(), team),
+                u -> showMessage(team.name() + " assigned to " + u.reference() + ".", false),
                 err -> showMessage(err.getMessage(), true));
     }
 
@@ -243,10 +280,17 @@ public final class IncidentPanel extends JPanel {
         form.add(new JLabel("Severity")); form.add(severity);
         if (JOptionPane.showConfirmDialog(this, form, "Report an incident",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
-        BackgroundTask.run(() -> service.report(title.getText(), (String) type.getSelectedItem(),
-                        location.getText(), (String) severity.getSelectedItem(), user.fullName()),
-                i -> showMessage(i.id() + " created as Draft. An admin must publish it.", false),
-                err -> showMessage(err.getMessage(), true));
+        if (admin) {
+            BackgroundTask.run(() -> service.report(title.getText(), (String) type.getSelectedItem(),
+                            location.getText(), (String) severity.getSelectedItem(), user.fullName()),
+                    i -> showMessage(i.reference() + " created as Draft. An admin must publish it.", false),
+                    err -> showMessage(err.getMessage(), true));
+        } else {
+            BackgroundTask.run(() -> service.submitGuestReport(title.getText(), (String) type.getSelectedItem(),
+                            location.getText(), (String) severity.getSelectedItem(), user.fullName()),
+                    i -> showMessage(i.reference() + " submitted for dispatcher verification.", false),
+                    err -> showMessage(err.getMessage(), true));
+        }
     }
 
     private void showMessage(String text, boolean error) {

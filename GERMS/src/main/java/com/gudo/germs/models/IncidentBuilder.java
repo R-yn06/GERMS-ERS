@@ -6,6 +6,7 @@ import java.util.List;
 
 public final class IncidentBuilder {
     private String id;
+    private String incidentNo;
     private String title;
     private String type = "Other";
     private String location;
@@ -17,6 +18,7 @@ public final class IncidentBuilder {
     private final List<TimelineEntry> timeline = new ArrayList<>();
 
     public IncidentBuilder id(String v) { this.id = v; return this; }
+    public IncidentBuilder incidentNo(String v) { this.incidentNo = v; return this; }
     public IncidentBuilder title(String v) { this.title = v; return this; }
     public IncidentBuilder type(String v) { this.type = v; return this; }
     public IncidentBuilder location(String v) { this.location = v; return this; }
@@ -40,6 +42,6 @@ public final class IncidentBuilder {
         List<TimelineEntry> tl = timeline.isEmpty()
                 ? List.of(new TimelineEntry(at, reportedBy, "Incident reported"))
                 : List.copyOf(timeline);
-        return new Incident(id, title.trim(), type, location.trim(), severity, status, team, reportedBy, at, tl);
+        return new Incident(id, incidentNo, title.trim(), type, location.trim(), severity, status, team, reportedBy, at, tl);
     }
 }

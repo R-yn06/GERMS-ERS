@@ -118,8 +118,8 @@ public final class Shell extends JPanel {
         return switch (module) {
             case DASHBOARD -> new DashboardPanel(ctx, user);
             case SETTINGS -> new SettingsPanel(user);
-            case INCIDENTS -> new IncidentPanel(user);
-            case GUEST_REPORT -> new GuestReportPanel(user);
+            case INCIDENTS -> new IncidentPanel(ctx, user);
+            case GUEST_REPORT -> new GuestReportPanel(ctx, user);
             default -> new ModulePlaceholderPanel(module);
         };
     }
