@@ -1,25 +1,28 @@
 package com.gudo.germs.ui.auth;
 
-import com.gudo.germs.config.AppContext;
-import com.gudo.germs.models.Profile;
-import com.gudo.germs.ui.theme.GermsColors;
-import com.gudo.germs.utils.BackgroundTask;
-
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.JButton;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
+import java.awt.Image;
 import java.util.function.Consumer;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JPasswordField;
+import javax.swing.JTextField;
+
+import com.gudo.germs.config.AppContext;
+import com.gudo.germs.models.Profile;
+import com.gudo.germs.ui.theme.GermsColors;
+import com.gudo.germs.utils.BackgroundTask;
 
 /** Split login screen: red brand panel and a sign-in form. Also offers guest access. */
 public final class LoginPanel extends JPanel {
@@ -45,6 +48,10 @@ public final class LoginPanel extends JPanel {
         JPanel box = new JPanel();
         box.setOpaque(false);
         box.setLayout(new BoxLayout(box, BoxLayout.Y_AXIS));
+        ImageIcon logo = new ImageIcon(getClass().getResource("/com/gudo/germs/ui/Images/Logo.png"));
+        
+        box.add(new JLabel(new ImageIcon(logo.getImage().getScaledInstance(140, 140, Image.SCALE_SMOOTH))));
+        box.add(Box.createVerticalStrut(16));
         JLabel name = white("GERMS", 54, Font.BOLD);
         JLabel full = white("Gudo Emergency Response Management System", 16, Font.PLAIN);
         JLabel org = white("Philippine Red Cross \u2013 Davao City Chapter", 13, Font.PLAIN);
