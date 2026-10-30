@@ -7,7 +7,9 @@ import com.gudo.germs.security.Module;
 import com.gudo.germs.ui.admin.DashboardPanel;
 import com.gudo.germs.ui.components.ModulePlaceholderPanel;
 import com.gudo.germs.ui.components.SurfacePanel;
+import com.gudo.germs.ui.guest.GuestReportPanel;
 import com.gudo.germs.ui.guest.SettingsPanel;
+import com.gudo.germs.ui.incident.IncidentPanel;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.ui.theme.ThemeManager;
 
@@ -116,6 +118,8 @@ public final class Shell extends JPanel {
         return switch (module) {
             case DASHBOARD -> new DashboardPanel(ctx, user);
             case SETTINGS -> new SettingsPanel(user);
+            case INCIDENTS -> new IncidentPanel(user);
+            case GUEST_REPORT -> new GuestReportPanel(user);
             default -> new ModulePlaceholderPanel(module);
         };
     }
