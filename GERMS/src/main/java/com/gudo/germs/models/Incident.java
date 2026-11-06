@@ -17,6 +17,8 @@ public record Incident(String id, String incidentNo, String title, String type, 
         return incidentNo == null || incidentNo.isBlank() ? id : incidentNo;
     }
 
+    @Override public String toString() { return reference() + " · " + title + " (" + severity.toUpperCase() + ")"; }
+
     public Incident withIncidentNo(String newIncidentNo) {
         return new Incident(id, newIncidentNo, title, type, location, severity, status, team, reportedBy, reportedAt, timeline);
     }

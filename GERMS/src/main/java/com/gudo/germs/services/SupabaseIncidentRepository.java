@@ -135,6 +135,11 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return find(id).orElseThrow(() -> new SupabaseException(404, "The updated incident could not be loaded."));
     }
 
+    @Override public void respond(String id, String decision, String note) throws SupabaseException {
+        rest.rpc("respond_to_incident", Map.of("p_incident", UUID.fromString(id).toString(),
+                "p_decision", decision, "p_note", note == null ? "" : note));
+    }
+
     private static Incident toIncident(JsonNode row) {
         String id = row.path("id").asText();
         Instant reportedAt = Instant.parse(row.path("reported_at").asText());

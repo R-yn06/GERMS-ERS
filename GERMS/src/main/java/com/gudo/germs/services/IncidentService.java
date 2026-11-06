@@ -86,6 +86,18 @@ public final class IncidentService {
         return updated;
     }
 
+    public synchronized void respond(String id, String decision, String note) throws SupabaseException {
+        if (!"accepted".equals(decision) && !"declined".equals(decision)) {
+            throw new IllegalArgumentException("Response must be accepted or declined.");
+        }
+        Incident incident = get(id);
+        if (!incident.status().isActive() || incident.status() == IncidentStatus.STABILIZED) {
+            throw new IllegalStateException("This incident is not accepting responses.");
+        }
+        repo.respond(id, decision, note);
+        bus.publish(new IncidentEvent(IncidentEvent.Type.UPDATED, incident));
+    }
+
     private Incident get(String id) throws SupabaseException {
         return repo.find(id).orElseThrow(() -> new IllegalArgumentException("Incident not found: " + id));
     }

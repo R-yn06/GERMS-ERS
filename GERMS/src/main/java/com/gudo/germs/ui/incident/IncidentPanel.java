@@ -59,6 +59,8 @@ public final class IncidentPanel extends JPanel {
     private final JComboBox<ResponseTeam> teamBox = new JComboBox<>();
     private final JButton assign = new JButton("Assign team");
     private final JButton advance = new JButton("Advance");
+    private final JButton accept = new JButton("Accept response");
+    private final JButton decline = new JButton("Decline");
     private final JLabel message = new JLabel(" ");
 
     private List<Incident> rows = List.of();
@@ -131,6 +133,8 @@ public final class IncidentPanel extends JPanel {
         teamRow.add(assign, BorderLayout.EAST);
         actions.add(teamRow);
         actions.add(advance);
+        actions.add(accept);
+        actions.add(decline);
         assign.addActionListener(e -> doAssign());
         teamBox.addActionListener(e -> {
             Incident current = selected();
@@ -138,6 +142,10 @@ public final class IncidentPanel extends JPanel {
                     && teamBox.getSelectedItem() != null);
         });
         advance.addActionListener(e -> doAdvance());
+        accept.addActionListener(e -> doRespond("accepted"));
+        decline.addActionListener(e -> doRespond("declined"));
+        accept.setVisible(!admin);
+        decline.setVisible(!admin);
         if (!admin) {
             JLabel ro = new JLabel("Only admins can change incident status or assign response teams.");
             ro.setForeground(GermsColors.SECONDARY_TEXT);
@@ -210,6 +218,8 @@ public final class IncidentPanel extends JPanel {
             timeline.setText("");
             advance.setText("Advance");
             advance.setEnabled(false);
+            accept.setEnabled(false);
+            decline.setEnabled(false);
             assign.setEnabled(false);
             teamBox.setEnabled(false);
             return;
@@ -225,6 +235,9 @@ public final class IncidentPanel extends JPanel {
         var next = i.status().next();
         advance.setText(next.map(n -> "Advance to: " + n.label()).orElse("No further steps (" + i.status().label() + ")"));
         advance.setEnabled(next.isPresent() && admin);
+        boolean accepting = !admin && i.status().isActive() && i.status() != IncidentStatus.STABILIZED;
+        accept.setEnabled(accepting);
+        decline.setEnabled(accepting);
         boolean canAssign = admin && !i.status().isTerminal();
         teamBox.setEnabled(canAssign);
         for (int index = 0; index < teamBox.getItemCount(); index++) {
@@ -265,6 +278,16 @@ public final class IncidentPanel extends JPanel {
         BackgroundTask.run(() -> service.assignTeam(i.id(), team),
                 u -> showMessage(team.name() + " assigned to " + u.reference() + ".", false),
                 err -> showMessage(err.getMessage(), true));
+    }
+
+    private void doRespond(String decision) {
+        Incident incident = selected();
+        if (incident == null) return;
+        String note = JOptionPane.showInputDialog(this, "Optional note for command:", "Incident response", JOptionPane.PLAIN_MESSAGE);
+        if (note == null) return;
+        BackgroundTask.run(() -> { service.respond(incident.id(), decision, note); return null; },
+                ignored -> showMessage("Your " + decision + " response was recorded.", false),
+                err -> showMessage("Response was not recorded: " + err.getMessage(), true));
     }
 
     private void reportDialog() {

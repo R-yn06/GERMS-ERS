@@ -16,3 +16,7 @@ Student project for the Philippine Red Cross, Davao City Chapter. Not endorsed b
 - `profiles.role` and `is_active` are not client-updatable (column-level grants).
 - `public_advisories` is a view owned by the migration role and intentionally bypasses RLS to expose a fixed, narrow column set to guests. Review it before deployment.
 - Guest report spam control (rate limiting / CAPTCHA) is not implemented; add it before any public exposure.
+
+## Current implementation status
+
+This repository contains Phase 2 foundations, not the complete Phase 2 acceptance scope. Incident workflows, guest report persistence, the secured schema/RPCs, responder incident responses, and the administrator dispatch response monitor are implemented. Dispatch polls in the foreground every five seconds and confirms assignments through the database authorization RPC. Responder/account/classification management, notification center and audio/background delivery, and several operational modules remain incomplete. See [implementation status](docs/implementation-status.md), [architecture](ARCHITECTURE.md), and [testing notes](TESTING.md).
