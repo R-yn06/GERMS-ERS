@@ -6,11 +6,13 @@ import com.gudo.germs.security.AccessPolicy;
 import com.gudo.germs.security.Module;
 import com.gudo.germs.ui.admin.DashboardPanel;
 import com.gudo.germs.ui.components.ModulePlaceholderPanel;
+import com.gudo.germs.ui.components.OperationalTablePanel;
 import com.gudo.germs.ui.components.SurfacePanel;
 import com.gudo.germs.ui.guest.GuestReportPanel;
 import com.gudo.germs.ui.guest.SettingsPanel;
 import com.gudo.germs.ui.incident.IncidentPanel;
 import com.gudo.germs.ui.admin.DispatchPanel;
+import com.gudo.germs.ui.admin.UserManagementPanel;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.ui.theme.ThemeManager;
 
@@ -31,6 +33,7 @@ import java.awt.Font;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Arrays;
 
 /** Signed-in frame content: top bar, role-filtered sidebar, and lazily created module panels. */
 public final class Shell extends JPanel {
@@ -122,6 +125,60 @@ public final class Shell extends JPanel {
             case INCIDENTS -> new IncidentPanel(ctx, user);
             case DISPATCH -> new DispatchPanel(ctx, user);
             case GUEST_REPORT -> new GuestReportPanel(ctx, user);
+            case MAP -> new OperationalTablePanel(ctx, "Live Operations Map",
+                    "Incident locations and responder locations shared with the command center.",
+                    "incidents", "select=incident_no,title,severity,status,location_text,latitude,longitude&order=updated_at.desc",
+                    Arrays.asList(
+                            new OperationalTablePanel.Column("Incident", "incident_no"),
+                            new OperationalTablePanel.Column("Title", "title"),
+                            new OperationalTablePanel.Column("Severity", "severity"),
+                            new OperationalTablePanel.Column("Status", "status"),
+                            new OperationalTablePanel.Column("Location", "location_text"),
+                            new OperationalTablePanel.Column("Latitude", "latitude"),
+                            new OperationalTablePanel.Column("Longitude", "longitude")));
+            case RESPONDERS -> new UserManagementPanel(ctx, true);
+            case USERS -> new UserManagementPanel(ctx, false);
+            case REPORTS -> new OperationalTablePanel(ctx, "Reports and Analytics",
+                    "Operational incident data suitable for review, filtering, and export from the table.",
+                    "incidents", "select=incident_no,title,category,severity,status,reported_at,closed_at&order=reported_at.desc",
+                    Arrays.asList(
+                            new OperationalTablePanel.Column("Incident", "incident_no"),
+                            new OperationalTablePanel.Column("Title", "title"),
+                            new OperationalTablePanel.Column("Category", "category"),
+                            new OperationalTablePanel.Column("Severity", "severity"),
+                            new OperationalTablePanel.Column("Status", "status"),
+                            new OperationalTablePanel.Column("Reported", "reported_at"),
+                            new OperationalTablePanel.Column("Closed", "closed_at")));
+            case EVACUATION -> new OperationalTablePanel(ctx, "Evacuation Centers",
+                    "Capacity, occupancy, location, and operating status for registered centers.",
+                    "evacuation_centers", "select=name,address,capacity,occupancy,status,latitude,longitude&order=name.asc",
+                    Arrays.asList(
+                            new OperationalTablePanel.Column("Center", "name"),
+                            new OperationalTablePanel.Column("Address", "address"),
+                            new OperationalTablePanel.Column("Capacity", "capacity"),
+                            new OperationalTablePanel.Column("Occupancy", "occupancy"),
+                            new OperationalTablePanel.Column("Status", "status"),
+                            new OperationalTablePanel.Column("Latitude", "latitude"),
+                            new OperationalTablePanel.Column("Longitude", "longitude")));
+            case GUEST_EVACUATION -> new OperationalTablePanel(ctx, "Evacuation Centers",
+                    "Publicly available center capacity and operating status.",
+                    "evacuation_centers", "select=name,address,capacity,occupancy,status&status=neq.closed&order=name.asc",
+                    Arrays.asList(
+                            new OperationalTablePanel.Column("Center", "name"),
+                            new OperationalTablePanel.Column("Address", "address"),
+                            new OperationalTablePanel.Column("Capacity", "capacity"),
+                            new OperationalTablePanel.Column("Occupancy", "occupancy"),
+                            new OperationalTablePanel.Column("Status", "status")));
+            case DISASTER -> new OperationalTablePanel(ctx, "Disaster Management",
+                    "Relief operations and inventory currently registered in the command database.",
+                    "disaster_resources", "select=name,resource_type,quantity,unit,status,updated_at&order=updated_at.desc",
+                    Arrays.asList(
+                            new OperationalTablePanel.Column("Resource", "name"),
+                            new OperationalTablePanel.Column("Type", "resource_type"),
+                            new OperationalTablePanel.Column("Quantity", "quantity"),
+                            new OperationalTablePanel.Column("Unit", "unit"),
+                            new OperationalTablePanel.Column("Status", "status"),
+                            new OperationalTablePanel.Column("Updated", "updated_at")));
             default -> new ModulePlaceholderPanel(module);
         };
     }

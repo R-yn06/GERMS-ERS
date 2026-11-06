@@ -25,6 +25,11 @@ public final class RestClient {
         return http.send("POST", "/rest/v1/rpc/" + function, body, sessions.accessToken(), null);
     }
 
+    public JsonNode invokeFunction(String function, Object args) throws SupabaseException {
+        String body = args == null ? "{}" : SupabaseHttp.JSON.valueToTree(args).toString();
+        return http.send("POST", "/functions/v1/" + function, body, sessions.accessToken(), null);
+    }
+
     /** Insert without reading the row back (guests may insert but never select). */
     public void insertMinimal(String table, Object row) throws SupabaseException {
         http.send("POST", "/rest/v1/" + table, SupabaseHttp.JSON.valueToTree(row).toString(),
