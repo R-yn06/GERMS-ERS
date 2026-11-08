@@ -19,7 +19,7 @@ import java.util.UUID;
 /** Incident and response-team persistence through Supabase PostgREST and secured RPCs. */
 public final class SupabaseIncidentRepository implements IncidentRepository {
     private static final String INCIDENT_FIELDS =
-            "id,incident_no,title,category,severity,status,reported_at,location_text,"
+            "id,incident_no,title,description,category,severity,status,reported_at,location_text,latitude,longitude,"
                     + "creator:profiles!incidents_created_by_fkey(full_name),response_teams(name),"
                     + "incident_updates(id,created_at,message,author_id,"
                     + "profiles!incident_updates_author_id_fkey(full_name))";
@@ -85,12 +85,16 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
     }
 
     @Override public Incident create(Incident incident) throws SupabaseException {
-        Map<String, Object> values = Map.of(
-                "title", incident.title(),
-                "category", categoryCode(incident.type()),
-                "severity", incident.severity(),
-                "location_text", incident.location(),
-                "is_public", false);
+        Map<String, Object> values = new java.util.HashMap<>();
+        values.put("title", incident.title());
+        values.put("description", incident.description() == null ? "" : incident.description());
+        values.put("category", categoryCode(incident.type()));
+        values.put("severity", incident.severity());
+        values.put("location_text", incident.location());
+        values.put("is_public", true);
+        if (incident.latitude() != null) values.put("latitude", incident.latitude());
+        if (incident.longitude() != null) values.put("longitude", incident.longitude());
+
         JsonNode result = rest.rpc("create_incident", Map.of("p", values));
         String id = result.isArray() && !result.isEmpty() ? result.get(0).asText() : result.asText();
         return find(id).orElseThrow(() -> new SupabaseException(404, "The created incident could not be loaded."));
@@ -169,6 +173,10 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
             timeline.add(new TimelineEntry(reportedAt, creator, "Incident reported"));
         }
 
+        Double lat = row.hasNonNull("latitude") ? row.path("latitude").asDouble() : null;
+        Double lon = row.hasNonNull("longitude") ? row.path("longitude").asDouble() : null;
+        String desc = row.path("description").asText("");
+
         return new Incident(
                 id,
                 row.path("incident_no").asText(id),
@@ -180,7 +188,10 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
                 team,
                 creator,
                 reportedAt,
-                timeline);
+                timeline,
+                lat,
+                lon,
+                desc);
     }
 
     private static String nestedName(JsonNode relation, String fallback) {

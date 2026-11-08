@@ -4,38 +4,24 @@ import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Profile;
 import com.gudo.germs.security.AccessPolicy;
 import com.gudo.germs.security.Module;
-import com.gudo.germs.ui.admin.DashboardPanel;
-import com.gudo.germs.ui.components.ModulePlaceholderPanel;
-import com.gudo.germs.ui.components.OperationalTablePanel;
+import com.gudo.germs.ui.admin.*;
+import com.gudo.germs.ui.components.EmergencyContactDirectoryPanel;
+import com.gudo.germs.ui.components.PublicAnnouncementsPanel;
 import com.gudo.germs.ui.components.SurfacePanel;
 import com.gudo.germs.ui.guest.GuestReportPanel;
+import com.gudo.germs.ui.guest.MySubmittedReportsPanel;
 import com.gudo.germs.ui.guest.SettingsPanel;
-import com.gudo.germs.ui.incident.IncidentPanel;
-import com.gudo.germs.ui.admin.DispatchPanel;
-import com.gudo.germs.ui.admin.UserManagementPanel;
+import com.gudo.germs.ui.incident.*;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.ui.theme.ThemeManager;
 
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JToggleButton;
-import java.awt.BorderLayout;
-import java.awt.CardLayout;
-import java.awt.Dimension;
-import java.awt.Font;
+import javax.swing.*;
+import java.awt.*;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Arrays;
 
-/** Signed-in frame content: top bar, role-filtered sidebar, and lazily created module panels. */
+/** Signed-in frame content: top bar, role-filtered sidebar, and lazily created operational module panels. */
 public final class Shell extends JPanel {
     private final AppContext ctx;
     private final Profile user;
@@ -95,7 +81,7 @@ public final class Shell extends JPanel {
             b.putClientProperty("JButton.buttonType", "toolBarButton");
             b.setHorizontalAlignment(JToggleButton.LEFT);
             b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
-            b.setPreferredSize(new Dimension(220, 38));
+            b.setPreferredSize(new Dimension(240, 38));
             b.setAlignmentX(LEFT_ALIGNMENT);
             b.setSelected(m == modules.get(0));
             b.addActionListener(e -> show(m));
@@ -124,62 +110,28 @@ public final class Shell extends JPanel {
             case SETTINGS -> new SettingsPanel(user);
             case INCIDENTS -> new IncidentPanel(ctx, user);
             case DISPATCH -> new DispatchPanel(ctx, user);
+            case MAP -> new LiveOperationsMapPanel(ctx, user);
+            case USERS -> new UserManagementPanel(ctx);
+            case TEAMS -> new TeamManagementPanel(ctx, user);
+            case RESOURCES -> new ResourceManagementPanel(ctx, user);
+            case EVACUATION -> new EvacuationCenterPanel(ctx, user, false);
+            case FIELD_REPORTS -> new FieldSituationReportPanel(ctx, user);
+            case COMMUNICATION -> new EmergencyCommunicationPanel(ctx, user);
+            case CONTACTS -> new EmergencyContactDirectoryPanel(ctx, user, false);
+            case REPORTS -> new ReportsAnalyticsPanel(ctx, user);
+            case AUDIT -> new AuditLogPanel(ctx, user);
+
+            // Responder Modules
+            case NOTIFICATIONS -> new NotificationPanel(ctx, user);
+            case MY_DEPLOYMENTS -> new MyDeploymentsPanel(ctx, user);
+            case MY_TEAM -> new MyTeamPanel(ctx, user);
+
+            // Guest Modules
+            case GUEST_ADVISORIES -> new PublicAnnouncementsPanel(ctx, user, true);
             case GUEST_REPORT -> new GuestReportPanel(ctx, user);
-            case MAP -> new OperationalTablePanel(ctx, "Live Operations Map",
-                    "Incident locations and responder locations shared with the command center.",
-                    "incidents", "select=incident_no,title,severity,status,location_text,latitude,longitude&order=updated_at.desc",
-                    Arrays.asList(
-                            new OperationalTablePanel.Column("Incident", "incident_no"),
-                            new OperationalTablePanel.Column("Title", "title"),
-                            new OperationalTablePanel.Column("Severity", "severity"),
-                            new OperationalTablePanel.Column("Status", "status"),
-                            new OperationalTablePanel.Column("Location", "location_text"),
-                            new OperationalTablePanel.Column("Latitude", "latitude"),
-                            new OperationalTablePanel.Column("Longitude", "longitude")));
-            case RESPONDERS -> new UserManagementPanel(ctx, true);
-            case USERS -> new UserManagementPanel(ctx, false);
-            case REPORTS -> new OperationalTablePanel(ctx, "Reports and Analytics",
-                    "Operational incident data suitable for review, filtering, and export from the table.",
-                    "incidents", "select=incident_no,title,category,severity,status,reported_at,closed_at&order=reported_at.desc",
-                    Arrays.asList(
-                            new OperationalTablePanel.Column("Incident", "incident_no"),
-                            new OperationalTablePanel.Column("Title", "title"),
-                            new OperationalTablePanel.Column("Category", "category"),
-                            new OperationalTablePanel.Column("Severity", "severity"),
-                            new OperationalTablePanel.Column("Status", "status"),
-                            new OperationalTablePanel.Column("Reported", "reported_at"),
-                            new OperationalTablePanel.Column("Closed", "closed_at")));
-            case EVACUATION -> new OperationalTablePanel(ctx, "Evacuation Centers",
-                    "Capacity, occupancy, location, and operating status for registered centers.",
-                    "evacuation_centers", "select=name,address,capacity,occupancy,status,latitude,longitude&order=name.asc",
-                    Arrays.asList(
-                            new OperationalTablePanel.Column("Center", "name"),
-                            new OperationalTablePanel.Column("Address", "address"),
-                            new OperationalTablePanel.Column("Capacity", "capacity"),
-                            new OperationalTablePanel.Column("Occupancy", "occupancy"),
-                            new OperationalTablePanel.Column("Status", "status"),
-                            new OperationalTablePanel.Column("Latitude", "latitude"),
-                            new OperationalTablePanel.Column("Longitude", "longitude")));
-            case GUEST_EVACUATION -> new OperationalTablePanel(ctx, "Evacuation Centers",
-                    "Publicly available center capacity and operating status.",
-                    "evacuation_centers", "select=name,address,capacity,occupancy,status&status=neq.closed&order=name.asc",
-                    Arrays.asList(
-                            new OperationalTablePanel.Column("Center", "name"),
-                            new OperationalTablePanel.Column("Address", "address"),
-                            new OperationalTablePanel.Column("Capacity", "capacity"),
-                            new OperationalTablePanel.Column("Occupancy", "occupancy"),
-                            new OperationalTablePanel.Column("Status", "status")));
-            case DISASTER -> new OperationalTablePanel(ctx, "Disaster Management",
-                    "Relief operations and inventory currently registered in the command database.",
-                    "disaster_resources", "select=name,resource_type,quantity,unit,status,updated_at&order=updated_at.desc",
-                    Arrays.asList(
-                            new OperationalTablePanel.Column("Resource", "name"),
-                            new OperationalTablePanel.Column("Type", "resource_type"),
-                            new OperationalTablePanel.Column("Quantity", "quantity"),
-                            new OperationalTablePanel.Column("Unit", "unit"),
-                            new OperationalTablePanel.Column("Status", "status"),
-                            new OperationalTablePanel.Column("Updated", "updated_at")));
-            default -> new ModulePlaceholderPanel(module);
+            case GUEST_MY_REPORTS -> new MySubmittedReportsPanel(ctx, user);
+            case GUEST_EVACUATION -> new EvacuationCenterPanel(ctx, user, true);
+            case GUEST_CONTACTS -> new EmergencyContactDirectoryPanel(ctx, user, true);
         };
     }
 }

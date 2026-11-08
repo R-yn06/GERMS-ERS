@@ -29,10 +29,19 @@ public enum IncidentStatus {
     public String label() { return label; }
 
     public static IncidentStatus fromKey(String key) {
+        if (key == null) return DRAFT;
+        String normalized = key.trim().toLowerCase();
         for (IncidentStatus status : values()) {
-            if (status.key.equals(key)) return status;
+            if (status.key.equals(normalized)) return status;
         }
-        throw new IllegalArgumentException("Unknown incident status: " + key);
+        return switch (normalized) {
+            case "submitted", "pending_review", "pending review", "verified" -> DRAFT;
+            case "awaiting_response", "awaiting response" -> PUBLISHED;
+            case "responders_confirmed", "responders confirmed" -> ACKNOWLEDGED;
+            case "resolved" -> STABILIZED;
+            case "cancelled" -> CLOSED;
+            default -> DRAFT;
+        };
     }
 
     /** The single legal forward transition from this state, if any. */

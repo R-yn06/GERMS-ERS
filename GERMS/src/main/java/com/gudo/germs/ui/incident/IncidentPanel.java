@@ -23,6 +23,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -56,6 +57,9 @@ public final class IncidentPanel extends JPanel {
     private final JLabel heading = new JLabel("Select an incident");
     private final JLabel meta = new JLabel(" ");
     private final JTextArea timeline = new JTextArea();
+    private final JTextArea descriptionText = new JTextArea();
+    private final com.gudo.germs.ui.components.OpenStreetMapPanel incidentMap = new com.gudo.germs.ui.components.OpenStreetMapPanel();
+    private final JTabbedPane detailTabs = new JTabbedPane();
     private final JComboBox<ResponseTeam> teamBox = new JComboBox<>();
     private final JButton assign = new JButton("Assign team");
     private final JButton advance = new JButton("Advance");
@@ -125,6 +129,17 @@ public final class IncidentPanel extends JPanel {
         JScrollPane tlScroll = new JScrollPane(timeline);
         tlScroll.setPreferredSize(new Dimension(320, 220));
 
+        descriptionText.setEditable(false);
+        descriptionText.setLineWrap(true);
+        descriptionText.setWrapStyleWord(true);
+        JScrollPane descScroll = new JScrollPane(descriptionText);
+
+        detailTabs.removeAll();
+        detailTabs.addTab("Activity Timeline", tlScroll);
+        detailTabs.addTab("Interactive Map", incidentMap);
+        detailTabs.addTab("Description & Notes", descScroll);
+        detailTabs.setPreferredSize(new Dimension(360, 260));
+
         JPanel actions = new JPanel(new GridLayout(0, 1, 0, 8));
         actions.setOpaque(false);
         JPanel teamRow = new JPanel(new BorderLayout(8, 0));
@@ -151,17 +166,17 @@ public final class IncidentPanel extends JPanel {
             ro.setForeground(GermsColors.SECONDARY_TEXT);
             actions.add(ro);
         }
-        for (JComponent c : new JComponent[] {heading, meta, tlScroll, actions}) c.setAlignmentX(LEFT_ALIGNMENT);
+        for (JComponent c : new JComponent[] {heading, meta, detailTabs, actions}) c.setAlignmentX(LEFT_ALIGNMENT);
         detail.add(heading);
         detail.add(Box.createVerticalStrut(4));
         detail.add(meta);
         detail.add(Box.createVerticalStrut(12));
-        detail.add(tlScroll);
+        detail.add(detailTabs);
         detail.add(Box.createVerticalStrut(12));
         detail.add(actions);
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(table), detail);
-        split.setResizeWeight(0.62);
+        split.setResizeWeight(0.55);
         split.setBorder(null);
         return split;
     }
@@ -216,6 +231,9 @@ public final class IncidentPanel extends JPanel {
             heading.setText("Select an incident");
             meta.setText(" ");
             timeline.setText("");
+            descriptionText.setText("");
+            incidentMap.clearMarkers();
+            incidentMap.resetView();
             advance.setText("Advance");
             advance.setEnabled(false);
             accept.setEnabled(false);
@@ -232,6 +250,23 @@ public final class IncidentPanel extends JPanel {
         }
         timeline.setText(sb.toString());
         timeline.setCaretPosition(0);
+        descriptionText.setText("Incident Details:\n" + (i.description() == null || i.description().isBlank() ? "No additional narrative provided." : i.description())
+                + "\n\nAssigned Response Team: " + (i.team() == null ? "None (Unassigned)" : i.team())
+                + "\nSeverity: " + i.severity().toUpperCase()
+                + "\nStatus: " + i.status().label()
+                + "\nCoordinates: " + (i.latitude() != null && i.longitude() != null ? String.format(java.util.Locale.ROOT, "%.5f, %.5f", i.latitude(), i.longitude()) : "Not pinned"));
+
+        if (i.latitude() != null && i.longitude() != null) {
+            incidentMap.setCenter(i.latitude(), i.longitude(), 15);
+            incidentMap.setMarkers(java.util.List.of(new com.gudo.germs.ui.components.OpenStreetMapPanel.MapMarker(
+                    i.id(), i.title(), i.latitude(), i.longitude(),
+                    com.gudo.germs.ui.components.OpenStreetMapPanel.MarkerType.INCIDENT,
+                    i.severity().toUpperCase() + " | " + i.location())));
+        } else {
+            incidentMap.clearMarkers();
+            incidentMap.resetView();
+        }
+
         var next = i.status().next();
         advance.setText(next.map(n -> "Advance to: " + n.label()).orElse("No further steps (" + i.status().label() + ")"));
         advance.setEnabled(next.isPresent() && admin);
@@ -293,19 +328,41 @@ public final class IncidentPanel extends JPanel {
     private void reportDialog() {
         JTextField title = new JTextField(22);
         JTextField location = new JTextField(22);
+        JTextArea descArea = new JTextArea(3, 22);
+        descArea.setLineWrap(true);
+        JTextField lat = new JTextField("7.0731", 10);
+        JTextField lon = new JTextField("125.6128", 10);
         JComboBox<String> type = new JComboBox<>(TYPES);
         JComboBox<String> severity = new JComboBox<>(SEVERITIES);
         severity.setSelectedItem("moderate");
+
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Title")); form.add(title);
-        form.add(new JLabel("Type")); form.add(type);
-        form.add(new JLabel("Location")); form.add(location);
-        form.add(new JLabel("Severity")); form.add(severity);
-        if (JOptionPane.showConfirmDialog(this, form, "Report an incident",
+        form.add(new JLabel("Title:")); form.add(title);
+        form.add(new JLabel("Type / Category:")); form.add(type);
+        form.add(new JLabel("Location Name:")); form.add(location);
+        form.add(new JLabel("Severity Level:")); form.add(severity);
+        form.add(new JLabel("Latitude:")); form.add(lat);
+        form.add(new JLabel("Longitude:")); form.add(lon);
+        form.add(new JLabel("Description / Instructions:")); form.add(new JScrollPane(descArea));
+
+        if (JOptionPane.showConfirmDialog(this, form, "Report / Log an Emergency Incident",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+
+        Double latitudeVal = null;
+        Double longitudeVal = null;
+        try {
+            latitudeVal = Double.parseDouble(lat.getText().trim());
+            longitudeVal = Double.parseDouble(lon.getText().trim());
+        } catch (Exception ignored) {}
+
+        Double finalLat = latitudeVal;
+        Double finalLon = longitudeVal;
+        String desc = descArea.getText().trim();
+
         if (admin) {
             BackgroundTask.run(() -> service.report(title.getText(), (String) type.getSelectedItem(),
-                            location.getText(), (String) severity.getSelectedItem(), user.fullName()),
+                            location.getText(), (String) severity.getSelectedItem(), user.fullName(),
+                            finalLat, finalLon, desc),
                     i -> showMessage(i.reference() + " created as Draft. An admin must publish it.", false),
                     err -> showMessage(err.getMessage(), true));
         } else {

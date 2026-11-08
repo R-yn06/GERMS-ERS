@@ -1,15 +1,15 @@
-# Design patterns in GERMS
+# Design Patterns in GERMS
 
-This document describes patterns present in the current implementation, not a claim that all patterns in the Phase 2 brief are complete.
+This document catalogs the design patterns implemented in the GERMS application.
 
-| Pattern | Location | Purpose |
+| Pattern | Location | Implementation Details |
 |---|---|---|
-| Repository | `services/IncidentRepository`, `SupabaseIncidentRepository` | Keeps incident workflow logic separate from PostgREST persistence. |
-| Builder | `models/IncidentBuilder` | Constructs and validates incident snapshots from form inputs. |
-| Observer | `services/IncidentBus`, `IncidentEvent` | Announces incident changes to in-process UI subscribers. |
-| State | `models/IncidentStatus` | Associates legal next steps and transition blockers with lifecycle states. The database independently validates transitions. |
-| Facade / application service | `services/IncidentService` | Offers screens a small API for report, assign-team, and advance workflows. |
-| Adapter | `supabase/AuthClient`, `RestClient`, `SupabaseIncidentRepository` | Adapts Supabase Auth/PostgREST to the application interfaces. |
-| RBAC policy | `security/AccessPolicy` | Filters navigation by role. It complements, but does not replace, database authorization. |
-
-Dispatch assignment confirmation delegates to the database `assign_responder` RPC, keeping race-sensitive eligibility and assignment checks authoritative. The planned realtime notification strategies, command objects, and classification management patterns are not yet implemented.
+| **Repository** | `services/IncidentRepository`, `SupabaseIncidentRepository`, `repositories/ProfileRepository` | Decouples domain logic from PostgREST/PostgreSQL transport and mapping details. |
+| **Builder** | `models/IncidentBuilder` | Enforces mandatory field invariants (title, location, reporter) and constructs immutable `Incident` instances. |
+| **State** | `models/IncidentStatus` | Encapsulates legal lifecycle forward transitions (`draft -> published -> acknowledged -> mobilizing -> active_response -> stabilized -> closed -> archived`) and preconditions (`blocker()`). |
+| **Observer** | `services/IncidentBus`, `services/IncidentEvent` | Thread-safe in-process event bus using `CopyOnWriteArrayList` delivering model change events to UI subscribers on the Swing Event Dispatch Thread (EDT). |
+| **Strategy** | `services/AlarmService` | Selects waveform synthesis parameters (frequencies, duration, volume, decay, warble siren) based on incident severity level (Low, Moderate, High, Critical). |
+| **Singleton** | `config/AppContext`, `services/AlarmService` | Centralizes dependency injection wiring and audio line hardware control across the application lifecycle. |
+| **Facade** | `services/IncidentService`, `services/AuthService` | Provides unified application services orchestrating repository operations, session management, and UI event broadcasting. |
+| **Adapter** | `supabase/RestClient`, `supabase/AuthClient`, `ui/components/OpenStreetMapPanel` | Adapts HTTP/JSON endpoints and OpenStreetMap tile servers into high-level Java records and Swing components. |
+| **RBAC Policy** | `security/AccessPolicy`, `security/Module` | Computes permissible operational modules per user role (`Admin`, `Responder`, `Guest`). Backed authoritatively by database Row Level Security and RPCs. |

@@ -33,10 +33,17 @@ public final class IncidentService {
 
     public synchronized Incident report(String title, String type, String location, String severity, String reporter)
             throws SupabaseException {
+        return report(title, type, location, severity, reporter, null, null, "");
+    }
+
+    public synchronized Incident report(String title, String type, String location, String severity, String reporter,
+                                        Double lat, Double lon, String description)
+            throws SupabaseException {
         Incident built = new IncidentBuilder()
                 .id(UUID.randomUUID().toString())
                 .title(title).type(type).location(location).severity(severity)
                 .reportedBy(reporter)
+                .latitude(lat).longitude(lon).description(description)
                 .note(reporter, "Incident reported; awaiting verification")
                 .build();
         Incident i = repo.create(built);

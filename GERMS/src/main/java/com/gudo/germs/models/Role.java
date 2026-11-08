@@ -8,10 +8,12 @@ public enum Role {
     public String label() { return label; }
 
     public static Role fromDb(String value) {
-        return switch (value == null ? "" : value) {
+        if (value == null) return GUEST;
+        return switch (value.toLowerCase().trim()) {
             case "admin" -> ADMIN;
             case "responder" -> RESPONDER;
-            default -> throw new IllegalArgumentException("Unknown role: " + value);
+            case "guest", "user" -> GUEST;
+            default -> GUEST;
         };
     }
 }

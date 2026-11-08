@@ -16,6 +16,9 @@ public final class IncidentBuilder {
     private String reportedBy;
     private Instant reportedAt;
     private final List<TimelineEntry> timeline = new ArrayList<>();
+    private Double latitude;
+    private Double longitude;
+    private String description = "";
 
     public IncidentBuilder id(String v) { this.id = v; return this; }
     public IncidentBuilder incidentNo(String v) { this.incidentNo = v; return this; }
@@ -27,6 +30,9 @@ public final class IncidentBuilder {
     public IncidentBuilder team(String v) { this.team = v; return this; }
     public IncidentBuilder reportedBy(String v) { this.reportedBy = v; return this; }
     public IncidentBuilder reportedAt(Instant v) { this.reportedAt = v; return this; }
+    public IncidentBuilder latitude(Double v) { this.latitude = v; return this; }
+    public IncidentBuilder longitude(Double v) { this.longitude = v; return this; }
+    public IncidentBuilder description(String v) { this.description = v; return this; }
 
     /** Adds an audit-trail line stamped at reportedAt (or now if not yet set). */
     public IncidentBuilder note(String actor, String text) {
@@ -42,6 +48,6 @@ public final class IncidentBuilder {
         List<TimelineEntry> tl = timeline.isEmpty()
                 ? List.of(new TimelineEntry(at, reportedBy, "Incident reported"))
                 : List.copyOf(timeline);
-        return new Incident(id, incidentNo, title.trim(), type, location.trim(), severity, status, team, reportedBy, at, tl);
+        return new Incident(id, incidentNo, title.trim(), type, location.trim(), severity, status, team, reportedBy, at, tl, latitude, longitude, description);
     }
 }
