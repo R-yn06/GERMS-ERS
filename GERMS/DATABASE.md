@@ -1,7 +1,7 @@
 # GERMS Database Documentation
 
 Supabase PostgreSQL is the authoritative system of record.
-Apply SQL migrations in numeric order from `database/migrations/` (001 through 011).
+Apply SQL migrations in numeric order from `database/migrations/` (001 through 012).
 
 ## Migrations Overview
 
@@ -18,6 +18,7 @@ Apply SQL migrations in numeric order from `database/migrations/` (001 through 0
 | `009_phase3_operations.sql` | Phase 3 Operations, SITREPs, Comms, Alarms | `team_members`, `resources`, `resource_allocations`, `field_situation_reports`, `incident_messages`, `emergency_contacts`, `emergency_announcements`, `notification_preferences`, `promote_to_responder`, `allocate_resource`, `release_resource`, `submit_field_situation_report`, `send_incident_message`, `update_responder_location` |
 | `010_fix_auth_registration_search_path.sql` | Auth Signup Trigger Fix | Schema-qualifies `user_role` and pins the signup trigger search path so Supabase Auth can create guest profiles |
 | `011_fix_profile_relationships.sql` | PostgREST Profile Relationships | Adds the audit actor relationship needed for profile embeds; retains historical audit rows with `NOT VALID` |
+| `012_incident_severity_updates.sql` | Authorized Incident Severity Updates | Adds `update_incident_severity`, restricted to administrators and responders with an active assignment; records incident history and audit entries |
 
 ## Key Entity Relationships
 

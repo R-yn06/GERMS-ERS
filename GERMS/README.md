@@ -16,6 +16,7 @@ Emergency Responder Management System primarily intended for Red Cross emergency
    - `database/migrations/009_phase3_operations.sql` (Phase 3 Complete Operations, Teams, Resources, SITREPs, Comms, Alarms)
    - `database/migrations/010_fix_auth_registration_search_path.sql` (Fix Auth signup trigger type resolution)
    - `database/migrations/011_fix_profile_relationships.sql` (Disambiguate profile embeds and expose audit actors)
+   - `database/migrations/012_incident_severity_updates.sql` (Allow admins and actively assigned responders to update incident severity)
 3. **First admin**: follow the bootstrap comments at the top of `database/seed_data.sql`.
 4. **Client config**: copy `src/main/resources/application.properties.example` to `application.properties` in the project root, or set `GERMS_SUPABASE_URL` and `GERMS_SUPABASE_ANON_KEY`. Use the **anon/publishable** key only. The app refuses service-role or secret keys.
 5. **Run**: `mvn exec:java` (JDK 25).

@@ -7,6 +7,8 @@ import com.gudo.germs.models.ResponseTeam;
 import com.gudo.germs.supabase.SupabaseException;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -15,6 +17,8 @@ import java.util.UUID;
  * Safe to call from a background thread (see BackgroundTask).
  */
 public final class IncidentService {
+    private static final Set<String> SEVERITIES = Set.of("low", "moderate", "high", "critical");
+
     private final IncidentRepository repo;
     private final IncidentBus bus = new IncidentBus();
 
@@ -29,6 +33,20 @@ public final class IncidentService {
 
     public List<ResponseTeam> responseTeams() throws SupabaseException {
         return repo.findTeams();
+    }
+
+    public synchronized Incident updateSeverity(String id, String severity) throws SupabaseException {
+        if (id == null || id.isBlank()) throw new IllegalArgumentException("Incident is required.");
+        if (severity == null || !SEVERITIES.contains(severity.trim().toLowerCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("Choose a valid incident severity.");
+        }
+        Incident current = repo.find(id).orElseThrow(() -> new IllegalArgumentException("Incident not found."));
+        String normalized = severity.trim().toLowerCase(Locale.ROOT);
+        if (normalized.equalsIgnoreCase(current.severity())) return current;
+
+        Incident updated = repo.updateSeverity(id, normalized);
+        bus.publish(new IncidentEvent(IncidentEvent.Type.UPDATED, updated));
+        return updated;
     }
 
     public synchronized Incident report(String title, String type, String location, String severity, String reporter)

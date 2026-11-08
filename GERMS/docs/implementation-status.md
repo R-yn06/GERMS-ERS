@@ -21,4 +21,4 @@ Legend: **Implemented & Verified** = Tested and operational in workspace automat
 | **Reports & Operational Analytics** | Implemented & Verified | Metric cards, incident breakdown by severity/category, deployment completion rate, CSV export |
 | **Activity & Audit Logs** | Implemented & Verified | Tamper-evident, append-only chronological audit log viewer |
 | **Decommissioning of Unrelated Code** | Implemented & Verified | Safely removed training/educational modules, standardized on 14 admin modules, 9 responder modules, and 6 guest modules |
-| **Database Migrations (001–011)** | Implemented | Migrations 001 through 011 ready for execution in Supabase SQL editor |
+| **Database Migrations (001–012)** | Implemented | Migrations 001 through 012 ready for execution in Supabase SQL editor |

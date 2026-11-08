@@ -122,6 +122,13 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return report.withIncidentNo("REPORT-" + report.id().substring(0, 8).toUpperCase());
     }
 
+    @Override public Incident updateSeverity(String id, String severity) throws SupabaseException {
+        rest.rpc("update_incident_severity", Map.of(
+                "p_incident", UUID.fromString(id).toString(),
+                "p_severity", severity));
+        return find(id).orElseThrow(() -> new SupabaseException(404, "The updated incident could not be loaded."));
+    }
+
     @Override public Incident assignTeam(String id, ResponseTeam team) throws SupabaseException {
         rest.rpc("assign_incident_team", Map.of(
                 "p_id", UUID.fromString(id).toString(),

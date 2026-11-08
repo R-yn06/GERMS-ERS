@@ -56,7 +56,7 @@ The Supabase project serves as the authoritative data and security layer: Supaba
 
 ### 5. Security & Access Control (`com.gudo.germs.security`, `database/migrations`)
 - UI `AccessPolicy`: Presentation filter mapping roles to visible modules.
-- Database Migrations 001–011: Authoritative security boundary enforcing Postgres Row Level Security (RLS) on all tables, and `SECURITY DEFINER` RPCs checking caller role (`is_admin()`, `is_responder()`). The auth signup trigger pins its search path and schema-qualifies the profile role type; migration 011 declares the audit actor-to-profile relationship for PostgREST.
+- Database Migrations 001–012: Authoritative security boundary enforcing Postgres Row Level Security (RLS) on all tables, and `SECURITY DEFINER` RPCs checking caller role (`is_admin()`, `is_responder()`). The auth signup trigger pins its search path and schema-qualifies the profile role type; migration 011 declares the audit actor-to-profile relationship for PostgREST; migration 012 restricts incident severity changes to administrators and actively assigned responders.
 
 ## GIS & OpenStreetMap Architecture
 The interactive map uses standard OpenStreetMap Slippy Map tiles rendered in Java Swing:

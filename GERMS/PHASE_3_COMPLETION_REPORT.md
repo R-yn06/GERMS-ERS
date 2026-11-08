@@ -123,6 +123,7 @@ In strict accordance with Directive Section 22:
 1. `GERMS/database/migrations/009_phase3_operations.sql`: Core schema, constraints, RLS policies, and RPC functions for Phase 3 operations.
 - `GERMS/database/migrations/010_fix_auth_registration_search_path.sql`: Fixes Supabase Auth signup trigger resolution of the public `user_role` type.
 - `GERMS/database/migrations/011_fix_profile_relationships.sql`: Adds the audit actor foreign-key relationship required for PostgREST profile embeds.
+- `GERMS/database/migrations/012_incident_severity_updates.sql`: Adds the authorized incident-severity update RPC with history and audit recording.
 2. `GERMS/src/main/java/com/gudo/germs/services/AlarmService.java`: Severity-based audio alarm synthesizer and deduplication engine.
 3. `GERMS/src/main/java/com/gudo/germs/ui/components/OpenStreetMapPanel.java`: Interactive Swing Slippy Map component with tile caching, markers, and pin-drop.
 4. `GERMS/src/main/java/com/gudo/germs/ui/admin/LiveOperationsMapPanel.java`: Centralized GIS operations map displaying incidents, responders, shelters, and resources.

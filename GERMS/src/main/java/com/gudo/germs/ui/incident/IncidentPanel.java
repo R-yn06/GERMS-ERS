@@ -69,6 +69,7 @@ public final class IncidentPanel extends JPanel {
     private final JComboBox<ResponseTeam> teamBox = new JComboBox<>();
     private final JButton assign = new JButton("Assign team");
     private final JButton advance = new JButton("Advance");
+    private final JButton updateSeverity = new JButton("Update severity");
     private final JButton accept = new JButton("Accept response");
     private final JButton decline = new JButton("Decline");
     private final JLabel message = new JLabel(" ");
@@ -153,6 +154,7 @@ public final class IncidentPanel extends JPanel {
         teamRow.add(teamBox, BorderLayout.CENTER);
         teamRow.add(assign, BorderLayout.EAST);
         actions.add(teamRow);
+        actions.add(updateSeverity);
         actions.add(advance);
         actions.add(accept);
         actions.add(decline);
@@ -163,6 +165,7 @@ public final class IncidentPanel extends JPanel {
                     && teamBox.getSelectedItem() != null);
         });
         advance.addActionListener(e -> doAdvance());
+        updateSeverity.addActionListener(e -> doUpdateSeverity());
         accept.addActionListener(e -> doRespond("accepted"));
         decline.addActionListener(e -> doRespond("declined"));
         accept.setVisible(!admin);
@@ -242,6 +245,8 @@ public final class IncidentPanel extends JPanel {
             incidentMap.resetView();
             advance.setText("Advance");
             advance.setEnabled(false);
+            updateSeverity.setEnabled(false);
+            updateSeverity.setVisible(false);
             accept.setEnabled(false);
             decline.setEnabled(false);
             assign.setEnabled(false);
@@ -276,6 +281,8 @@ public final class IncidentPanel extends JPanel {
         var next = i.status().next();
         advance.setText(next.map(n -> "Advance to: " + n.label()).orElse("No further steps (" + i.status().label() + ")"));
         advance.setEnabled(next.isPresent() && admin);
+        updateSeverity.setVisible(admin || user.role() == Role.RESPONDER);
+        updateSeverity.setEnabled(admin || user.role() == Role.RESPONDER);
         boolean accepting = !admin && i.status().isActive() && i.status() != IncidentStatus.STABILIZED;
         accept.setEnabled(accepting);
         decline.setEnabled(accepting);
@@ -309,6 +316,27 @@ public final class IncidentPanel extends JPanel {
         BackgroundTask.run(() -> service.advance(i.id(), user.fullName(), summary),
                 u -> showMessage(u.reference() + " is now " + u.status().label() + ".", false),
                 err -> showMessage(err.getMessage(), true));
+    }
+
+    private void doUpdateSeverity() {
+        Incident incident = selected();
+        if (incident == null) return;
+
+        JComboBox<String> severity = new JComboBox<>(SEVERITIES);
+        severity.setSelectedItem(incident.severity().toLowerCase(java.util.Locale.ROOT));
+        JPanel form = new JPanel(new GridLayout(0, 1, 0, 8));
+        form.add(new JLabel("Current severity: " + incident.severity().toUpperCase(java.util.Locale.ROOT)));
+        form.add(new JLabel("Select the updated severity:"));
+        form.add(severity);
+        if (JOptionPane.showConfirmDialog(this, form, "Update Incident Severity",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+
+        String newSeverity = (String) severity.getSelectedItem();
+        if (newSeverity == null || newSeverity.equalsIgnoreCase(incident.severity())) return;
+        BackgroundTask.run(() -> service.updateSeverity(incident.id(), newSeverity),
+                updated -> showMessage(updated.reference() + " severity changed to "
+                        + updated.severity().toUpperCase(java.util.Locale.ROOT) + ".", false),
+                error -> showMessage("Severity was not updated: " + error.getMessage(), true));
     }
 
     private void doAssign() {
