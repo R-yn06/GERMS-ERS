@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Profile;
 import com.gudo.germs.models.Role;
+import com.gudo.germs.ui.components.LocationPickerDialog;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
@@ -12,6 +13,7 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.Map;
 import java.util.UUID;
+import javax.swing.SwingUtilities;
 
 /**
  * Evacuation Center & Shelter Management.
@@ -146,16 +148,30 @@ public final class EvacuationCenterPanel extends JPanel {
         JTextField name = new JTextField();
         JTextField address = new JTextField();
         JSpinner capacity = new JSpinner(new SpinnerNumberModel(250, 10, 50000, 10));
-        JTextField lat = new JTextField("7.0731");
-        JTextField lon = new JTextField("125.6128");
+        LocationPickerDialog.Selection[] selectedLocation = new LocationPickerDialog.Selection[1];
+        JLabel selectedLocationText = new JLabel("No map location selected");
+        JButton chooseLocation = new JButton("Pin / Search on Map");
+        chooseLocation.addActionListener(event -> {
+            LocationPickerDialog.Selection picked = LocationPickerDialog.showDialog(
+                    SwingUtilities.getWindowAncestor(this), "Select Evacuation Center Location", selectedLocation[0]);
+            if (picked != null) {
+                selectedLocation[0] = picked;
+                selectedLocationText.setText(String.format(java.util.Locale.ROOT, "%s (%.5f, %.5f)",
+                        picked.label(), picked.latitude(), picked.longitude()));
+                if (address.getText().isBlank()) address.setText(picked.label());
+            }
+        });
         JComboBox<String> status = new JComboBox<>(new String[]{"open", "full", "closed", "maintenance"});
 
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
         form.add(new JLabel("Center Name:")); form.add(name);
         form.add(new JLabel("Address / Barangay:")); form.add(address);
         form.add(new JLabel("Total Capacity:")); form.add(capacity);
-        form.add(new JLabel("Latitude:")); form.add(lat);
-        form.add(new JLabel("Longitude:")); form.add(lon);
+        form.add(new JLabel("Map Location:"));
+        JPanel locationPicker = new JPanel(new BorderLayout(8, 0));
+        locationPicker.add(chooseLocation, BorderLayout.WEST);
+        locationPicker.add(selectedLocationText, BorderLayout.CENTER);
+        form.add(locationPicker);
         form.add(new JLabel("Initial Status:")); form.add(status);
 
         int res = JOptionPane.showConfirmDialog(this, form, "Register Evacuation Shelter", JOptionPane.OK_CANCEL_OPTION);
@@ -166,6 +182,11 @@ public final class EvacuationCenterPanel extends JPanel {
             JOptionPane.showMessageDialog(this, "Shelter name is required.", "Validation Error", JOptionPane.WARNING_MESSAGE);
             return;
         }
+        if (selectedLocation[0] == null) {
+            JOptionPane.showMessageDialog(this, "Select the evacuation center location on the map.", "Location Required", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        LocationPickerDialog.Selection location = selectedLocation[0];
 
         BackgroundTask.run(() -> {
             ctx.rest.insertMinimal("evacuation_centers", Map.of(
@@ -174,8 +195,8 @@ public final class EvacuationCenterPanel extends JPanel {
                     "capacity", capacity.getValue(),
                     "occupancy", 0,
                     "status", status.getSelectedItem(),
-                    "latitude", Double.parseDouble(lat.getText().trim()),
-                    "longitude", Double.parseDouble(lon.getText().trim()),
+                    "latitude", location.latitude(),
+                    "longitude", location.longitude(),
                     "created_by", user.id().toString()
             ));
             return Boolean.TRUE;
@@ -232,4 +253,3 @@ public final class EvacuationCenterPanel extends JPanel {
         }, ok -> loadCenters(), err -> loadCenters());
     }
 }
-

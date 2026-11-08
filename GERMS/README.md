@@ -37,14 +37,15 @@ Emergency Responder Management System primarily intended for Red Cross emergency
 - Receive persistent emergency alerts and severity-based audible alarms (Low, Moderate, High, Critical) with alarm silencing and acknowledgement.
 - Accept, decline, or leave incident deployment requests pending.
 - Advance assignment status (`assigned -> preparing -> en_route -> arrived -> on_task -> completed`).
-- Opt-in live GPS / operational coordinate tracking to Command Center.
+- Opt-in responder location sharing using a map pin, landmark search, or an explicitly consented approximate network-IP location. The desktop client does not provide continuous GPS tracking.
 - View squad roster and assigned team leaders.
-- Submit Field Situation Reports (SITREP) with casualty estimates, field conditions, and medical/resource needs.
+- Submit Field Situation Reports (SITREP) with casualty estimates, field conditions, medical/resource needs, and an optional map-selected field location.
 - Coordinate via dedicated incident tactical communication channels.
 
 ### Administrator
 - Centralized Incident Command Dashboard.
 - Verify incoming public reports, publish incidents, update severity, and pinpoint locations via interactive OpenStreetMap.
+- Select incident, public-report, evacuation-center, and responder locations with a map pin or landmark/address search instead of entering coordinates.
 - Full Dispatch Center: review responder responses, confirm assignments with conflict prevention and emergency override, cancel assignments, and resolve operations.
 - User & Responder Management: promote guest accounts to Responder with classifications (Search and Rescue, EMT, Flood Response, etc.) and availability control.
 - Team & Squad Management: create response teams, designate squad leaders, and assign teams to missions.

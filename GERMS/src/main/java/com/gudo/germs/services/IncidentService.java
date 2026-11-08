@@ -53,11 +53,18 @@ public final class IncidentService {
 
     public synchronized Incident submitGuestReport(String title, String type, String location, String severity, String reporter)
             throws SupabaseException {
+        return submitGuestReport(title, type, location, severity, reporter, null, null);
+    }
+
+    public synchronized Incident submitGuestReport(String title, String type, String location, String severity, String reporter,
+                                                    Double lat, Double lon)
+            throws SupabaseException {
         Incident report = new IncidentBuilder()
                 .id(UUID.randomUUID().toString())
                 .title(title).type(type).location(location).severity(severity)
                 .reportedBy(reporter)
                 .status(IncidentStatus.DRAFT)
+                .latitude(lat).longitude(lon)
                 .note(reporter, "Preliminary report submitted for verification")
                 .build();
         Incident saved = repo.submitGuestReport(report);

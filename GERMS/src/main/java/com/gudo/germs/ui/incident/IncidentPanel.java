@@ -9,6 +9,7 @@ import com.gudo.germs.models.TimelineEntry;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.services.IncidentService;
 import com.gudo.germs.ui.components.StatusBadge;
+import com.gudo.germs.ui.components.LocationPickerDialog;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
@@ -18,6 +19,7 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -28,16 +30,20 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Dialog.ModalityType;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Main workflow screen: report an incident, publish it, assign a team, step it through response, close it. */
 public final class IncidentPanel extends JPanel {
@@ -330,8 +336,19 @@ public final class IncidentPanel extends JPanel {
         JTextField location = new JTextField(22);
         JTextArea descArea = new JTextArea(3, 22);
         descArea.setLineWrap(true);
-        JTextField lat = new JTextField("7.0731", 10);
-        JTextField lon = new JTextField("125.6128", 10);
+        AtomicReference<LocationPickerDialog.Selection> selectedLocation = new AtomicReference<>();
+        JLabel selectedLocationText = new JLabel("No map location selected (optional)");
+        JButton chooseLocation = new JButton("Pin / Search on Map");
+        chooseLocation.addActionListener(event -> {
+            LocationPickerDialog.Selection picked = LocationPickerDialog.showDialog(
+                    SwingUtilities.getWindowAncestor(this), "Select Incident Location", selectedLocation.get());
+            if (picked != null) {
+                selectedLocation.set(picked);
+                selectedLocationText.setText(String.format(java.util.Locale.ROOT, "%s (%.5f, %.5f)",
+                        picked.label(), picked.latitude(), picked.longitude()));
+                if (location.getText().isBlank()) location.setText(picked.label());
+            }
+        });
         JComboBox<String> type = new JComboBox<>(TYPES);
         JComboBox<String> severity = new JComboBox<>(SEVERITIES);
         severity.setSelectedItem("moderate");
@@ -341,22 +358,19 @@ public final class IncidentPanel extends JPanel {
         form.add(new JLabel("Type / Category:")); form.add(type);
         form.add(new JLabel("Location Name:")); form.add(location);
         form.add(new JLabel("Severity Level:")); form.add(severity);
-        form.add(new JLabel("Latitude:")); form.add(lat);
-        form.add(new JLabel("Longitude:")); form.add(lon);
+        form.add(new JLabel("Map Location:"));
+        JPanel locationPicker = new JPanel(new BorderLayout(8, 0));
+        locationPicker.add(chooseLocation, BorderLayout.WEST);
+        locationPicker.add(selectedLocationText, BorderLayout.CENTER);
+        form.add(locationPicker);
         form.add(new JLabel("Description / Instructions:")); form.add(new JScrollPane(descArea));
 
         if (JOptionPane.showConfirmDialog(this, form, "Report / Log an Emergency Incident",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
 
-        Double latitudeVal = null;
-        Double longitudeVal = null;
-        try {
-            latitudeVal = Double.parseDouble(lat.getText().trim());
-            longitudeVal = Double.parseDouble(lon.getText().trim());
-        } catch (Exception ignored) {}
-
-        Double finalLat = latitudeVal;
-        Double finalLon = longitudeVal;
+        LocationPickerDialog.Selection picked = selectedLocation.get();
+        Double finalLat = picked == null ? null : picked.latitude();
+        Double finalLon = picked == null ? null : picked.longitude();
         String desc = descArea.getText().trim();
 
         if (admin) {
@@ -367,7 +381,7 @@ public final class IncidentPanel extends JPanel {
                     err -> showMessage(err.getMessage(), true));
         } else {
             BackgroundTask.run(() -> service.submitGuestReport(title.getText(), (String) type.getSelectedItem(),
-                            location.getText(), (String) severity.getSelectedItem(), user.fullName()),
+                            location.getText(), (String) severity.getSelectedItem(), user.fullName(), finalLat, finalLon),
                     i -> showMessage(i.reference() + " submitted for dispatcher verification.", false),
                     err -> showMessage(err.getMessage(), true));
         }

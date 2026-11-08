@@ -111,11 +111,14 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         if (report.reportedBy().length() > 120) {
             throw new IllegalArgumentException("The reporter name must be no longer than 120 characters.");
         }
-        rest.insertMinimal("guest_reports", Map.of(
-                "id", report.id(),
-                "reporter_name", report.reportedBy(),
-                "description", description,
-                "location_text", report.location()));
+        Map<String, Object> values = new java.util.HashMap<>();
+        values.put("id", report.id());
+        values.put("reporter_name", report.reportedBy());
+        values.put("description", description);
+        values.put("location_text", report.location());
+        if (report.latitude() != null) values.put("latitude", report.latitude());
+        if (report.longitude() != null) values.put("longitude", report.longitude());
+        rest.insertMinimal("guest_reports", values);
         return report.withIncidentNo("REPORT-" + report.id().substring(0, 8).toUpperCase());
     }
 

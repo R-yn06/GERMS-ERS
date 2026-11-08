@@ -133,6 +133,10 @@ public final class OpenStreetMapPanel extends JPanel {
         return selectedCoord;
     }
 
+    public void shutdownTileLoader() {
+        tileLoader.shutdownNow();
+    }
+
     private void initMouseControls() {
         addMouseListener(new MouseAdapter() {
             @Override
@@ -479,4 +483,3 @@ public final class OpenStreetMapPanel extends JPanel {
         } catch (Exception ignored) {}
     }
 }
-

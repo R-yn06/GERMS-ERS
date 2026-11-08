@@ -3,20 +3,20 @@ package com.gudo.germs.ui.incident;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Profile;
+import com.gudo.germs.ui.components.LocationPickerDialog;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 /**
  * My Deployments & Live Location Tracking Interface.
- * Allows responders to monitor their assigned missions, progress assignment status
- * (preparing, en route, arrived, on task, completed), and toggle opt-in live GPS
- * location sharing with the Incident Command center.
+ * Allows responders to monitor assigned missions and explicitly share a selected operational location.
  */
 public final class MyDeploymentsPanel extends JPanel {
     private final AppContext ctx;
@@ -28,16 +28,14 @@ public final class MyDeploymentsPanel extends JPanel {
     };
     private final JTable table = new JTable(model);
 
-    private final JCheckBox locationShareToggle = new JCheckBox("Opt-in: Share My Operational Location with Command Center", false);
-    private final JTextField latField = new JTextField("7.0731", 8);
-    private final JTextField lonField = new JTextField("125.6128", 8);
-    private final JButton updateLocationBtn = new JButton("Transmit Coordinates Now");
+    private final JCheckBox locationShareToggle = new JCheckBox(
+            "Opt-in: Share My Selected Location (not continuous GPS tracking)", false);
+    private final JButton updateLocationBtn = new JButton("Select / Move Location on Map");
+    private LocationPickerDialog.Selection selectedLocation;
 
     private final JButton stepNextBtn = new JButton("Advance Deployment Status");
     private final JLabel trackingStatus = new JLabel("Location Sharing: Disabled");
     private final JLabel statusMessage = new JLabel(" ");
-
-    private final Timer locationHeartbeat = new Timer(15000, e -> transmitLocationHeartbeat());
 
     public MyDeploymentsPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
@@ -64,7 +62,7 @@ public final class MyDeploymentsPanel extends JPanel {
 
         JLabel title = new JLabel("My Deployments & Mission Command");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        JLabel desc = new JLabel("Review active incident deployments, advance operational response status, and report GPS location.");
+        JLabel desc = new JLabel("Review deployments and choose a map pin or approximate network location to share with command.");
         desc.setForeground(GermsColors.SECONDARY_TEXT);
 
         JPanel p = new JPanel(new GridLayout(0, 1, 0, 2));
@@ -96,28 +94,29 @@ public final class MyDeploymentsPanel extends JPanel {
 
         // Location Tracking Box
         JPanel trackingBox = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
-        trackingBox.setBorder(BorderFactory.createTitledBorder("Live Operational Location Tracking (Opt-In)"));
+        trackingBox.setBorder(BorderFactory.createTitledBorder("Operational Location Sharing (Opt-In)"));
 
         locationShareToggle.addActionListener(e -> {
             boolean sharing = locationShareToggle.isSelected();
-            trackingStatus.setText(sharing ? "Location Sharing: ACTIVE (Transmitting to Operations Map)" : "Location Sharing: Disabled");
+            if (sharing && selectedLocation == null) {
+                if (!chooseLocation()) {
+                    locationShareToggle.setSelected(false);
+                    return;
+                }
+            }
+            trackingStatus.setText(sharing ? "Location Sharing: Active (selected location)" : "Location Sharing: Disabled");
             trackingStatus.setForeground(sharing ? GermsColors.SUCCESS : GermsColors.SECONDARY_TEXT);
             if (sharing) {
-                transmitLocationHeartbeat();
-                if (!locationHeartbeat.isRunning()) locationHeartbeat.start();
+                transmitSelectedLocation();
             } else {
-                locationHeartbeat.stop();
                 disableLocationSharing();
             }
         });
 
         trackingBox.add(locationShareToggle);
-        trackingBox.add(new JLabel("Latitude:"));
-        trackingBox.add(latField);
-        trackingBox.add(new JLabel("Longitude:"));
-        trackingBox.add(lonField);
-
-        updateLocationBtn.addActionListener(e -> transmitLocationHeartbeat());
+        updateLocationBtn.addActionListener(e -> {
+            if (chooseLocation() && locationShareToggle.isSelected()) transmitSelectedLocation();
+        });
         trackingBox.add(updateLocationBtn);
         trackingBox.add(trackingStatus);
 
@@ -128,7 +127,10 @@ public final class MyDeploymentsPanel extends JPanel {
     }
 
     @Override public void removeNotify() {
-        locationHeartbeat.stop();
+        if (locationShareToggle.isSelected()) {
+            locationShareToggle.setSelected(false);
+            disableLocationSharing();
+        }
         super.removeNotify();
     }
 
@@ -208,31 +210,43 @@ public final class MyDeploymentsPanel extends JPanel {
         }, err -> JOptionPane.showMessageDialog(this, "Update failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
     }
 
-    private void transmitLocationHeartbeat() {
+    private void transmitSelectedLocation() {
         if (!locationShareToggle.isSelected()) return;
-        try {
-            double lat = Double.parseDouble(latField.getText().trim());
-            double lon = Double.parseDouble(lonField.getText().trim());
-
-            BackgroundTask.run(() -> {
-                ctx.rest.rpc("update_responder_location", Map.of(
-                        "p_lat", lat,
-                        "p_lon", lon,
-                        "p_accuracy", 5.0,
-                        "p_source", "device",
-                        "p_sharing", true
-                ));
-                return Boolean.TRUE;
-            }, ok -> {
-                trackingStatus.setText(String.format("Location Transmitted (%.4f, %.4f)", lat, lon));
-                trackingStatus.setForeground(GermsColors.SUCCESS);
-            }, err -> {
-                trackingStatus.setText("Location Sync Error: " + err.getMessage());
-                trackingStatus.setForeground(GermsColors.CRITICAL);
-            });
-        } catch (Exception e) {
-            trackingStatus.setText("Invalid coordinate input.");
+        if (selectedLocation == null) {
+            trackingStatus.setText("Select a location on the map before sharing.");
+            trackingStatus.setForeground(GermsColors.CRITICAL);
+            return;
         }
+
+        LocationPickerDialog.Selection location = selectedLocation;
+        Map<String, Object> args = new HashMap<>();
+        args.put("p_lat", location.latitude());
+        args.put("p_lon", location.longitude());
+        args.put("p_accuracy", location.accuracyMeters());
+        args.put("p_source", location.source());
+        args.put("p_sharing", true);
+        BackgroundTask.run(() -> {
+            ctx.rest.rpc("update_responder_location", args);
+            return Boolean.TRUE;
+        }, ok -> {
+            trackingStatus.setText(String.format("%s shared (%.5f, %.5f)",
+                    location.label(), location.latitude(), location.longitude()));
+            trackingStatus.setForeground(GermsColors.SUCCESS);
+        }, err -> {
+            trackingStatus.setText("Location Sync Error: " + err.getMessage());
+            trackingStatus.setForeground(GermsColors.CRITICAL);
+        });
+    }
+
+    private boolean chooseLocation() {
+        LocationPickerDialog.Selection picked = LocationPickerDialog.showDialog(
+                SwingUtilities.getWindowAncestor(this), "Choose Operational Location", selectedLocation);
+        if (picked == null) return false;
+        selectedLocation = picked;
+        trackingStatus.setText(String.format("Selected: %s (%.5f, %.5f)",
+                picked.label(), picked.latitude(), picked.longitude()));
+        trackingStatus.setForeground(GermsColors.SECONDARY_TEXT);
+        return true;
     }
 
     private void disableLocationSharing() {
@@ -245,7 +259,12 @@ public final class MyDeploymentsPanel extends JPanel {
                     "p_sharing", false
             ));
             return Boolean.TRUE;
-        }, ok -> {}, err -> {});
+        }, ok -> {
+            trackingStatus.setText("Location Sharing: Disabled");
+            trackingStatus.setForeground(GermsColors.SECONDARY_TEXT);
+        }, err -> {
+            trackingStatus.setText("Could not disable sharing on server: " + err.getMessage());
+            trackingStatus.setForeground(GermsColors.CRITICAL);
+        });
     }
 }
-

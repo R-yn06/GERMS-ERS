@@ -5,6 +5,7 @@ import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
 import com.gudo.germs.models.Profile;
 import com.gudo.germs.models.Role;
+import com.gudo.germs.ui.components.LocationPickerDialog;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
@@ -16,6 +17,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.UUID;
 
 /**
@@ -246,9 +248,32 @@ public final class FieldSituationReportPanel extends JPanel {
             JTextField medicalField = new JTextField("Trauma kits, oxygen, stretchers");
             JTextField resourceField = new JTextField("Ambulance, rescue boat");
             JCheckBox urgentBox = new JCheckBox("Mark as URGENT (immediate command notification)", false);
+            LocationPickerDialog.Selection[] fieldLocation = new LocationPickerDialog.Selection[1];
+            JLabel fieldLocationText = new JLabel("No field location selected (optional)");
+            JButton chooseLocation = new JButton("Pin / Search on Map");
+            chooseLocation.addActionListener(event -> {
+                LocationPickerDialog.Selection initial = fieldLocation[0];
+                if (initial == null && incBox.getSelectedItem() instanceof Incident selectedIncident
+                        && selectedIncident.latitude() != null && selectedIncident.longitude() != null) {
+                    initial = new LocationPickerDialog.Selection(selectedIncident.latitude(),
+                            selectedIncident.longitude(), selectedIncident.location(), "manual", null);
+                }
+                LocationPickerDialog.Selection picked = LocationPickerDialog.showDialog(
+                        SwingUtilities.getWindowAncestor(this), "Select Field Report Location", initial);
+                if (picked != null) {
+                    fieldLocation[0] = picked;
+                    fieldLocationText.setText(String.format(java.util.Locale.ROOT, "%s (%.5f, %.5f)",
+                            picked.label(), picked.latitude(), picked.longitude()));
+                }
+            });
 
             JPanel p = new JPanel(new GridLayout(0, 2, 6, 6));
             p.add(new JLabel("Incident:")); p.add(incBox);
+            p.add(new JLabel("Field Location:"));
+            JPanel locationPicker = new JPanel(new BorderLayout(8, 0));
+            locationPicker.add(chooseLocation, BorderLayout.WEST);
+            locationPicker.add(fieldLocationText, BorderLayout.CENTER);
+            p.add(locationPicker);
             p.add(new JLabel("Situation Summary:")); p.add(new JScrollPane(descField));
             p.add(new JLabel("Field Conditions:")); p.add(conditionsField);
             p.add(new JLabel("Affected Individuals:")); p.add(affectedSpinner);
@@ -267,19 +292,24 @@ public final class FieldSituationReportPanel extends JPanel {
             }
 
             Incident inc = (Incident) incBox.getSelectedItem();
+            LocationPickerDialog.Selection location = fieldLocation[0];
 
             BackgroundTask.run(() -> {
-                ctx.rest.rpc("submit_field_situation_report", Map.of(
-                        "p_incident", UUID.fromString(inc.id()),
-                        "p_description", desc,
-                        "p_conditions", conditionsField.getText().trim(),
-                        "p_affected", affectedSpinner.getValue(),
-                        "p_casualties", casualtiesSpinner.getValue(),
-                        "p_medical", medicalField.getText().trim(),
-                        "p_resources", resourceField.getText().trim(),
-                        "p_observations", "",
-                        "p_urgent", urgentBox.isSelected()
-                ));
+                Map<String, Object> args = new HashMap<>();
+                args.put("p_incident", UUID.fromString(inc.id()));
+                args.put("p_description", desc);
+                args.put("p_conditions", conditionsField.getText().trim());
+                args.put("p_affected", affectedSpinner.getValue());
+                args.put("p_casualties", casualtiesSpinner.getValue());
+                args.put("p_medical", medicalField.getText().trim());
+                args.put("p_resources", resourceField.getText().trim());
+                args.put("p_observations", "");
+                args.put("p_urgent", urgentBox.isSelected());
+                if (location != null) {
+                    args.put("p_lat", location.latitude());
+                    args.put("p_lon", location.longitude());
+                }
+                ctx.rest.rpc("submit_field_situation_report", args);
                 return Boolean.TRUE;
             }, ok -> {
                 loadReports();
