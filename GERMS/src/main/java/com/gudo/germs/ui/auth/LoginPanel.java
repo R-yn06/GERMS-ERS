@@ -94,6 +94,13 @@ public final class LoginPanel extends JPanel {
         form.add(signIn);
 
         form.add(Box.createVerticalStrut(8));
+        JButton register = new JButton("Create new account (Register)");
+        register.setAlignmentX(LEFT_ALIGNMENT);
+        register.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        register.addActionListener(e -> showRegisterDialog());
+        form.add(register);
+
+        form.add(Box.createVerticalStrut(8));
         JButton guest = new JButton("Continue as guest");
         guest.setAlignmentX(LEFT_ALIGNMENT);
         guest.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
@@ -119,6 +126,58 @@ public final class LoginPanel extends JPanel {
         p.add(field, BorderLayout.CENTER);
         p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 62));
         return p;
+    }
+
+    private void showRegisterDialog() {
+        JTextField regName = new JTextField();
+        JTextField regEmail = new JTextField();
+        JTextField regPhone = new JTextField();
+        JPasswordField regPass = new JPasswordField();
+        JPasswordField regPassConfirm = new JPasswordField();
+
+        JPanel panel = new JPanel(new java.awt.GridLayout(0, 2, 8, 8));
+        panel.add(new JLabel("Full Name:"));
+        panel.add(regName);
+        panel.add(new JLabel("Email Address:"));
+        panel.add(regEmail);
+        panel.add(new JLabel("Contact Number:"));
+        panel.add(regPhone);
+        panel.add(new JLabel("Password (min 6 chars):"));
+        panel.add(regPass);
+        panel.add(new JLabel("Confirm Password:"));
+        panel.add(regPassConfirm);
+
+        int choice = javax.swing.JOptionPane.showConfirmDialog(this, panel, "Register for GERMS",
+                javax.swing.JOptionPane.OK_CANCEL_OPTION, javax.swing.JOptionPane.PLAIN_MESSAGE);
+        if (choice != javax.swing.JOptionPane.OK_OPTION) return;
+
+        String name = regName.getText().trim();
+        String mail = regEmail.getText().trim();
+        String phone = regPhone.getText().trim();
+        String pass = new String(regPass.getPassword());
+        String pass2 = new String(regPassConfirm.getPassword());
+
+        if (name.isEmpty() || mail.isEmpty() || pass.isEmpty()) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Please fill in all required fields.", "Validation Error", javax.swing.JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (!pass.equals(pass2)) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Passwords do not match.", "Validation Error", javax.swing.JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        if (pass.length() < 6) {
+            javax.swing.JOptionPane.showMessageDialog(this, "Password must be at least 6 characters long.", "Validation Error", javax.swing.JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        showMessage("Registering account...", false);
+        BackgroundTask.run(() -> ctx.auth.register(mail, pass, name, phone), profile -> {
+            showMessage("Registration successful! Logging in...", false);
+            onLogin.accept(profile);
+        }, err -> {
+            showMessage("Registration failed: " + err.getMessage(), true);
+            javax.swing.JOptionPane.showMessageDialog(this, "Registration failed: " + err.getMessage(), "Registration Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+        });
     }
 
     private void attemptLogin() {

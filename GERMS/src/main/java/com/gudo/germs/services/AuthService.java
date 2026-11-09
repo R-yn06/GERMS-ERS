@@ -28,12 +28,34 @@ public final class AuthService {
         Session s = authClient.signIn(email.trim(), password);
         sessions.set(s);
         Profile p = profiles.findById(s.userId()).orElse(null);
-        if (p == null || !p.active()) {
+        if (p == null) {
+            p = profiles.ensureGuestProfile(s.userId(), null, s.email(), null);
+        }
+        if (!p.active()) {
             logout();
-            throw new SupabaseException(403, "This account has no active GERMS profile. Contact headquarters.");
+            throw new SupabaseException(403, "This account is inactive. Please contact headquarters.");
         }
         current = p;
         return p;
+    }
+
+    /** Register a new user account with default Guest role. */
+    public Profile register(String email, String password, String fullName, String phone) throws SupabaseException {
+        if (email == null || email.isBlank() || password == null || password.length() < 6) {
+            throw new SupabaseException(400, "Valid email and a password of at least 6 characters are required.");
+        }
+        if (fullName == null || fullName.isBlank()) {
+            throw new SupabaseException(400, "Full name is required.");
+        }
+        Session s = authClient.signUp(email.trim(), password, fullName.trim(), phone == null ? "" : phone.trim());
+        if (s.accessToken() != null && !s.accessToken().isBlank()) {
+            sessions.set(s);
+            Profile p = profiles.ensureGuestProfile(s.userId(), fullName.trim(), email.trim(), phone);
+            current = p;
+            return p;
+        } else {
+            return new Profile(s.userId(), fullName.trim(), email.trim(), com.gudo.germs.models.Role.GUEST, true);
+        }
     }
 
     public void logout() {

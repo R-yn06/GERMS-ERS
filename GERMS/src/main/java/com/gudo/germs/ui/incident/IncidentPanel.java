@@ -9,6 +9,7 @@ import com.gudo.germs.models.TimelineEntry;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.services.IncidentService;
 import com.gudo.germs.ui.components.StatusBadge;
+import com.gudo.germs.ui.components.LocationPickerDialog;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
@@ -18,25 +19,31 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Dialog.ModalityType;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 /** Main workflow screen: report an incident, publish it, assign a team, step it through response, close it. */
 public final class IncidentPanel extends JPanel {
@@ -56,9 +63,15 @@ public final class IncidentPanel extends JPanel {
     private final JLabel heading = new JLabel("Select an incident");
     private final JLabel meta = new JLabel(" ");
     private final JTextArea timeline = new JTextArea();
+    private final JTextArea descriptionText = new JTextArea();
+    private final com.gudo.germs.ui.components.OpenStreetMapPanel incidentMap = new com.gudo.germs.ui.components.OpenStreetMapPanel();
+    private final JTabbedPane detailTabs = new JTabbedPane();
     private final JComboBox<ResponseTeam> teamBox = new JComboBox<>();
     private final JButton assign = new JButton("Assign team");
     private final JButton advance = new JButton("Advance");
+    private final JButton updateSeverity = new JButton("Update severity");
+    private final JButton accept = new JButton("Accept response");
+    private final JButton decline = new JButton("Decline");
     private final JLabel message = new JLabel(" ");
 
     private List<Incident> rows = List.of();
@@ -123,6 +136,17 @@ public final class IncidentPanel extends JPanel {
         JScrollPane tlScroll = new JScrollPane(timeline);
         tlScroll.setPreferredSize(new Dimension(320, 220));
 
+        descriptionText.setEditable(false);
+        descriptionText.setLineWrap(true);
+        descriptionText.setWrapStyleWord(true);
+        JScrollPane descScroll = new JScrollPane(descriptionText);
+
+        detailTabs.removeAll();
+        detailTabs.addTab("Activity Timeline", tlScroll);
+        detailTabs.addTab("Interactive Map", incidentMap);
+        detailTabs.addTab("Description & Notes", descScroll);
+        detailTabs.setPreferredSize(new Dimension(360, 260));
+
         JPanel actions = new JPanel(new GridLayout(0, 1, 0, 8));
         actions.setOpaque(false);
         JPanel teamRow = new JPanel(new BorderLayout(8, 0));
@@ -130,7 +154,10 @@ public final class IncidentPanel extends JPanel {
         teamRow.add(teamBox, BorderLayout.CENTER);
         teamRow.add(assign, BorderLayout.EAST);
         actions.add(teamRow);
+        actions.add(updateSeverity);
         actions.add(advance);
+        actions.add(accept);
+        actions.add(decline);
         assign.addActionListener(e -> doAssign());
         teamBox.addActionListener(e -> {
             Incident current = selected();
@@ -138,22 +165,27 @@ public final class IncidentPanel extends JPanel {
                     && teamBox.getSelectedItem() != null);
         });
         advance.addActionListener(e -> doAdvance());
+        updateSeverity.addActionListener(e -> doUpdateSeverity());
+        accept.addActionListener(e -> doRespond("accepted"));
+        decline.addActionListener(e -> doRespond("declined"));
+        accept.setVisible(!admin);
+        decline.setVisible(!admin);
         if (!admin) {
             JLabel ro = new JLabel("Only admins can change incident status or assign response teams.");
             ro.setForeground(GermsColors.SECONDARY_TEXT);
             actions.add(ro);
         }
-        for (JComponent c : new JComponent[] {heading, meta, tlScroll, actions}) c.setAlignmentX(LEFT_ALIGNMENT);
+        for (JComponent c : new JComponent[] {heading, meta, detailTabs, actions}) c.setAlignmentX(LEFT_ALIGNMENT);
         detail.add(heading);
         detail.add(Box.createVerticalStrut(4));
         detail.add(meta);
         detail.add(Box.createVerticalStrut(12));
-        detail.add(tlScroll);
+        detail.add(detailTabs);
         detail.add(Box.createVerticalStrut(12));
         detail.add(actions);
 
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(table), detail);
-        split.setResizeWeight(0.62);
+        split.setResizeWeight(0.55);
         split.setBorder(null);
         return split;
     }
@@ -208,8 +240,15 @@ public final class IncidentPanel extends JPanel {
             heading.setText("Select an incident");
             meta.setText(" ");
             timeline.setText("");
+            descriptionText.setText("");
+            incidentMap.clearMarkers();
+            incidentMap.resetView();
             advance.setText("Advance");
             advance.setEnabled(false);
+            updateSeverity.setEnabled(false);
+            updateSeverity.setVisible(false);
+            accept.setEnabled(false);
+            decline.setEnabled(false);
             assign.setEnabled(false);
             teamBox.setEnabled(false);
             return;
@@ -222,9 +261,31 @@ public final class IncidentPanel extends JPanel {
         }
         timeline.setText(sb.toString());
         timeline.setCaretPosition(0);
+        descriptionText.setText("Incident Details:\n" + (i.description() == null || i.description().isBlank() ? "No additional narrative provided." : i.description())
+                + "\n\nAssigned Response Team: " + (i.team() == null ? "None (Unassigned)" : i.team())
+                + "\nSeverity: " + i.severity().toUpperCase()
+                + "\nStatus: " + i.status().label()
+                + "\nCoordinates: " + (i.latitude() != null && i.longitude() != null ? String.format(java.util.Locale.ROOT, "%.5f, %.5f", i.latitude(), i.longitude()) : "Not pinned"));
+
+        if (i.latitude() != null && i.longitude() != null) {
+            incidentMap.setCenter(i.latitude(), i.longitude(), 15);
+            incidentMap.setMarkers(java.util.List.of(new com.gudo.germs.ui.components.OpenStreetMapPanel.MapMarker(
+                    i.id(), i.title(), i.latitude(), i.longitude(),
+                    com.gudo.germs.ui.components.OpenStreetMapPanel.MarkerType.INCIDENT,
+                    i.severity().toUpperCase() + " | " + i.location())));
+        } else {
+            incidentMap.clearMarkers();
+            incidentMap.resetView();
+        }
+
         var next = i.status().next();
         advance.setText(next.map(n -> "Advance to: " + n.label()).orElse("No further steps (" + i.status().label() + ")"));
         advance.setEnabled(next.isPresent() && admin);
+        updateSeverity.setVisible(admin || user.role() == Role.RESPONDER);
+        updateSeverity.setEnabled(admin || user.role() == Role.RESPONDER);
+        boolean accepting = !admin && i.status().isActive() && i.status() != IncidentStatus.STABILIZED;
+        accept.setEnabled(accepting);
+        decline.setEnabled(accepting);
         boolean canAssign = admin && !i.status().isTerminal();
         teamBox.setEnabled(canAssign);
         for (int index = 0; index < teamBox.getItemCount(); index++) {
@@ -257,6 +318,27 @@ public final class IncidentPanel extends JPanel {
                 err -> showMessage(err.getMessage(), true));
     }
 
+    private void doUpdateSeverity() {
+        Incident incident = selected();
+        if (incident == null) return;
+
+        JComboBox<String> severity = new JComboBox<>(SEVERITIES);
+        severity.setSelectedItem(incident.severity().toLowerCase(java.util.Locale.ROOT));
+        JPanel form = new JPanel(new GridLayout(0, 1, 0, 8));
+        form.add(new JLabel("Current severity: " + incident.severity().toUpperCase(java.util.Locale.ROOT)));
+        form.add(new JLabel("Select the updated severity:"));
+        form.add(severity);
+        if (JOptionPane.showConfirmDialog(this, form, "Update Incident Severity",
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+
+        String newSeverity = (String) severity.getSelectedItem();
+        if (newSeverity == null || newSeverity.equalsIgnoreCase(incident.severity())) return;
+        BackgroundTask.run(() -> service.updateSeverity(incident.id(), newSeverity),
+                updated -> showMessage(updated.reference() + " severity changed to "
+                        + updated.severity().toUpperCase(java.util.Locale.ROOT) + ".", false),
+                error -> showMessage("Severity was not updated: " + error.getMessage(), true));
+    }
+
     private void doAssign() {
         Incident i = selected();
         if (i == null) return;
@@ -267,27 +349,67 @@ public final class IncidentPanel extends JPanel {
                 err -> showMessage(err.getMessage(), true));
     }
 
+    private void doRespond(String decision) {
+        Incident incident = selected();
+        if (incident == null) return;
+        String note = JOptionPane.showInputDialog(this, "Optional note for command:", "Incident response", JOptionPane.PLAIN_MESSAGE);
+        if (note == null) return;
+        BackgroundTask.run(() -> { service.respond(incident.id(), decision, note); return null; },
+                ignored -> showMessage("Your " + decision + " response was recorded.", false),
+                err -> showMessage("Response was not recorded: " + err.getMessage(), true));
+    }
+
     private void reportDialog() {
         JTextField title = new JTextField(22);
         JTextField location = new JTextField(22);
+        JTextArea descArea = new JTextArea(3, 22);
+        descArea.setLineWrap(true);
+        AtomicReference<LocationPickerDialog.Selection> selectedLocation = new AtomicReference<>();
+        JLabel selectedLocationText = new JLabel("No map location selected (optional)");
+        JButton chooseLocation = new JButton("Pin / Search on Map");
+        chooseLocation.addActionListener(event -> {
+            LocationPickerDialog.Selection picked = LocationPickerDialog.showDialog(
+                    SwingUtilities.getWindowAncestor(this), "Select Incident Location", selectedLocation.get());
+            if (picked != null) {
+                selectedLocation.set(picked);
+                selectedLocationText.setText(String.format(java.util.Locale.ROOT, "%s (%.5f, %.5f)",
+                        picked.label(), picked.latitude(), picked.longitude()));
+                if (location.getText().isBlank()) location.setText(picked.label());
+            }
+        });
         JComboBox<String> type = new JComboBox<>(TYPES);
         JComboBox<String> severity = new JComboBox<>(SEVERITIES);
         severity.setSelectedItem("moderate");
+
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Title")); form.add(title);
-        form.add(new JLabel("Type")); form.add(type);
-        form.add(new JLabel("Location")); form.add(location);
-        form.add(new JLabel("Severity")); form.add(severity);
-        if (JOptionPane.showConfirmDialog(this, form, "Report an incident",
+        form.add(new JLabel("Title:")); form.add(title);
+        form.add(new JLabel("Type / Category:")); form.add(type);
+        form.add(new JLabel("Location Name:")); form.add(location);
+        form.add(new JLabel("Severity Level:")); form.add(severity);
+        form.add(new JLabel("Map Location:"));
+        JPanel locationPicker = new JPanel(new BorderLayout(8, 0));
+        locationPicker.add(chooseLocation, BorderLayout.WEST);
+        locationPicker.add(selectedLocationText, BorderLayout.CENTER);
+        form.add(locationPicker);
+        form.add(new JLabel("Description / Instructions:")); form.add(new JScrollPane(descArea));
+
+        if (JOptionPane.showConfirmDialog(this, form, "Report / Log an Emergency Incident",
                 JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+
+        LocationPickerDialog.Selection picked = selectedLocation.get();
+        Double finalLat = picked == null ? null : picked.latitude();
+        Double finalLon = picked == null ? null : picked.longitude();
+        String desc = descArea.getText().trim();
+
         if (admin) {
             BackgroundTask.run(() -> service.report(title.getText(), (String) type.getSelectedItem(),
-                            location.getText(), (String) severity.getSelectedItem(), user.fullName()),
+                            location.getText(), (String) severity.getSelectedItem(), user.fullName(),
+                            finalLat, finalLon, desc),
                     i -> showMessage(i.reference() + " created as Draft. An admin must publish it.", false),
                     err -> showMessage(err.getMessage(), true));
         } else {
             BackgroundTask.run(() -> service.submitGuestReport(title.getText(), (String) type.getSelectedItem(),
-                            location.getText(), (String) severity.getSelectedItem(), user.fullName()),
+                            location.getText(), (String) severity.getSelectedItem(), user.fullName(), finalLat, finalLon),
                     i -> showMessage(i.reference() + " submitted for dispatcher verification.", false),
                     err -> showMessage(err.getMessage(), true));
         }

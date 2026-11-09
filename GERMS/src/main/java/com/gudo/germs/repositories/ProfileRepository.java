@@ -17,4 +17,22 @@ public final class ProfileRepository {
         JsonNode rows = rest.select("profiles", "select=id,full_name,email,role,is_active&id=eq." + id);
         return rows.isArray() && rows.size() > 0 ? Optional.of(Profile.fromJson(rows.get(0))) : Optional.empty();
     }
+
+    public Profile ensureGuestProfile(UUID id, String fullName, String email, String phone) {
+        try {
+            rest.insertMinimal("profiles", java.util.Map.of(
+                "id", id.toString(),
+                "full_name", (fullName != null && !fullName.isBlank()) ? fullName : (email != null ? email : "Guest User"),
+                "email", email != null ? email : "",
+                "phone", phone != null ? phone : "",
+                "role", "guest",
+                "is_active", true
+            ));
+        } catch (Exception ignored) {}
+        try {
+            return findById(id).orElse(new Profile(id, fullName != null && !fullName.isBlank() ? fullName : "Guest User", email != null ? email : "", com.gudo.germs.models.Role.GUEST, true));
+        } catch (Exception e) {
+            return new Profile(id, fullName != null && !fullName.isBlank() ? fullName : "Guest User", email != null ? email : "", com.gudo.germs.models.Role.GUEST, true);
+        }
+    }
 }

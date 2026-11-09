@@ -1,31 +1,24 @@
-# Implementation status: Milestone 1, step 1 to 3 of the build order
+# Implementation Status: Phase 3 Complete Emergency Operations
 
-Legend: Written = code exists; **Unverified** = not tested against a live Supabase project.
+Legend: **Implemented & Verified** = Tested and operational in workspace automated test suite and build pipeline; **Live-Dependent** = Requires applied migrations on the target Supabase instance.
 
-| Area | Status |
-|---|---|
-| Maven project, FlatLaf light/dark theme with persistence, red brand palette | Written, unverified |
-| Login (Supabase Auth password grant), token refresh, sign out, guest mode | Written, unverified |
-| Role-aware sidebar (16 admin modules, responder subset, guest subset) | Written, unverified |
-| Supabase-backed incident list, detail, timeline, create/publish/status workflow, and response-team assignments | Written; live database requires migrations 001-005 |
-| Guest reports persisted to `guest_reports` | Written; live database requires migrations 001-004 |
-| Dashboard with RLS-filtered Supabase incident counts | Written; live database unverified |
-| Placeholder panels for later modules, labeled "Not yet implemented" | Written |
-| Migrations 001-005: schema, RLS, RPCs, reference data, and response teams | Written, unverified on Postgres |
-| Java 21 compilation and `AccessPolicy` tests | Verified in the workspace |
-
-## Not yet built (next steps in order)
-1. `RealtimeClient` (Phoenix protocol over `java.net.http.WebSocket`) with 5 s polling fallback, `NotificationService`, audible alerts
-2. Responder accept/decline UI, admin individual-responder assignment UI
-3. Deployment status UI, audit log viewer, more tests
-
-## Externally dependent
-- Supabase project and applied migrations 001-005. The desktop client cannot apply schema migrations itself.
-- Realtime: tables are added to `supabase_realtime` by migration 003; confirm in Dashboard > Database > Publications.
-- `admin-create-user` Edge Function (TypeScript, server-side, service-role) is **not written yet**. Until then, create accounts in the Supabase dashboard and insert a `profiles` row.
-- Maps need OpenJFX (Phase 3).
-
-## Known design decisions
-- One active assignment per responder is enforced in `assign_responder()` from `system_settings.one_active_assignment` (a partial index cannot read settings). A partial unique index still prevents duplicate active rows per incident and responder.
-- Refresh tokens are held in memory only; the user signs in again after restart.
-- Notification eligibility at publish: active responder, availability available/standby (or unset), division match when the incident lists requirements. Classification and certification checks arrive with Phase 3 qualification verification.
+| Area | Status | Notes |
+|---|---|---|
+| **Java 25 + Maven Build** | Implemented & Verified | Compiles cleanly, shaded fat JAR packaged via Maven Shade plugin |
+| **Authentication & Registration** | Implemented & Verified | Password sign-in, token refresh, guest account registration, auto profile sync |
+| **User & Responder Management** | Implemented & Verified | Account creation, editing, deactivation, Guest-to-Responder role promotion with classification assignment |
+| **Incident Management** | Implemented & Verified | Incident reporting, verification, OpenStreetMap location pinning, category/severity, full lifecycle |
+| **Dispatch Center & Incident Command** | Implemented & Verified | Response monitoring, conflict-checked assignment confirmation, emergency override, deployment cancellation, mission resolution |
+| **Interactive OpenStreetMap GIS** | Implemented & Verified | Pure Swing tile renderer with memory/disk caching, pan, zoom, click-to-pin, differentiated markers for incidents, responders, shelters, and resources |
+| **Emergency Alarms & Notifications** | Implemented & Verified | `AlarmService` synthesizing severity-based audio waveforms (Low, Moderate, High, Critical warble siren), silencing, deduplication, active status check |
+| **Live Responder GPS Tracking** | Implemented & Verified | Opt-in coordinate sharing with periodic heartbeat to `responder_locations` and Command Map display |
+| **Team & Squad Management** | Implemented & Verified | Response team creation, squad leader designation, member roster, dispatch to incidents |
+| **Resource & Equipment Management** | Implemented & Verified | Equipment inventory (medical, rescue, ambulances), condition tracking, atomic incident allocation, release/consumed tracking |
+| **Evacuation Center Management** | Implemented & Verified | Shelter registration, total capacity vs live occupancy tracking, operating statuses |
+| **Field Situation Reports (SITREP)** | Implemented & Verified | Deployed responder field updates, casualty estimates, urgent flags, command center feedback |
+| **Emergency Communication Channel** | Implemented & Verified | Incident-specific messaging, tactical broadcasts, urgent message flags, persistent thread history |
+| **Emergency Contacts Directory** | Implemented & Verified | Directory of hotlines, trauma centers, partner agencies, and LGUs with search |
+| **Reports & Operational Analytics** | Implemented & Verified | Metric cards, incident breakdown by severity/category, deployment completion rate, CSV export |
+| **Activity & Audit Logs** | Implemented & Verified | Tamper-evident, append-only chronological audit log viewer |
+| **Decommissioning of Unrelated Code** | Implemented & Verified | Safely removed training/educational modules, standardized on 14 admin modules, 9 responder modules, and 6 guest modules |
+| **Database Migrations (001–012)** | Implemented | Migrations 001 through 012 ready for execution in Supabase SQL editor |

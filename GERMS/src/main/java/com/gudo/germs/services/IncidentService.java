@@ -7,6 +7,8 @@ import com.gudo.germs.models.ResponseTeam;
 import com.gudo.germs.supabase.SupabaseException;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -15,6 +17,8 @@ import java.util.UUID;
  * Safe to call from a background thread (see BackgroundTask).
  */
 public final class IncidentService {
+    private static final Set<String> SEVERITIES = Set.of("low", "moderate", "high", "critical");
+
     private final IncidentRepository repo;
     private final IncidentBus bus = new IncidentBus();
 
@@ -31,12 +35,33 @@ public final class IncidentService {
         return repo.findTeams();
     }
 
+    public synchronized Incident updateSeverity(String id, String severity) throws SupabaseException {
+        if (id == null || id.isBlank()) throw new IllegalArgumentException("Incident is required.");
+        if (severity == null || !SEVERITIES.contains(severity.trim().toLowerCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("Choose a valid incident severity.");
+        }
+        Incident current = repo.find(id).orElseThrow(() -> new IllegalArgumentException("Incident not found."));
+        String normalized = severity.trim().toLowerCase(Locale.ROOT);
+        if (normalized.equalsIgnoreCase(current.severity())) return current;
+
+        Incident updated = repo.updateSeverity(id, normalized);
+        bus.publish(new IncidentEvent(IncidentEvent.Type.UPDATED, updated));
+        return updated;
+    }
+
     public synchronized Incident report(String title, String type, String location, String severity, String reporter)
+            throws SupabaseException {
+        return report(title, type, location, severity, reporter, null, null, "");
+    }
+
+    public synchronized Incident report(String title, String type, String location, String severity, String reporter,
+                                        Double lat, Double lon, String description)
             throws SupabaseException {
         Incident built = new IncidentBuilder()
                 .id(UUID.randomUUID().toString())
                 .title(title).type(type).location(location).severity(severity)
                 .reportedBy(reporter)
+                .latitude(lat).longitude(lon).description(description)
                 .note(reporter, "Incident reported; awaiting verification")
                 .build();
         Incident i = repo.create(built);
@@ -46,11 +71,18 @@ public final class IncidentService {
 
     public synchronized Incident submitGuestReport(String title, String type, String location, String severity, String reporter)
             throws SupabaseException {
+        return submitGuestReport(title, type, location, severity, reporter, null, null);
+    }
+
+    public synchronized Incident submitGuestReport(String title, String type, String location, String severity, String reporter,
+                                                    Double lat, Double lon)
+            throws SupabaseException {
         Incident report = new IncidentBuilder()
                 .id(UUID.randomUUID().toString())
                 .title(title).type(type).location(location).severity(severity)
                 .reportedBy(reporter)
                 .status(IncidentStatus.DRAFT)
+                .latitude(lat).longitude(lon)
                 .note(reporter, "Preliminary report submitted for verification")
                 .build();
         Incident saved = repo.submitGuestReport(report);
@@ -84,6 +116,18 @@ public final class IncidentService {
         Incident updated = repo.advance(id, next, note);
         bus.publish(new IncidentEvent(IncidentEvent.Type.UPDATED, updated));
         return updated;
+    }
+
+    public synchronized void respond(String id, String decision, String note) throws SupabaseException {
+        if (!"accepted".equals(decision) && !"declined".equals(decision)) {
+            throw new IllegalArgumentException("Response must be accepted or declined.");
+        }
+        Incident incident = get(id);
+        if (!incident.status().isActive() || incident.status() == IncidentStatus.STABILIZED) {
+            throw new IllegalStateException("This incident is not accepting responses.");
+        }
+        repo.respond(id, decision, note);
+        bus.publish(new IncidentEvent(IncidentEvent.Type.UPDATED, incident));
     }
 
     private Incident get(String id) throws SupabaseException {

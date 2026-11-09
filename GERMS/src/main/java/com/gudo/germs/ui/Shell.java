@@ -4,34 +4,24 @@ import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Profile;
 import com.gudo.germs.security.AccessPolicy;
 import com.gudo.germs.security.Module;
-import com.gudo.germs.ui.admin.DashboardPanel;
-import com.gudo.germs.ui.components.ModulePlaceholderPanel;
+import com.gudo.germs.ui.admin.*;
+import com.gudo.germs.ui.components.EmergencyContactDirectoryPanel;
+import com.gudo.germs.ui.components.PublicAnnouncementsPanel;
 import com.gudo.germs.ui.components.SurfacePanel;
 import com.gudo.germs.ui.guest.GuestReportPanel;
+import com.gudo.germs.ui.guest.MySubmittedReportsPanel;
 import com.gudo.germs.ui.guest.SettingsPanel;
-import com.gudo.germs.ui.incident.IncidentPanel;
+import com.gudo.germs.ui.incident.*;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.ui.theme.ThemeManager;
 
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JToggleButton;
-import java.awt.BorderLayout;
-import java.awt.CardLayout;
-import java.awt.Dimension;
-import java.awt.Font;
+import javax.swing.*;
+import java.awt.*;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-/** Signed-in frame content: top bar, role-filtered sidebar, and lazily created module panels. */
+/** Signed-in frame content: top bar, role-filtered sidebar, and lazily created operational module panels. */
 public final class Shell extends JPanel {
     private final AppContext ctx;
     private final Profile user;
@@ -91,7 +81,7 @@ public final class Shell extends JPanel {
             b.putClientProperty("JButton.buttonType", "toolBarButton");
             b.setHorizontalAlignment(JToggleButton.LEFT);
             b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
-            b.setPreferredSize(new Dimension(220, 38));
+            b.setPreferredSize(new Dimension(240, 38));
             b.setAlignmentX(LEFT_ALIGNMENT);
             b.setSelected(m == modules.get(0));
             b.addActionListener(e -> show(m));
@@ -119,8 +109,29 @@ public final class Shell extends JPanel {
             case DASHBOARD -> new DashboardPanel(ctx, user);
             case SETTINGS -> new SettingsPanel(user);
             case INCIDENTS -> new IncidentPanel(ctx, user);
+            case DISPATCH -> new DispatchPanel(ctx, user);
+            case MAP -> new LiveOperationsMapPanel(ctx, user);
+            case USERS -> new UserManagementPanel(ctx);
+            case TEAMS -> new TeamManagementPanel(ctx, user);
+            case RESOURCES -> new ResourceManagementPanel(ctx, user);
+            case EVACUATION -> new EvacuationCenterPanel(ctx, user, false);
+            case FIELD_REPORTS -> new FieldSituationReportPanel(ctx, user);
+            case COMMUNICATION -> new EmergencyCommunicationPanel(ctx, user);
+            case CONTACTS -> new EmergencyContactDirectoryPanel(ctx, user, false);
+            case REPORTS -> new ReportsAnalyticsPanel(ctx, user);
+            case AUDIT -> new AuditLogPanel(ctx, user);
+
+            // Responder Modules
+            case NOTIFICATIONS -> new NotificationPanel(ctx, user);
+            case MY_DEPLOYMENTS -> new MyDeploymentsPanel(ctx, user);
+            case MY_TEAM -> new MyTeamPanel(ctx, user);
+
+            // Guest Modules
+            case GUEST_ADVISORIES -> new PublicAnnouncementsPanel(ctx, user, true);
             case GUEST_REPORT -> new GuestReportPanel(ctx, user);
-            default -> new ModulePlaceholderPanel(module);
+            case GUEST_MY_REPORTS -> new MySubmittedReportsPanel(ctx, user);
+            case GUEST_EVACUATION -> new EvacuationCenterPanel(ctx, user, true);
+            case GUEST_CONTACTS -> new EmergencyContactDirectoryPanel(ctx, user, true);
         };
     }
 }

@@ -16,6 +16,24 @@ public final class AuthClient {
         return parse(http.send("POST", "/auth/v1/token?grant_type=password", body, null, null));
     }
 
+    public Session signUp(String email, String password, String fullName, String phone) throws SupabaseException {
+        var dataNode = SupabaseHttp.JSON.createObjectNode()
+                .put("full_name", fullName == null ? "" : fullName.trim())
+                .put("phone", phone == null ? "" : phone.trim());
+        String body = SupabaseHttp.JSON.createObjectNode()
+                .put("email", email.trim())
+                .put("password", password)
+                .set("data", dataNode)
+                .toString();
+        JsonNode res = http.send("POST", "/auth/v1/signup", body, null, null);
+        if (res.hasNonNull("access_token")) {
+            return parse(res);
+        }
+        String userId = res.path("id").asText(res.path("user").path("id").asText(""));
+        UUID uid = userId.isBlank() ? UUID.randomUUID() : UUID.fromString(userId);
+        return new Session("", "", Instant.now().plusSeconds(3600), uid, email.trim());
+    }
+
     public Session refresh(String refreshToken) throws SupabaseException {
         String body = SupabaseHttp.JSON.createObjectNode().put("refresh_token", refreshToken).toString();
         return parse(http.send("POST", "/auth/v1/token?grant_type=refresh_token", body, null, null));

@@ -16,6 +16,8 @@ public interface IncidentRepository {
     List<ResponseTeam> findTeams() throws SupabaseException;
     Incident create(Incident incident) throws SupabaseException;
     Incident submitGuestReport(Incident report) throws SupabaseException;
+    Incident updateSeverity(String id, String severity) throws SupabaseException;
     Incident assignTeam(String id, ResponseTeam team) throws SupabaseException;
     Incident advance(String id, IncidentStatus status, String note) throws SupabaseException;
+    void respond(String id, String decision, String note) throws SupabaseException;
 }
