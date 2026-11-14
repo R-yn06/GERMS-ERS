@@ -1,5 +1,38 @@
 package com.gudo.germs.ui.incident;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
+import javax.swing.table.DefaultTableModel;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
@@ -9,32 +42,28 @@ import com.gudo.germs.ui.components.LocationPickerDialog;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.UUID;
-
 /**
  * Field Situation Reporting (SITREP) Module.
  * Deployed responders submit live field updates, casualty estimates,
- * and urgent resource/medical needs. Administrators review sitreps and deliver feedback.
+ * and urgent resource/medical needs. Administrators review sitreps and deliver
+ * feedback.
  */
 public final class FieldSituationReportPanel extends JPanel {
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm")
+            .withZone(ZoneId.systemDefault());
 
     private final AppContext ctx;
     private final Profile user;
     private final boolean isAdmin;
 
     private final DefaultTableModel model = new DefaultTableModel(
-            new String[]{"ID", "Incident", "Timestamp", "Reporter", "Conditions", "Affected", "Casualties", "Urgent"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "ID", "Incident", "Timestamp", "Reporter", "Conditions", "Affected", "Casualties",
+                    "Urgent" },
+            0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable table = new JTable(model);
 
@@ -60,9 +89,10 @@ public final class FieldSituationReportPanel extends JPanel {
     }
 
     private JPanel buildHeader() {
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
 
+        // Row 1: title + subtitle
         JLabel title = new JLabel("Field Situation Reports (SITREP)");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
         JLabel desc = new JLabel(isAdmin
@@ -70,33 +100,39 @@ public final class FieldSituationReportPanel extends JPanel {
                 : "Submit operational field assessments, casualty counts, urgent medical requests, and situation updates.");
         desc.setForeground(GermsColors.SECONDARY_TEXT);
 
-        JPanel p = new JPanel(new GridLayout(0, 1, 0, 2));
-        p.setOpaque(false);
-        p.add(title);
-        p.add(desc);
-        header.add(p, BorderLayout.WEST);
+        JPanel titles = new JPanel(new GridLayout(0, 1, 0, 2));
+        titles.setOpaque(false);
+        titles.add(title);
+        titles.add(desc);
+        header.add(titles, BorderLayout.NORTH);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        actions.setOpaque(false);
-
+        // Row 2: action buttons
         JButton submitBtn = new JButton("+ Submit Field SITREP");
         submitBtn.setBackground(GermsColors.PRIMARY_RED);
         submitBtn.setForeground(Color.WHITE);
         submitBtn.setFont(submitBtn.getFont().deriveFont(Font.BOLD));
         submitBtn.addActionListener(e -> showSubmitSitrepDialog());
 
-        JButton feedbackBtn = new JButton("Add Command Feedback");
-        feedbackBtn.addActionListener(e -> showAddFeedbackDialog());
-        if (!isAdmin) feedbackBtn.setVisible(false);
-
         JButton refreshBtn = new JButton("Refresh");
         refreshBtn.addActionListener(e -> loadReports());
 
-        actions.add(submitBtn);
-        if (isAdmin) actions.add(feedbackBtn);
-        actions.add(refreshBtn);
+        // BoxLayout keeps everything in one row at its natural size (no wrapping).
+        JPanel actions = new JPanel();
+        actions.setOpaque(false);
+        actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
 
-        header.add(actions, BorderLayout.EAST);
+        actions.add(submitBtn);
+        actions.add(Box.createHorizontalStrut(8));
+        if (isAdmin) {
+            JButton feedbackBtn = new JButton("Add Command Feedback");
+            feedbackBtn.addActionListener(e -> showAddFeedbackDialog());
+            actions.add(feedbackBtn);
+            actions.add(Box.createHorizontalStrut(8));
+        }
+        actions.add(refreshBtn);
+        actions.add(Box.createHorizontalGlue()); // pushes buttons to the left
+
+        header.add(actions, BorderLayout.CENTER);
         return header;
     }
 
@@ -138,7 +174,8 @@ public final class FieldSituationReportPanel extends JPanel {
         detailPanel.add(Box.createVerticalStrut(8));
         detailPanel.add(titledBlock("Command Center Feedback:", adminFeedbackArea, 60));
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(table), new JScrollPane(detailPanel));
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(table),
+                new JScrollPane(detailPanel));
         split.setResizeWeight(0.58);
         split.setBorder(null);
         return split;
@@ -171,18 +208,21 @@ public final class FieldSituationReportPanel extends JPanel {
             if (rows != null && rows.isArray()) {
                 for (JsonNode r : rows) {
                     JsonNode inc = r.path("incidents");
-                    String incName = inc.hasNonNull("incident_no") ? (inc.path("incident_no").asText() + " " + inc.path("title").asText()) : "Incident";
+                    String incName = inc.hasNonNull("incident_no")
+                            ? (inc.path("incident_no").asText() + " " + inc.path("title").asText())
+                            : "Incident";
                     JsonNode p = r.path("profiles");
                     String reporter = p.hasNonNull("full_name") ? p.path("full_name").asText() : "Responder";
 
                     String dateStr = r.path("created_at").asText();
                     try {
                         dateStr = TIME_FMT.format(Instant.parse(dateStr));
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
 
                     boolean urgent = r.path("urgent").asBoolean();
 
-                    model.addRow(new Object[]{
+                    model.addRow(new Object[] {
                             r.path("id").asText(),
                             incName,
                             dateStr,
@@ -222,9 +262,11 @@ public final class FieldSituationReportPanel extends JPanel {
                 break;
             }
         }
-        if (rowData == null) return;
+        if (rowData == null)
+            return;
 
-        headerLabel.setText(String.valueOf(model.getValueAt(modelRow, 1)) + " \u2014 " + String.valueOf(model.getValueAt(modelRow, 3)));
+        headerLabel.setText(String.valueOf(model.getValueAt(modelRow, 1)) + " \u2014 "
+                + String.valueOf(model.getValueAt(modelRow, 3)));
         descriptionArea.setText(rowData.path("situation_description").asText(""));
         medicalNeedsArea.setText(rowData.path("medical_needs").asText("None indicated"));
         resourceNeedsArea.setText(rowData.path("resource_needs").asText("None indicated"));
@@ -235,7 +277,8 @@ public final class FieldSituationReportPanel extends JPanel {
         BackgroundTask.run(() -> ctx.incidents.visibleTo(false), incidents -> {
             List<Incident> active = incidents.stream().filter(i -> i.status().isActive()).toList();
             if (active.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No active incidents currently available for SITREP reporting.", "Notice", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No active incidents currently available for SITREP reporting.",
+                        "Notice", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
 
@@ -268,26 +311,37 @@ public final class FieldSituationReportPanel extends JPanel {
             });
 
             JPanel p = new JPanel(new GridLayout(0, 2, 6, 6));
-            p.add(new JLabel("Incident:")); p.add(incBox);
+            p.add(new JLabel("Incident:"));
+            p.add(incBox);
             p.add(new JLabel("Field Location:"));
             JPanel locationPicker = new JPanel(new BorderLayout(8, 0));
             locationPicker.add(chooseLocation, BorderLayout.WEST);
             locationPicker.add(fieldLocationText, BorderLayout.CENTER);
             p.add(locationPicker);
-            p.add(new JLabel("Situation Summary:")); p.add(new JScrollPane(descField));
-            p.add(new JLabel("Field Conditions:")); p.add(conditionsField);
-            p.add(new JLabel("Affected Individuals:")); p.add(affectedSpinner);
-            p.add(new JLabel("Casualties Count:")); p.add(casualtiesSpinner);
-            p.add(new JLabel("Medical Needs:")); p.add(medicalField);
-            p.add(new JLabel("Resource Needs:")); p.add(resourceField);
-            p.add(new JLabel("Priority:")); p.add(urgentBox);
+            p.add(new JLabel("Situation Summary:"));
+            p.add(new JScrollPane(descField));
+            p.add(new JLabel("Field Conditions:"));
+            p.add(conditionsField);
+            p.add(new JLabel("Affected Individuals:"));
+            p.add(affectedSpinner);
+            p.add(new JLabel("Casualties Count:"));
+            p.add(casualtiesSpinner);
+            p.add(new JLabel("Medical Needs:"));
+            p.add(medicalField);
+            p.add(new JLabel("Resource Needs:"));
+            p.add(resourceField);
+            p.add(new JLabel("Priority:"));
+            p.add(urgentBox);
 
-            int choice = JOptionPane.showConfirmDialog(this, p, "Submit Field Situation Report", JOptionPane.OK_CANCEL_OPTION);
-            if (choice != JOptionPane.OK_OPTION) return;
+            int choice = JOptionPane.showConfirmDialog(this, p, "Submit Field Situation Report",
+                    JOptionPane.OK_CANCEL_OPTION);
+            if (choice != JOptionPane.OK_OPTION)
+                return;
 
             String desc = descField.getText().trim();
             if (desc.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "Situation summary cannot be blank.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Situation summary cannot be blank.", "Validation Error",
+                        JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
@@ -313,35 +367,41 @@ public final class FieldSituationReportPanel extends JPanel {
                 return Boolean.TRUE;
             }, ok -> {
                 loadReports();
-                JOptionPane.showMessageDialog(this, "Field SITREP submitted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-            }, err -> JOptionPane.showMessageDialog(this, "Submission failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
-        }, err -> JOptionPane.showMessageDialog(this, "Failed to load incidents: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+                JOptionPane.showMessageDialog(this, "Field SITREP submitted successfully.", "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }, err -> JOptionPane.showMessageDialog(this, "Submission failed: " + err.getMessage(), "Error",
+                    JOptionPane.ERROR_MESSAGE));
+        }, err -> JOptionPane.showMessageDialog(this, "Failed to load incidents: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private void showAddFeedbackDialog() {
         int r = table.getSelectedRow();
         if (r < 0) {
-            JOptionPane.showMessageDialog(this, "Select a report to provide feedback.", "Notice", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Select a report to provide feedback.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         int modelRow = table.convertRowIndexToModel(r);
         String reportId = String.valueOf(model.getValueAt(modelRow, 0));
 
-        String feedback = JOptionPane.showInputDialog(this, "Enter Command Center directive / feedback for the field team:",
+        String feedback = JOptionPane.showInputDialog(this,
+                "Enter Command Center directive / feedback for the field team:",
                 "Command SITREP Feedback", JOptionPane.PLAIN_MESSAGE);
-        if (feedback == null || feedback.isBlank()) return;
+        if (feedback == null || feedback.isBlank())
+            return;
 
         BackgroundTask.run(() -> {
             ctx.rest.insertMinimal("field_situation_reports", Map.of(
                     "id", reportId,
                     "admin_feedback", feedback.trim(),
-                    "reviewed_by", user.id().toString()
-            ));
+                    "reviewed_by", user.id().toString()));
             return Boolean.TRUE;
         }, ok -> {
             loadReports();
             JOptionPane.showMessageDialog(this, "Feedback recorded.", "Success", JOptionPane.INFORMATION_MESSAGE);
-        }, err -> JOptionPane.showMessageDialog(this, "Failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+        }, err -> JOptionPane.showMessageDialog(this, "Failed: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 }

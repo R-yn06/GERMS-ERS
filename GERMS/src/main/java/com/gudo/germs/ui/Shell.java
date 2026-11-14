@@ -21,7 +21,10 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
-/** Signed-in frame content: top bar, role-filtered sidebar, and lazily created operational module panels. */
+/**
+ * Signed-in frame content: top bar, role-filtered sidebar, and lazily created
+ * operational module panels.
+ */
 public final class Shell extends JPanel {
     private final AppContext ctx;
     private final Profile user;
@@ -35,12 +38,41 @@ public final class Shell extends JPanel {
         this.user = user;
         add(buildTopBar(onLogout), BorderLayout.NORTH);
         List<Module> modules = AccessPolicy.modulesFor(user.role());
-        add(buildSidebar(modules), BorderLayout.WEST);
+        // Keep the sidebar and its toggle together in the WEST region.
+        JPanel navigation = new JPanel(new BorderLayout());
+        navigation.setOpaque(false);
+
+        JComponent sidebar = buildSidebar(modules);
+
+        JButton toggleSidebar = new JButton("\\u2630");
+        toggleSidebar.setFocusPainted(false);
+        toggleSidebar.setToolTipText("Hide sidebar");
+        toggleSidebar.setPreferredSize(new Dimension(38, 30));
+
+        toggleSidebar.addActionListener(e -> {
+            boolean visible = sidebar.isVisible();
+            sidebar.setVisible(!visible);
+
+            if (visible) {
+                toggleSidebar.setText("\\u00BB");
+                toggleSidebar.setToolTipText("Show sidebar");
+            } else {
+                toggleSidebar.setText("\\u2630");
+                toggleSidebar.setToolTipText("Hide sidebar");
+            }
+
+            navigation.revalidate();
+            navigation.repaint();
+        });
+
+        navigation.add(toggleSidebar, BorderLayout.NORTH);
+        navigation.add(sidebar, BorderLayout.CENTER);
+        add(navigation, BorderLayout.WEST);
         add(content, BorderLayout.CENTER);
         if (!modules.isEmpty()) show(modules.get(0));
     }
 
-    private JPanel buildTopBar(Runnable onLogout) {
+private JPanel buildTopBar(Runnable onLogout) {
         JPanel bar = new SurfacePanel(new BorderLayout(), GermsColors::surface);
         bar.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
         JLabel brand = new JLabel("GERMS");
@@ -65,73 +97,3 @@ public final class Shell extends JPanel {
         right.add(theme);
         right.add(Box.createHorizontalStrut(16));
         right.add(who);
-        right.add(Box.createHorizontalStrut(16));
-        right.add(out);
-        bar.add(right, BorderLayout.EAST);
-        return bar;
-    }
-
-    private JComponent buildSidebar(List<Module> modules) {
-        JPanel list = new SurfacePanel(null, GermsColors::surface);
-        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-        list.setBorder(BorderFactory.createEmptyBorder(12, 8, 12, 8));
-        ButtonGroup group = new ButtonGroup();
-        for (Module m : modules) {
-            JToggleButton b = new JToggleButton(m.title());
-            b.putClientProperty("JButton.buttonType", "toolBarButton");
-            b.setHorizontalAlignment(JToggleButton.LEFT);
-            b.setMargin(new Insets(6, 12, 6, 12));
-            b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
-            b.setPreferredSize(new Dimension(255, 42));
-            b.setAlignmentX(LEFT_ALIGNMENT);
-            b.setSelected(m == modules.get(0));
-            b.addActionListener(e -> show(m));
-            group.add(b);
-            list.add(b);
-            list.add(Box.createVerticalStrut(3));
-        }
-        JScrollPane scroll = new JScrollPane(list);
-        scroll.setBorder(null);
-        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        return scroll;
-    }
-
-    private void show(Module module) {
-        built.computeIfAbsent(module, m -> {
-            JComponent panel = create(m);
-            content.add(panel, m.name());
-            return panel;
-        });
-        cards.show(content, module.name());
-    }
-
-    private JComponent create(Module module) {
-        return switch (module) {
-            case DASHBOARD -> new DashboardPanel(ctx, user);
-            case SETTINGS -> new SettingsPanel(user);
-            case INCIDENTS -> new IncidentPanel(ctx, user);
-            case DISPATCH -> new DispatchPanel(ctx, user);
-            case MAP -> new LiveOperationsMapPanel(ctx, user);
-            case USERS -> new UserManagementPanel(ctx);
-            case TEAMS -> new TeamManagementPanel(ctx, user);
-            case RESOURCES -> new ResourceManagementPanel(ctx, user);
-            case EVACUATION -> new EvacuationCenterPanel(ctx, user, false);
-            case FIELD_REPORTS -> new FieldSituationReportPanel(ctx, user);
-            case COMMUNICATION -> new EmergencyCommunicationPanel(ctx, user);
-            case CONTACTS -> new EmergencyContactDirectoryPanel(ctx, user, false);
-            case REPORTS -> new ReportsAnalyticsPanel(ctx, user);
-            case AUDIT -> new AuditLogPanel(ctx, user);
-
-            // Responder Modules
-            case MY_DEPLOYMENTS -> new MyDeploymentsPanel(ctx, user);
-            case MY_TEAM -> new MyTeamPanel(ctx, user);
-
-            // Guest Modules
-            case GUEST_ADVISORIES -> new PublicAnnouncementsPanel(ctx, user, true);
-            case GUEST_REPORT -> new GuestReportPanel(ctx, user);
-            case GUEST_MY_REPORTS -> new MySubmittedReportsPanel(ctx, user);
-            case GUEST_EVACUATION -> new EvacuationCenterPanel(ctx, user, true);
-            case GUEST_CONTACTS -> new EmergencyContactDirectoryPanel(ctx, user, true);
-        };
-    }
-}
