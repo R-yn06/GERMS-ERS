@@ -1,18 +1,36 @@
 package com.gudo.germs.ui.admin;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.table.DefaultTableModel;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
 import com.gudo.germs.models.Profile;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
-
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * Emergency Resource and Equipment Management.
@@ -24,14 +42,21 @@ public final class ResourceManagementPanel extends JPanel {
     private final Profile user;
 
     private final DefaultTableModel resourceModel = new DefaultTableModel(
-            new String[]{"ID", "Resource Name", "Category", "Total", "Available", "Condition", "Status", "Location"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "ID", "Resource Name", "Category", "Total", "Available", "Condition", "Status", "Location" },
+            0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable resourceTable = new JTable(resourceModel);
 
     private final DefaultTableModel allocModel = new DefaultTableModel(
-            new String[]{"Allocation ID", "Incident", "Allocated Qty", "Allocated By", "Status", "Notes"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "Allocation ID", "Incident", "Allocated Qty", "Allocated By", "Status", "Notes" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable allocTable = new JTable(allocModel);
 
@@ -51,23 +76,23 @@ public final class ResourceManagementPanel extends JPanel {
     }
 
     private JPanel buildHeader() {
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
 
+        // Row 1: title + subtitle
         JLabel title = new JLabel("Resource & Equipment Inventory");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        JLabel desc = new JLabel("Manage medical equipment, rescue gear, vehicles, supplies, and atomic deployment allocation.");
+        JLabel desc = new JLabel(
+                "Manage medical equipment, rescue gear, vehicles, supplies, and atomic deployment allocation.");
         desc.setForeground(GermsColors.SECONDARY_TEXT);
 
-        JPanel p = new JPanel(new GridLayout(0, 1, 0, 2));
-        p.setOpaque(false);
-        p.add(title);
-        p.add(desc);
-        header.add(p, BorderLayout.WEST);
+        JPanel titles = new JPanel(new GridLayout(0, 1, 0, 2));
+        titles.setOpaque(false);
+        titles.add(title);
+        titles.add(desc);
+        header.add(titles, BorderLayout.NORTH);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        actions.setOpaque(false);
-
+        // Row 2: action buttons
         JButton addBtn = new JButton("+ Add Resource");
         addBtn.setBackground(GermsColors.PRIMARY_RED);
         addBtn.setForeground(Color.WHITE);
@@ -82,12 +107,20 @@ public final class ResourceManagementPanel extends JPanel {
         JButton refreshBtn = new JButton("Refresh");
         refreshBtn.addActionListener(e -> loadResources());
 
-        actions.add(addBtn);
-        actions.add(allocBtn);
-        actions.add(releaseBtn);
-        actions.add(refreshBtn);
+        // BoxLayout keeps everything in one row at its natural size (no wrapping).
+        JPanel actions = new JPanel();
+        actions.setOpaque(false);
+        actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
 
-        header.add(actions, BorderLayout.EAST);
+        JButton[] buttons = { addBtn, allocBtn, releaseBtn, refreshBtn };
+        for (int i = 0; i < buttons.length; i++) {
+            if (i > 0)
+                actions.add(Box.createHorizontalStrut(8));
+            actions.add(buttons[i]);
+        }
+        actions.add(Box.createHorizontalGlue()); // pushes buttons to the left
+
+        header.add(actions, BorderLayout.CENTER);
         return header;
     }
 
@@ -131,7 +164,7 @@ public final class ResourceManagementPanel extends JPanel {
             resourceModel.setRowCount(0);
             if (rows != null && rows.isArray()) {
                 for (JsonNode r : rows) {
-                    resourceModel.addRow(new Object[]{
+                    resourceModel.addRow(new Object[] {
                             r.path("id").asText(),
                             r.path("name").asText(),
                             r.path("category").asText().replace('_', ' ').toUpperCase(),
@@ -154,7 +187,8 @@ public final class ResourceManagementPanel extends JPanel {
 
     private String getSelectedResourceId() {
         int r = resourceTable.getSelectedRow();
-        if (r < 0) return null;
+        if (r < 0)
+            return null;
         return String.valueOf(resourceModel.getValueAt(resourceTable.convertRowIndexToModel(r), 0));
     }
 
@@ -167,17 +201,20 @@ public final class ResourceManagementPanel extends JPanel {
 
         BackgroundTask.run(() -> {
             return ctx.rest.select("resource_allocations",
-                    "select=id,quantity,status,notes,incidents(incident_no,title),profiles(full_name)&resource_id=eq." + resId + "&order=allocated_at.desc");
+                    "select=id,quantity,status,notes,incidents(incident_no,title),profiles(full_name)&resource_id=eq."
+                            + resId + "&order=allocated_at.desc");
         }, rows -> {
             allocModel.setRowCount(0);
             if (rows != null && rows.isArray()) {
                 for (JsonNode a : rows) {
                     JsonNode inc = a.path("incidents");
-                    String incName = inc.hasNonNull("title") ? (inc.path("incident_no").asText() + " " + inc.path("title").asText()) : "Incident";
+                    String incName = inc.hasNonNull("title")
+                            ? (inc.path("incident_no").asText() + " " + inc.path("title").asText())
+                            : "Incident";
                     JsonNode p = a.path("profiles");
                     String by = p.hasNonNull("full_name") ? p.path("full_name").asText() : "Command Staff";
 
-                    allocModel.addRow(new Object[]{
+                    allocModel.addRow(new Object[] {
                             a.path("id").asText(),
                             incName,
                             a.path("quantity").asInt(),
@@ -192,23 +229,30 @@ public final class ResourceManagementPanel extends JPanel {
 
     private void showAddResourceDialog() {
         JTextField name = new JTextField();
-        JComboBox<String> category = new JComboBox<>(new String[]{
+        JComboBox<String> category = new JComboBox<>(new String[] {
                 "first_aid", "medical_equipment", "ambulance", "rescue_equipment",
                 "emergency_supplies", "communication", "evacuation", "generator", "vehicle", "other"
         });
         JSpinner qty = new JSpinner(new SpinnerNumberModel(5, 1, 10000, 1));
-        JComboBox<String> condition = new JComboBox<>(new String[]{"new", "good", "fair", "needs_maintenance"});
+        JComboBox<String> condition = new JComboBox<>(new String[] { "new", "good", "fair", "needs_maintenance" });
         JTextField loc = new JTextField("PRC Davao Logistics Hub");
 
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Equipment Name:")); form.add(name);
-        form.add(new JLabel("Category:")); form.add(category);
-        form.add(new JLabel("Initial Quantity:")); form.add(qty);
-        form.add(new JLabel("Condition:")); form.add(condition);
-        form.add(new JLabel("Storage Location:")); form.add(loc);
+        form.add(new JLabel("Equipment Name:"));
+        form.add(name);
+        form.add(new JLabel("Category:"));
+        form.add(category);
+        form.add(new JLabel("Initial Quantity:"));
+        form.add(qty);
+        form.add(new JLabel("Condition:"));
+        form.add(condition);
+        form.add(new JLabel("Storage Location:"));
+        form.add(loc);
 
-        int choice = JOptionPane.showConfirmDialog(this, form, "Add New Emergency Resource", JOptionPane.OK_CANCEL_OPTION);
-        if (choice != JOptionPane.OK_OPTION) return;
+        int choice = JOptionPane.showConfirmDialog(this, form, "Add New Emergency Resource",
+                JOptionPane.OK_CANCEL_OPTION);
+        if (choice != JOptionPane.OK_OPTION)
+            return;
 
         String resName = name.getText().trim();
         if (resName.isEmpty()) {
@@ -226,19 +270,21 @@ public final class ResourceManagementPanel extends JPanel {
                     "available_quantity", quantity,
                     "condition", condition.getSelectedItem(),
                     "location", loc.getText().trim(),
-                    "status", "available"
-            ));
+                    "status", "available"));
             return Boolean.TRUE;
         }, ok -> {
             loadResources();
-            JOptionPane.showMessageDialog(this, "Resource added successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-        }, err -> JOptionPane.showMessageDialog(this, "Failed to add resource: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+            JOptionPane.showMessageDialog(this, "Resource added successfully.", "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }, err -> JOptionPane.showMessageDialog(this, "Failed to add resource: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private void allocateSelectedResource() {
         String resId = getSelectedResourceId();
         if (resId == null) {
-            JOptionPane.showMessageDialog(this, "Please select a resource first.", "Notice", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please select a resource first.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -247,14 +293,16 @@ public final class ResourceManagementPanel extends JPanel {
         int avail = Integer.parseInt(String.valueOf(resourceModel.getValueAt(r, 4)));
 
         if (avail <= 0) {
-            JOptionPane.showMessageDialog(this, "No inventory available for " + name + " (0 available).", "Out of Stock", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "No inventory available for " + name + " (0 available).",
+                    "Out of Stock", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
         BackgroundTask.run(() -> ctx.incidents.visibleTo(false), incidents -> {
             List<Incident> active = incidents.stream().filter(i -> i.status().isActive()).toList();
             if (active.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No active incidents currently available for allocation.", "Notice", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No active incidents currently available for allocation.", "Notice",
+                        JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
 
@@ -263,13 +311,19 @@ public final class ResourceManagementPanel extends JPanel {
             JTextField notes = new JTextField();
 
             JPanel p = new JPanel(new GridLayout(0, 2, 8, 8));
-            p.add(new JLabel("Resource:")); p.add(new JLabel(name + " (" + avail + " available)"));
-            p.add(new JLabel("Destination Incident:")); p.add(incBox);
-            p.add(new JLabel("Allocate Quantity:")); p.add(qtySpinner);
-            p.add(new JLabel("Dispatch Notes:")); p.add(notes);
+            p.add(new JLabel("Resource:"));
+            p.add(new JLabel(name + " (" + avail + " available)"));
+            p.add(new JLabel("Destination Incident:"));
+            p.add(incBox);
+            p.add(new JLabel("Allocate Quantity:"));
+            p.add(qtySpinner);
+            p.add(new JLabel("Dispatch Notes:"));
+            p.add(notes);
 
-            int choice = JOptionPane.showConfirmDialog(this, p, "Allocate Resource to Incident", JOptionPane.OK_CANCEL_OPTION);
-            if (choice != JOptionPane.OK_OPTION) return;
+            int choice = JOptionPane.showConfirmDialog(this, p, "Allocate Resource to Incident",
+                    JOptionPane.OK_CANCEL_OPTION);
+            if (choice != JOptionPane.OK_OPTION)
+                return;
 
             Incident inc = (Incident) incBox.getSelectedItem();
             int allocQty = (int) qtySpinner.getValue();
@@ -279,20 +333,23 @@ public final class ResourceManagementPanel extends JPanel {
                         "p_incident", UUID.fromString(inc.id()),
                         "p_resource", UUID.fromString(resId),
                         "p_quantity", allocQty,
-                        "p_notes", notes.getText().trim()
-                ));
+                        "p_notes", notes.getText().trim()));
                 return Boolean.TRUE;
             }, ok -> {
                 loadResources();
-                JOptionPane.showMessageDialog(this, allocQty + "x " + name + " allocated to " + inc.title() + "!", "Allocation Successful", JOptionPane.INFORMATION_MESSAGE);
-            }, err -> JOptionPane.showMessageDialog(this, "Allocation failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
-        }, err -> JOptionPane.showMessageDialog(this, "Failed to load incidents: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+                JOptionPane.showMessageDialog(this, allocQty + "x " + name + " allocated to " + inc.title() + "!",
+                        "Allocation Successful", JOptionPane.INFORMATION_MESSAGE);
+            }, err -> JOptionPane.showMessageDialog(this, "Allocation failed: " + err.getMessage(), "Error",
+                    JOptionPane.ERROR_MESSAGE));
+        }, err -> JOptionPane.showMessageDialog(this, "Failed to load incidents: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private void releaseSelectedAllocation() {
         int r = allocTable.getSelectedRow();
         if (r < 0) {
-            JOptionPane.showMessageDialog(this, "Select an allocated record from the bottom table to release.", "Notice", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Select an allocated record from the bottom table to release.",
+                    "Notice", JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -301,7 +358,8 @@ public final class ResourceManagementPanel extends JPanel {
         String status = String.valueOf(allocModel.getValueAt(modelRow, 4));
 
         if (!"ALLOCATED".equalsIgnoreCase(status)) {
-            JOptionPane.showMessageDialog(this, "This allocation is already " + status + ".", "Notice", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "This allocation is already " + status + ".", "Notice",
+                    JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
@@ -311,22 +369,23 @@ public final class ResourceManagementPanel extends JPanel {
                 JOptionPane.YES_NO_CANCEL_OPTION,
                 JOptionPane.QUESTION_MESSAGE,
                 null,
-                new String[]{"Return to Inventory", "Mark Consumed", "Cancel"},
+                new String[] { "Return to Inventory", "Mark Consumed", "Cancel" },
                 "Return to Inventory");
 
-        if (choice == 2 || choice == JOptionPane.CLOSED_OPTION) return;
+        if (choice == 2 || choice == JOptionPane.CLOSED_OPTION)
+            return;
         boolean consumed = (choice == 1);
 
         BackgroundTask.run(() -> {
             ctx.rest.rpc("release_resource", Map.of(
                     "p_allocation", UUID.fromString(allocId),
-                    "p_consumed", consumed
-            ));
+                    "p_consumed", consumed));
             return Boolean.TRUE;
         }, ok -> {
             loadResources();
-            JOptionPane.showMessageDialog(this, "Resource status updated successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-        }, err -> JOptionPane.showMessageDialog(this, "Release failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+            JOptionPane.showMessageDialog(this, "Resource status updated successfully.", "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }, err -> JOptionPane.showMessageDialog(this, "Release failed: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 }
-

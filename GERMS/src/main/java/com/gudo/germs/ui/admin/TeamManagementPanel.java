@@ -1,5 +1,29 @@
 package com.gudo.germs.ui.admin;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.table.DefaultTableModel;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
@@ -7,17 +31,10 @@ import com.gudo.germs.models.Profile;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 /**
  * Team & Squad Management Interface.
- * Administrators can organize responders into response teams, assign team leaders,
+ * Administrators can organize responders into response teams, assign team
+ * leaders,
  * manage rosters, monitor deployment status, and dispatch teams to incidents.
  */
 public final class TeamManagementPanel extends JPanel {
@@ -25,14 +42,20 @@ public final class TeamManagementPanel extends JPanel {
     private final Profile user;
 
     private final DefaultTableModel teamModel = new DefaultTableModel(
-            new String[]{"ID", "Team Name", "Leader", "Contact", "Status", "Members Count"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "ID", "Team Name", "Leader", "Contact", "Status", "Members Count" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable teamTable = new JTable(teamModel);
 
     private final DefaultTableModel memberModel = new DefaultTableModel(
-            new String[]{"Member ID", "Name", "Email", "Role Title"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "Member ID", "Name", "Email", "Role Title" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable memberTable = new JTable(memberModel);
 
@@ -53,23 +76,23 @@ public final class TeamManagementPanel extends JPanel {
     }
 
     private JPanel buildHeader() {
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
 
+        // Row 1: title + subtitle
         JLabel title = new JLabel("Team & Squad Management");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        JLabel desc = new JLabel("Form response teams, designate squad leaders, maintain rosters, and dispatch teams to incidents.");
+        JLabel desc = new JLabel(
+                "Form response teams, designate squad leaders, maintain rosters, and dispatch teams to incidents.");
         desc.setForeground(GermsColors.SECONDARY_TEXT);
 
-        JPanel p = new JPanel(new GridLayout(0, 1, 0, 2));
-        p.setOpaque(false);
-        p.add(title);
-        p.add(desc);
-        header.add(p, BorderLayout.WEST);
+        JPanel titles = new JPanel(new GridLayout(0, 1, 0, 2));
+        titles.setOpaque(false);
+        titles.add(title);
+        titles.add(desc);
+        header.add(titles, BorderLayout.NORTH);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        actions.setOpaque(false);
-
+        // Row 2: action buttons
         JButton addTeam = new JButton("+ Create Team");
         addTeam.setBackground(GermsColors.PRIMARY_RED);
         addTeam.setForeground(Color.WHITE);
@@ -87,13 +110,20 @@ public final class TeamManagementPanel extends JPanel {
         JButton refresh = new JButton("Refresh");
         refresh.addActionListener(e -> loadTeams());
 
-        actions.add(addTeam);
-        actions.add(assignTeam);
-        actions.add(addMember);
-        actions.add(removeMember);
-        actions.add(refresh);
+        // BoxLayout keeps everything in one row at its natural size (no wrapping).
+        JPanel actions = new JPanel();
+        actions.setOpaque(false);
+        actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
 
-        header.add(actions, BorderLayout.EAST);
+        JButton[] buttons = { addTeam, assignTeam, addMember, removeMember, refresh };
+        for (int i = 0; i < buttons.length; i++) {
+            if (i > 0)
+                actions.add(Box.createHorizontalStrut(8));
+            actions.add(buttons[i]);
+        }
+        actions.add(Box.createHorizontalGlue()); // pushes buttons to the left
+
+        header.add(actions, BorderLayout.CENTER);
         return header;
     }
 
@@ -137,7 +167,8 @@ public final class TeamManagementPanel extends JPanel {
             if (rows != null && rows.isArray()) {
                 for (JsonNode n : rows) {
                     JsonNode leader = n.path("profiles");
-                    String leaderName = leader.hasNonNull("full_name") ? leader.path("full_name").asText() : "Unassigned";
+                    String leaderName = leader.hasNonNull("full_name") ? leader.path("full_name").asText()
+                            : "Unassigned";
 
                     JsonNode countNode = n.path("team_members");
                     int count = 0;
@@ -145,7 +176,7 @@ public final class TeamManagementPanel extends JPanel {
                         count = countNode.get(0).path("count").asInt(0);
                     }
 
-                    teamModel.addRow(new Object[]{
+                    teamModel.addRow(new Object[] {
                             n.path("id").asText(),
                             n.path("name").asText(),
                             leaderName,
@@ -166,7 +197,8 @@ public final class TeamManagementPanel extends JPanel {
 
     private String getSelectedTeamId() {
         int r = teamTable.getSelectedRow();
-        if (r < 0) return null;
+        if (r < 0)
+            return null;
         return String.valueOf(teamModel.getValueAt(teamTable.convertRowIndexToModel(r), 0));
     }
 
@@ -190,7 +222,7 @@ public final class TeamManagementPanel extends JPanel {
             if (rows != null && rows.isArray()) {
                 for (JsonNode m : rows) {
                     JsonNode p = m.path("profiles");
-                    memberModel.addRow(new Object[]{
+                    memberModel.addRow(new Object[] {
                             m.path("id").asText(),
                             p.path("full_name").asText("Responder"),
                             p.path("email").asText(""),
@@ -209,12 +241,17 @@ public final class TeamManagementPanel extends JPanel {
         JTextField descField = new JTextField();
 
         JPanel p = new JPanel(new GridLayout(0, 2, 8, 8));
-        p.add(new JLabel("Team Name:")); p.add(nameField);
-        p.add(new JLabel("Contact Hotline:")); p.add(contactField);
-        p.add(new JLabel("Description / Specialty:")); p.add(descField);
+        p.add(new JLabel("Team Name:"));
+        p.add(nameField);
+        p.add(new JLabel("Contact Hotline:"));
+        p.add(contactField);
+        p.add(new JLabel("Description / Specialty:"));
+        p.add(descField);
 
-        int res = JOptionPane.showConfirmDialog(this, p, "Create Emergency Response Team", JOptionPane.OK_CANCEL_OPTION);
-        if (res != JOptionPane.OK_OPTION) return;
+        int res = JOptionPane.showConfirmDialog(this, p, "Create Emergency Response Team",
+                JOptionPane.OK_CANCEL_OPTION);
+        if (res != JOptionPane.OK_OPTION)
+            return;
 
         String name = nameField.getText().trim();
         if (name.isEmpty()) {
@@ -228,14 +265,15 @@ public final class TeamManagementPanel extends JPanel {
                     "contact_number", contactField.getText().trim(),
                     "description", descField.getText().trim(),
                     "status", "available",
-                    "is_active", true
-            ));
+                    "is_active", true));
             return Boolean.TRUE;
         }, ok -> {
-            JOptionPane.showMessageDialog(this, "Team created successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Team created successfully.", "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
             loadTeams();
         }, err -> {
-            JOptionPane.showMessageDialog(this, "Failed to create team: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Failed to create team: " + err.getMessage(), "Error",
+                    JOptionPane.ERROR_MESSAGE);
         });
     }
 
@@ -247,48 +285,57 @@ public final class TeamManagementPanel extends JPanel {
         }
 
         BackgroundTask.run(() -> {
-            return ctx.rest.select("profiles", "select=id,full_name,email&role=eq.responder&is_active=eq.true&order=full_name.asc");
+            return ctx.rest.select("profiles",
+                    "select=id,full_name,email&role=eq.responder&is_active=eq.true&order=full_name.asc");
         }, rows -> {
             List<ProfileItem> items = new ArrayList<>();
             if (rows != null && rows.isArray()) {
                 for (JsonNode n : rows) {
-                    items.add(new ProfileItem(n.path("id").asText(), n.path("full_name").asText() + " (" + n.path("email").asText() + ")"));
+                    items.add(new ProfileItem(n.path("id").asText(),
+                            n.path("full_name").asText() + " (" + n.path("email").asText() + ")"));
                 }
             }
 
             if (items.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No active responders available to add.", "Notice", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No active responders available to add.", "Notice",
+                        JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
 
             JComboBox<ProfileItem> picker = new JComboBox<>(items.toArray(ProfileItem[]::new));
-            JComboBox<String> rolePicker = new JComboBox<>(new String[]{"Squad Leader", "Assistant Leader", "Paramedic / Medic", "Rescue Specialist", "Logistics Officer", "Member"});
+            JComboBox<String> rolePicker = new JComboBox<>(new String[] { "Squad Leader", "Assistant Leader",
+                    "Paramedic / Medic", "Rescue Specialist", "Logistics Officer", "Member" });
 
             JPanel p = new JPanel(new GridLayout(0, 2, 8, 8));
-            p.add(new JLabel("Select Responder:")); p.add(picker);
-            p.add(new JLabel("Team Role:")); p.add(rolePicker);
+            p.add(new JLabel("Select Responder:"));
+            p.add(picker);
+            p.add(new JLabel("Team Role:"));
+            p.add(rolePicker);
 
             int choice = JOptionPane.showConfirmDialog(this, p, "Add Member to Squad", JOptionPane.OK_CANCEL_OPTION);
-            if (choice != JOptionPane.OK_OPTION) return;
+            if (choice != JOptionPane.OK_OPTION)
+                return;
 
             ProfileItem selectedUser = (ProfileItem) picker.getSelectedItem();
             String roleTitle = (String) rolePicker.getSelectedItem();
-            if (selectedUser == null) return;
+            if (selectedUser == null)
+                return;
 
             BackgroundTask.run(() -> {
                 ctx.rest.insertMinimal("team_members", Map.of(
                         "team_id", teamId,
                         "profile_id", selectedUser.id,
-                        "role_title", roleTitle
-                ));
+                        "role_title", roleTitle));
                 return Boolean.TRUE;
             }, ok -> {
                 loadMembersForSelectedTeam();
                 loadTeams();
             }, err -> {
-                JOptionPane.showMessageDialog(this, "Could not add member: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+                JOptionPane.showMessageDialog(this, "Could not add member: " + err.getMessage(), "Error",
+                        JOptionPane.ERROR_MESSAGE);
             });
-        }, err -> JOptionPane.showMessageDialog(this, "Failed to fetch responders: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+        }, err -> JOptionPane.showMessageDialog(this, "Failed to fetch responders: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private void removeSelectedMember() {
@@ -301,13 +348,18 @@ public final class TeamManagementPanel extends JPanel {
         String memberRecordId = String.valueOf(memberModel.getValueAt(modelRow, 0));
         String name = String.valueOf(memberModel.getValueAt(modelRow, 1));
 
-        if (JOptionPane.showConfirmDialog(this, "Remove " + name + " from squad?", "Confirm Removal", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return;
+        if (JOptionPane.showConfirmDialog(this, "Remove " + name + " from squad?", "Confirm Removal",
+                JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION)
+            return;
 
         BackgroundTask.run(() -> {
             ctx.rest.select("team_members", "id=eq." + memberRecordId); // check exists
             // Delete via PostgREST
             // Note: RestClient can delete via PostgREST or RPC
-            ctx.rest.rpc("assign_incident_team", Map.of("p_id", UUID.randomUUID(), "p_team", UUID.randomUUID())); // placeholder RPC or delete
+            ctx.rest.rpc("assign_incident_team", Map.of("p_id", UUID.randomUUID(), "p_team", UUID.randomUUID())); // placeholder
+                                                                                                                  // RPC
+                                                                                                                  // or
+                                                                                                                  // delete
             return Boolean.TRUE;
         }, ok -> loadMembersForSelectedTeam(), err -> loadMembersForSelectedTeam());
     }
@@ -322,31 +374,39 @@ public final class TeamManagementPanel extends JPanel {
         BackgroundTask.run(() -> ctx.incidents.visibleTo(false), incidents -> {
             List<Incident> active = incidents.stream().filter(i -> i.status().isActive()).toList();
             if (active.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "No active incidents available for dispatch.", "Notice", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "No active incidents available for dispatch.", "Notice",
+                        JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
 
             JComboBox<Incident> incBox = new JComboBox<>(active.toArray(Incident[]::new));
-            int res = JOptionPane.showConfirmDialog(this, incBox, "Dispatch Team to Incident", JOptionPane.OK_CANCEL_OPTION);
-            if (res != JOptionPane.OK_OPTION) return;
+            int res = JOptionPane.showConfirmDialog(this, incBox, "Dispatch Team to Incident",
+                    JOptionPane.OK_CANCEL_OPTION);
+            if (res != JOptionPane.OK_OPTION)
+                return;
 
             Incident chosen = (Incident) incBox.getSelectedItem();
-            if (chosen == null) return;
+            if (chosen == null)
+                return;
 
             BackgroundTask.run(() -> {
                 ctx.rest.rpc("assign_incident_team", Map.of(
                         "p_id", UUID.fromString(chosen.id()),
-                        "p_team", UUID.fromString(teamId)
-                ));
+                        "p_team", UUID.fromString(teamId)));
                 return Boolean.TRUE;
             }, ok -> {
-                JOptionPane.showMessageDialog(this, "Team dispatched to " + chosen.title() + "!", "Dispatch Successful", JOptionPane.INFORMATION_MESSAGE);
-            }, err -> JOptionPane.showMessageDialog(this, "Dispatch failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
-        }, err -> JOptionPane.showMessageDialog(this, "Could not load incidents: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+                JOptionPane.showMessageDialog(this, "Team dispatched to " + chosen.title() + "!", "Dispatch Successful",
+                        JOptionPane.INFORMATION_MESSAGE);
+            }, err -> JOptionPane.showMessageDialog(this, "Dispatch failed: " + err.getMessage(), "Error",
+                    JOptionPane.ERROR_MESSAGE));
+        }, err -> JOptionPane.showMessageDialog(this, "Could not load incidents: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private record ProfileItem(String id, String display) {
-        @Override public String toString() { return display; }
+        @Override
+        public String toString() {
+            return display;
+        }
     }
 }
-
