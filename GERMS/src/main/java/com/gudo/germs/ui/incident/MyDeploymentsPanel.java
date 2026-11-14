@@ -44,7 +44,7 @@ public final class MyDeploymentsPanel extends JPanel {
 
     // Notifications & Alarm Tab Components
     private final DefaultTableModel notifModel = new DefaultTableModel(
-            new String[]{"ID", "Priority", "Title", "Incident / Location", "Timestamp", "Status"}, 0) {
+            new String[]{"ID", "Incident ID", "Kind", "Priority", "Title", "Incident / Location", "Timestamp", "Status"}, 0) {
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable notifTable = new JTable(notifModel);
@@ -195,6 +195,8 @@ public final class MyDeploymentsPanel extends JPanel {
 
         notifTable.setRowHeight(28);
         notifTable.removeColumn(notifTable.getColumnModel().getColumn(0)); // Hide ID
+        notifTable.removeColumn(notifTable.getColumnModel().getColumn(0)); // Hide incident ID
+        notifTable.removeColumn(notifTable.getColumnModel().getColumn(0)); // Hide kind
         notifTable.setAutoCreateRowSorter(true);
 
         DefaultTableCellRenderer prioRenderer = new DefaultTableCellRenderer() {
@@ -227,6 +229,10 @@ public final class MyDeploymentsPanel extends JPanel {
 
         JButton ackBtn = new JButton("Acknowledge Alert");
         ackBtn.addActionListener(e -> acknowledgeSelected());
+        JButton acceptBtn = new JButton("Accept Request");
+        acceptBtn.addActionListener(e -> respondToSelectedIncident("accepted"));
+        JButton declineBtn = new JButton("Decline Request");
+        declineBtn.addActionListener(e -> respondToSelectedIncident("declined"));
 
         JButton silenceBtn = new JButton("Silence Active Siren");
         silenceBtn.addActionListener(e -> {
@@ -236,6 +242,8 @@ public final class MyDeploymentsPanel extends JPanel {
         });
 
         leftActions.add(audibleToggle);
+        leftActions.add(acceptBtn);
+        leftActions.add(declineBtn);
         leftActions.add(ackBtn);
         leftActions.add(silenceBtn);
 
@@ -322,7 +330,7 @@ public final class MyDeploymentsPanel extends JPanel {
     public void loadNotifications() {
         BackgroundTask.run(() -> {
             return ctx.rest.select("notifications",
-                    "select=id,priority,title,body,created_at,notification_receipts(acknowledged_at)&recipient_id=eq." + user.id() + "&order=created_at.desc&limit=50");
+                    "select=id,incident_id,kind,priority,title,body,created_at,notification_receipts(acknowledged_at)&recipient_id=eq." + user.id() + "&order=created_at.desc&limit=50");
         }, rows -> {
             notifModel.setRowCount(0);
             boolean hasUnackedCritical = false;
@@ -351,6 +359,8 @@ public final class MyDeploymentsPanel extends JPanel {
 
                     notifModel.addRow(new Object[]{
                             notifId,
+                            n.path("incident_id").asText(""),
+                            n.path("kind").asText(""),
                             prio,
                             n.path("title").asText(),
                             n.path("body").asText(""),
@@ -430,6 +440,33 @@ public final class MyDeploymentsPanel extends JPanel {
         }, ok -> {
             loadNotifications();
         }, err -> loadNotifications());
+    }
+
+    private void respondToSelectedIncident(String decision) {
+        int selected = notifTable.getSelectedRow();
+        if (selected < 0) {
+            notifStatusMsg.setText("Select a deployment request first.");
+            return;
+        }
+        int row = notifTable.convertRowIndexToModel(selected);
+        String kind = String.valueOf(notifModel.getValueAt(row, 2));
+        String incidentId = String.valueOf(notifModel.getValueAt(row, 1));
+        if (!"deployment_request".equals(kind) || incidentId.isBlank()) {
+            notifStatusMsg.setText("Select a deployment request to accept or decline.");
+            return;
+        }
+        BackgroundTask.run(() -> {
+            ctx.rest.rpc("respond_to_incident", Map.of(
+                    "p_incident", UUID.fromString(incidentId),
+                    "p_decision", decision,
+                    "p_note", decision.equals("accepted")
+                            ? "Accepted from notification alert" : "Declined from notification alert"
+            ));
+            return Boolean.TRUE;
+        }, ok -> {
+            notifStatusMsg.setText("Incident request " + decision + ".");
+            loadNotifications();
+        }, err -> notifStatusMsg.setText("Could not save response: " + err.getMessage()));
     }
 
     private void transmitSelectedLocation() {

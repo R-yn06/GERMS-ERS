@@ -41,9 +41,9 @@ public final class DispatchPanel extends JPanel {
     private final JLabel summary = new JLabel("Select an incident to review responses.");
     private final JLabel message = new JLabel(" ");
 
-    private final JButton assign = new JButton("Confirm Assignment");
+    private final JButton assign = new JButton("Deploy Selected Accepted");
     private final JButton cancelAssignment = new JButton("Cancel Assignment");
-    private final JButton requestPersonnel = new JButton("+ Request Personnel");
+    private final JButton requestPersonnel = new JButton("Alert All Active Responders");
     private final JButton resolveIncident = new JButton("Resolve / Close Operation");
 
     private final JCheckBox overrideConflicts = new JCheckBox("Emergency Override (Allow Conflicting Assignments)", false);
@@ -92,13 +92,13 @@ public final class DispatchPanel extends JPanel {
 
     private JComponent buildSplit() {
         responses.setAutoCreateRowSorter(true);
+        responses.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         responses.removeColumn(responses.getColumnModel().getColumn(3)); // Hide ID
         responses.setRowHeight(25);
         responses.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 int row = responses.getSelectedRow();
-                assign.setEnabled(row >= 0 && "ACCEPTED".equals(String.valueOf(
-                        responseModel.getValueAt(responses.convertRowIndexToModel(row), 1))));
+                assign.setEnabled(hasAcceptedSelection());
             }
         });
 
@@ -264,38 +264,51 @@ public final class DispatchPanel extends JPanel {
                 counts.path("declined").asInt(), counts.path("pending").asInt(),
                 counts.path("assigned").asInt(), counts.path("remaining").asInt()));
 
-        assign.setEnabled(user.role() == Role.ADMIN && responses.getSelectedRow() >= 0);
+        assign.setEnabled(user.role() == Role.ADMIN && hasAcceptedSelection());
         message.setText(" ");
     }
 
     private void confirmAssignment() {
         Incident incident = selectedIncident();
-        int selected = responses.getSelectedRow();
-        if (incident == null || selected < 0) return;
-
-        int row = responses.convertRowIndexToModel(selected);
-        String responderId = String.valueOf(responseModel.getValueAt(row, 3));
-        String responderName = String.valueOf(responseModel.getValueAt(row, 0));
+        int[] selectedRows = responses.getSelectedRows();
+        if (incident == null || selectedRows.length == 0) return;
+        List<String> acceptedResponderIds = java.util.Arrays.stream(selectedRows)
+                .mapToObj(responses::convertRowIndexToModel)
+                .filter(row -> "ACCEPTED".equals(String.valueOf(responseModel.getValueAt(row, 1))))
+                .map(row -> String.valueOf(responseModel.getValueAt(row, 3)))
+                .toList();
+        if (acceptedResponderIds.isEmpty()) return;
 
         boolean override = overrideConflicts.isSelected();
 
         if (JOptionPane.showConfirmDialog(this,
-                "Confirm deployment of " + responderName + " for " + incident.title() + "?",
+                "Deploy " + acceptedResponderIds.size() + " accepted responder(s) for " + incident.title() + "?",
                 "Confirm Assignment", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
 
         assign.setEnabled(false);
-        BackgroundTask.run(() -> ctx.rest.rpc("assign_responder", Map.of(
-                        "p_incident", incident.id(),
-                        "p_responder", UUID.fromString(responderId).toString(),
-                        "p_role", "Assigned Emergency Responder",
-                        "p_note", "Confirmed from dispatch center",
-                        "p_override", override)),
+        BackgroundTask.run(() -> {
+                    for (String responderId : acceptedResponderIds) {
+                        ctx.rest.rpc("assign_responder", Map.of(
+                                "p_incident", incident.id(),
+                                "p_responder", UUID.fromString(responderId).toString(),
+                                "p_role", "Assigned Emergency Responder",
+                                "p_note", "Confirmed from dispatch center",
+                                "p_override", override));
+                    }
+                    return acceptedResponderIds.size();
+                },
                 ignored -> {
                     message.setForeground(GermsColors.SUCCESS);
-                    message.setText("Assignment confirmed successfully for " + responderName + ".");
+                    message.setText("Deployment confirmed for " + acceptedResponderIds.size() + " responder(s).");
                     refreshResponses();
                 },
                 err -> showError("Assignment failed: " + err.getMessage()));
+    }
+
+    private boolean hasAcceptedSelection() {
+        return java.util.Arrays.stream(responses.getSelectedRows())
+                .map(responses::convertRowIndexToModel)
+                .anyMatch(row -> "ACCEPTED".equals(String.valueOf(responseModel.getValueAt(row, 1))));
     }
 
     private void cancelSelectedAssignment() {
@@ -327,41 +340,27 @@ public final class DispatchPanel extends JPanel {
         Incident inc = selectedIncident();
         if (inc == null) return;
 
-        BackgroundTask.run(() -> ctx.rest.select("profiles", "select=id,full_name,email&role=eq.responder&is_active=eq.true&order=full_name.asc"),
-                rows -> {
-                    DefaultListModel<ProfileItem> listM = new DefaultListModel<>();
-                    if (rows != null && rows.isArray()) {
-                        for (JsonNode n : rows) {
-                            listM.addElement(new ProfileItem(n.path("id").asText(), n.path("full_name").asText() + " (" + n.path("email").asText() + ")"));
-                        }
-                    }
-                    JList<ProfileItem> responderList = new JList<>(listM);
-                    JTextField instructions = new JTextField("Urgent response deployment request. Please report to staging.");
+        JTextField instructions = new JTextField("Urgent response deployment request. Please report to staging.");
+        JPanel p = new JPanel(new BorderLayout(0, 8));
+        p.add(new JLabel("All active responders who opted in will be alerted. Accepted responders can then be selected for deployment."), BorderLayout.NORTH);
+        p.add(instructions, BorderLayout.SOUTH);
+        p.setPreferredSize(new Dimension(520, 90));
 
-                    JPanel p = new JPanel(new BorderLayout(0, 8));
-                    p.add(new JLabel("Select Responder to Request:"), BorderLayout.NORTH);
-                    p.add(new JScrollPane(responderList), BorderLayout.CENTER);
-                    p.add(instructions, BorderLayout.SOUTH);
-                    p.setPreferredSize(new Dimension(380, 260));
+        int res = JOptionPane.showConfirmDialog(this, p, "Alert Responders for " + inc.incidentNo(),
+                JOptionPane.OK_CANCEL_OPTION);
+        if (res != JOptionPane.OK_OPTION) return;
 
-                    int res = JOptionPane.showConfirmDialog(this, p, "Request Personnel for " + inc.incidentNo(), JOptionPane.OK_CANCEL_OPTION);
-                    if (res != JOptionPane.OK_OPTION) return;
-
-                    ProfileItem item = responderList.getSelectedValue();
-                    if (item == null) return;
-
-                    BackgroundTask.run(() -> {
-                        ctx.rest.rpc("request_responder_deployment", Map.of(
-                                "p_incident", UUID.fromString(inc.id()),
-                                "p_responder", UUID.fromString(item.id),
-                                "p_instructions", instructions.getText().trim()
-                        ));
-                        return Boolean.TRUE;
-                    }, ok -> {
-                        message.setText("Deployment request delivered to " + item.display);
-                        refreshResponses();
-                    }, err -> showError("Request failed: " + err.getMessage()));
-                }, err -> showError("Failed to load responders: " + err.getMessage()));
+        BackgroundTask.run(() -> {
+            JsonNode result = ctx.rest.rpc("request_all_active_responder_deployments", Map.of(
+                    "p_incident", UUID.fromString(inc.id()),
+                    "p_instructions", instructions.getText().trim()
+            ));
+            return result.asInt();
+        }, count -> {
+            message.setForeground(GermsColors.SUCCESS);
+            message.setText("Alert delivered to " + count + " opted-in active responder(s).");
+            refreshResponses();
+        }, err -> showError("Request failed: " + err.getMessage()));
     }
 
     private void resolveSelectedIncident() {
@@ -386,7 +385,4 @@ public final class DispatchPanel extends JPanel {
         message.setText(text);
     }
 
-    private record ProfileItem(String id, String display) {
-        @Override public String toString() { return display; }
-    }
 }
