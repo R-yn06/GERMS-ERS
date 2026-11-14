@@ -80,14 +80,15 @@ public final class Shell extends JPanel {
             JToggleButton b = new JToggleButton(m.title());
             b.putClientProperty("JButton.buttonType", "toolBarButton");
             b.setHorizontalAlignment(JToggleButton.LEFT);
-            b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
-            b.setPreferredSize(new Dimension(240, 38));
+            b.setMargin(new Insets(6, 12, 6, 12));
+            b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
+            b.setPreferredSize(new Dimension(255, 42));
             b.setAlignmentX(LEFT_ALIGNMENT);
             b.setSelected(m == modules.get(0));
             b.addActionListener(e -> show(m));
             group.add(b);
             list.add(b);
-            list.add(Box.createVerticalStrut(2));
+            list.add(Box.createVerticalStrut(3));
         }
         JScrollPane scroll = new JScrollPane(list);
         scroll.setBorder(null);
@@ -122,7 +123,6 @@ public final class Shell extends JPanel {
             case AUDIT -> new AuditLogPanel(ctx, user);
 
             // Responder Modules
-            case NOTIFICATIONS -> new NotificationPanel(ctx, user);
             case MY_DEPLOYMENTS -> new MyDeploymentsPanel(ctx, user);
             case MY_TEAM -> new MyTeamPanel(ctx, user);
 

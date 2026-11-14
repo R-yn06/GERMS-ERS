@@ -101,7 +101,11 @@ public final class LocationPickerDialog {
             updateSelectionText();
             new SwingWorker<String, Void>() {
                 @Override protected String doInBackground() {
-                    return GeoLocationService.reverseGeocode(point.x, point.y);
+                    try {
+                        return GeoLocationService.reverseGeocode(point.x, point.y);
+                    } catch (Exception e) {
+                        return null;
+                    }
                 }
 
                 @Override protected void done() {

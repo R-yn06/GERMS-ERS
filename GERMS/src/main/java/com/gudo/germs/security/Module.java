@@ -27,8 +27,7 @@ public enum Module {
     SETTINGS("System Settings", 1, "Theme, audio alarm alerts, and operational preferences.", Role.ADMIN, Role.RESPONDER, Role.GUEST),
 
     // --- Dedicated Responder Modules ---
-    NOTIFICATIONS("Notifications & Alarms", 3, "Audible emergency alarms, deployment requests, and history.", Role.RESPONDER),
-    MY_DEPLOYMENTS("My Deployments", 3, "Current incident assignments, status transitions, and history.", Role.RESPONDER),
+    MY_DEPLOYMENTS("My Deployments", 3, "Current incident assignments, status transitions, notifications, alarms, and history.", Role.RESPONDER),
     MY_TEAM("My Assigned Team", 3, "Assigned squad, team leader, members, and team status.", Role.RESPONDER),
 
     // --- Guest / Public Experience Modules ---

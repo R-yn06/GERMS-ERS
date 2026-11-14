@@ -385,26 +385,33 @@ public final class OpenStreetMapPanel extends JPanel {
     }
 
     private void drawOverlay(Graphics2D g2, int width, int height) {
-        // Attribution bar
+        // Attribution bar (bottom-right)
         String attr = "\u00A9 OpenStreetMap contributors | GERMS Emergency GIS";
         g2.setFont(new Font("SansSerif", Font.PLAIN, 10));
         FontMetrics fm = g2.getFontMetrics();
         int aw = fm.stringWidth(attr);
+        int attrWidth = aw + 16;
         g2.setColor(new Color(255, 255, 255, 190));
-        g2.fillRect(width - aw - 16, height - 20, aw + 16, 20);
+        g2.fillRect(width - attrWidth, height - 20, attrWidth, 20);
         g2.setColor(new Color(70, 70, 70));
-        g2.drawString(attr, width - aw - 8, height - 6);
+        g2.drawString(attr, width - attrWidth + 8, height - 6);
 
-        // Zoom & Coordinate HUD
+        // Zoom & Coordinate HUD (bottom-left)
         String hud = String.format(Locale.ROOT, "Zoom %d  \u00B7  Center: %.4f\u00B0, %.4f\u00B0", zoom, centerLat, centerLon);
         if (pinDropEnabled) {
             hud += "  \u00B7  [Click map to drop pin]";
         }
         int hw = fm.stringWidth(hud);
+        // Ensure HUD does not overlap with attribution bar
+        int maxHudWidth = Math.max(60, width - attrWidth - 24);
+        int finalHw = Math.min(hw + 16, maxHudWidth);
+
         g2.setColor(new Color(20, 20, 20, 180));
-        g2.fillRoundRect(10, height - 26, hw + 16, 20, 6, 6);
+        g2.fillRoundRect(10, height - 26, finalHw, 20, 6, 6);
         g2.setColor(Color.WHITE);
+        g2.setClip(10, height - 26, finalHw, 20);
         g2.drawString(hud, 18, height - 12);
+        g2.setClip(null);
     }
 
     private Point latLonToScreen(double lat, double lon) {

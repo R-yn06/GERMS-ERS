@@ -149,7 +149,7 @@ public final class LiveOperationsMapPanel extends JPanel {
 
             // 2. Responders with location sharing enabled
             JsonNode respRows = ctx.rest.select("responder_locations",
-                    "select=profile_id,latitude,longitude,accuracy_m,source,sharing_enabled,recorded_at,profiles(full_name)&sharing_enabled=eq.true");
+                    "select=profile_id,latitude,longitude,accuracy_m,source,sharing_enabled,recorded_at,profiles!responder_locations_profile_id_fkey(full_name)&sharing_enabled=eq.true");
 
             // 3. Evacuation Centers
             JsonNode evacRows = ctx.rest.select("evacuation_centers",

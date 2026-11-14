@@ -47,7 +47,7 @@ public final class UserManagementPanel extends JPanel {
         header.setOpaque(false);
         header.add(copy, BorderLayout.WEST);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 4));
         actions.setOpaque(false);
 
         actions.add(new JLabel("Filter:"));
@@ -85,7 +85,10 @@ public final class UserManagementPanel extends JPanel {
         refresh.addActionListener(e -> load());
         actions.add(refresh);
 
-        header.add(actions, BorderLayout.EAST);
+        JPanel header = new JPanel(new BorderLayout(12, 6));
+        header.setOpaque(false);
+        header.add(copy, BorderLayout.NORTH);
+        header.add(actions, BorderLayout.SOUTH);
         add(header, BorderLayout.NORTH);
 
         table.removeColumn(table.getColumnModel().getColumn(0)); // Hide ID

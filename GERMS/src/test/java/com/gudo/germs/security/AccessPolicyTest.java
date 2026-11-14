@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class AccessPolicyTest {
     @Test void adminSeesAllFourteenCoreModules() {
-        long count = AccessPolicy.modulesFor(Role.ADMIN).stream().filter(m -> !m.name().startsWith("GUEST_") && !m.name().startsWith("MY_") && m != Module.NOTIFICATIONS).count();
+        long count = AccessPolicy.modulesFor(Role.ADMIN).stream().filter(m -> !m.name().startsWith("GUEST_") && !m.name().startsWith("MY_")).count();
         assertEquals(14, count);
     }
 
@@ -21,7 +21,6 @@ class AccessPolicyTest {
         assertFalse(modules.contains(Module.DISPATCH));
         assertFalse(modules.contains(Module.TEAMS));
         assertTrue(modules.contains(Module.INCIDENTS));
-        assertTrue(modules.contains(Module.NOTIFICATIONS));
         assertTrue(modules.contains(Module.MY_DEPLOYMENTS));
     }
 
