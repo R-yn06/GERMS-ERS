@@ -79,7 +79,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-
+/**
+ * Incident communication channel redesigned as a dark, glass-style live chat.
+ *
+ * Data and behavior are unchanged: incidents come from ctx.incidents, messages are read from
+ * incident_messages and sent through the send_incident_message RPC. Message types map as follows:
+ * "Transfer Message" = regular, "Announcement" = announcement, "Urgent" = urgent.
+ */
 public final class EmergencyCommunicationPanel extends JPanel {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DAY_FMT = DateTimeFormatter.ofPattern("EEEE, MMM d");
@@ -725,8 +731,8 @@ public final class EmergencyCommunicationPanel extends JPanel {
             String type = m.path("message_type").asText("regular");
             boolean mine = sender.equals(user.fullName());
             String time = when == null ? "" : TIME_FMT.format(when);
-            feed.add(new MessageRow(new MessageBubble(sender, role, time, type, m.path("message").asText(), mine, maxText), mine));
-            feed.add(Box.createVerticalStrut(4));
+            feed.add(new MessageRow(new MessageBlock(sender, role, time, type, m.path("message").asText(), mine, maxText), mine));
+            feed.add(Box.createVerticalStrut(6));
         }
         feed.add(Box.createVerticalGlue());
         feed.revalidate();
@@ -1108,68 +1114,85 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     /** One chat line: own messages hug the right edge, everyone else's the left. */
     private static final class MessageRow extends JPanel {
-        MessageRow(MessageBubble bubble, boolean mine) {
+        MessageRow(JComponent block, boolean mine) {
             super(new BorderLayout());
             setOpaque(false);
             setAlignmentX(LEFT_ALIGNMENT);
-            add(bubble, mine ? BorderLayout.EAST : BorderLayout.WEST);
+            add(block, mine ? BorderLayout.EAST : BorderLayout.WEST);
         }
 
         @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); }
     }
 
-    /** Glass bubble: translucent gradient, hairline border, soft shadow. Sized to its text. */
+    /** One message: sender line above the bubble, a bubble holding only the text, and the time below it. */
+    private static final class MessageBlock extends JPanel {
+        MessageBlock(String sender, String role, String time, String type, String text, boolean mine, int maxText) {
+            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+            setOpaque(false);
+            float side = mine ? RIGHT_ALIGNMENT : LEFT_ALIGNMENT;
+            int pad = MessageBubble.M + 4; // lines the text up with the bubble's visible edge
+            String t = type == null ? "regular" : type.toLowerCase();
+
+            JPanel meta = new JPanel(new FlowLayout(mine ? FlowLayout.RIGHT : FlowLayout.LEFT, 0, 0));
+            meta.setOpaque(false);
+            meta.setBorder(BorderFactory.createEmptyBorder(0, pad, 2, pad));
+            meta.setAlignmentX(side);
+            if (t.equals("urgent") || t.equals("announcement")) {
+                JLabel tag = new JLabel(t.equals("urgent") ? "URGENT" : "BROADCAST");
+                tag.setFont(tag.getFont().deriveFont(Font.BOLD, 10f));
+                tag.setForeground(accentFor(t));
+                tag.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
+                meta.add(tag);
+            }
+            // Name and role: same size, plain weight. Role is dimmer so the name still reads first.
+            JLabel who = new JLabel("<html><span style='color:#EEF2F9'>" + escape(sender) + "</span>"
+                    + "<span style='color:#93A4BF'>&nbsp;&nbsp;\u2022&nbsp;&nbsp;" + escape(role) + "</span></html>");
+            who.setFont(who.getFont().deriveFont(Font.PLAIN, 11f));
+            meta.add(who);
+
+            MessageBubble bubble = new MessageBubble(t, text, mine, maxText, side);
+
+            JLabel ts = new JLabel(time);
+            ts.setFont(ts.getFont().deriveFont(Font.PLAIN, 10f));
+            ts.setForeground(Pal.DIM);
+            ts.setBorder(BorderFactory.createEmptyBorder(0, pad, 0, pad));
+            ts.setAlignmentX(side);
+
+            add(meta);
+            add(bubble);
+            add(ts);
+        }
+    }
+
+    /** Glass bubble holding only the message text: translucent gradient, hairline border, soft shadow. Sized to its text. */
     private static final class MessageBubble extends JPanel {
         private static final int M = 5; // room for the shadow around the bubble
 
         private final boolean mine;
         private final String type;
 
-        MessageBubble(String sender, String role, String time, String type, String text, boolean mine, int maxText) {
+        MessageBubble(String type, String text, boolean mine, int maxText, float alignment) {
+            super(new BorderLayout());
             this.mine = mine;
-            this.type = type == null ? "regular" : type.toLowerCase();
-            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+            this.type = type;
             setOpaque(false);
-            setBorder(BorderFactory.createEmptyBorder(M + 8, M + 14, M + 8, M + 14));
-
-            JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-            header.setOpaque(false);
-            header.setAlignmentX(LEFT_ALIGNMENT);
-            if (special()) {
-                JLabel tag = new JLabel(urgent() ? "URGENT" : "BROADCAST");
-                tag.setFont(tag.getFont().deriveFont(Font.BOLD, 9f));
-                tag.setForeground(accentFor(this.type));
-                header.add(tag);
-            }
-            JLabel who = new JLabel("<html><span style='font-size:12px; color:#FFFFFF'><b>" + escape(sender) + "</b></span>"
-                    + "<span style='font-size:9px; color:#93A4BF'>&nbsp;&nbsp;\u2022&nbsp;&nbsp;" + escape(role) + "</span></html>");
-            header.add(who);
+            setAlignmentX(alignment);
+            setBorder(BorderFactory.createEmptyBorder(M + 7, M + 14, M + 7, M + 14));
 
             JLabel body = new JLabel("<html>" + escape(text) + "</html>");
             body.setForeground(Pal.TEXT);
-            body.setAlignmentX(LEFT_ALIGNMENT);
             // Fit the text; only force wrapping once a line would exceed the maximum bubble width.
             if (body.getPreferredSize().width > maxText) {
                 body.setText("<html><body style='width:" + maxText + "px'>" + escape(text) + "</body></html>");
             }
-
-            JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-            footer.setOpaque(false);
-            footer.setAlignmentX(LEFT_ALIGNMENT);
-            JLabel ts = new JLabel(time);
-            ts.setFont(ts.getFont().deriveFont(10f));
-            ts.setForeground(Pal.DIM);
-            footer.add(ts);
-
-            add(header);
-            add(Box.createVerticalStrut(3));
-            add(body);
-            add(Box.createVerticalStrut(2));
-            add(footer);
+            add(body, BorderLayout.CENTER);
         }
 
         private boolean urgent() { return "urgent".equals(type); }
         private boolean special() { return urgent() || "announcement".equals(type); }
+
+        /** Stops the layout from stretching the bubble to the width of the name line. */
+        @Override public Dimension getMaximumSize() { return getPreferredSize(); }
 
         @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
