@@ -40,7 +40,10 @@ public final class ThemeManager {
                 Map.entry("Button.arc", "10"),
                 Map.entry("Component.arc", "10"),
                 Map.entry("TextComponent.arc", "10"),
-                Map.entry("ScrollBar.showButtons", "false")));
+                Map.entry("ScrollBar.showButtons", "false"),
+                Map.entry("Table.rowHeight", "28"),
+                Map.entry("TableHeader.height", "32"),
+                Map.entry("TabbedPane.tabHeight", "34")));
         if (useDark) FlatDarkLaf.setup(); else FlatLightLaf.setup();
         UIManager.put("defaultFont", baseFont());
         FlatLaf.updateUI();

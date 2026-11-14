@@ -6,6 +6,7 @@ import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics;
@@ -20,15 +21,15 @@ public final class StatCard extends JPanel {
 
     public StatCard(String title, String value, Color accent) {
         this.accent = accent;
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setLayout(new BorderLayout(0, 4));
         setOpaque(false);
-        setBorder(BorderFactory.createEmptyBorder(14, 20, 14, 16));
+        setBorder(BorderFactory.createEmptyBorder(12, 18, 12, 16));
         titleLabel = new JLabel(title);
         titleLabel.setFont(titleLabel.getFont().deriveFont(Font.PLAIN, 12f));
         valueLabel = new JLabel(value);
-        valueLabel.setFont(valueLabel.getFont().deriveFont(Font.BOLD, 28f));
-        add(titleLabel);
-        add(valueLabel);
+        valueLabel.setFont(valueLabel.getFont().deriveFont(Font.BOLD, 26f));
+        add(titleLabel, BorderLayout.NORTH);
+        add(valueLabel, BorderLayout.CENTER);
         updateUI();
     }
 
