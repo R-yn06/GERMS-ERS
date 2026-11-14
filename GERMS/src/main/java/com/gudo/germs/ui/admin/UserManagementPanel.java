@@ -50,10 +50,6 @@ public final class UserManagementPanel extends JPanel {
         copy.add(title, BorderLayout.NORTH);
         copy.add(description, BorderLayout.SOUTH);
 
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        header.add(copy, BorderLayout.WEST);
-
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 4));
         actions.setOpaque(false);
 
