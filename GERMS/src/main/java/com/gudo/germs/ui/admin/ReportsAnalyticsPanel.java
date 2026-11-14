@@ -70,9 +70,7 @@ public final class ReportsAnalyticsPanel extends JPanel {
         p.setOpaque(false);
         p.add(title);
         p.add(desc);
-        header.add(p, BorderLayout.WEST);
-
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 4));
         actions.setOpaque(false);
 
         actions.add(new JLabel("Severity:"));
@@ -93,7 +91,8 @@ public final class ReportsAnalyticsPanel extends JPanel {
         refresh.addActionListener(e -> loadAnalytics());
         actions.add(refresh);
 
-        header.add(actions, BorderLayout.EAST);
+        header.add(p, BorderLayout.NORTH);
+        header.add(actions, BorderLayout.SOUTH);
         return header;
     }
 

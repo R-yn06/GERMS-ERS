@@ -24,8 +24,8 @@ public final class MainWindow extends JFrame {
         super("GERMS \u2013 Gudo Emergency Response Management System");
         this.ctx = ctx;
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(1000, 640));
-        setSize(1280, 800);
+        setMinimumSize(new Dimension(1120, 720));
+        setSize(1366, 860);
         setLocationRelativeTo(null);
         setContentPane(root);
         root.add(new LoginPanel(ctx, this::showShell, () -> showShell(Profile.guest())), LOGIN);
