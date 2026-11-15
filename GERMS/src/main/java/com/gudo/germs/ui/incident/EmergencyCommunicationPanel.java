@@ -1,5 +1,43 @@
 package com.gudo.germs.ui.incident;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.gudo.germs.config.AppContext;
+import com.gudo.germs.models.Incident;
+import com.gudo.germs.models.Profile;
+import com.gudo.germs.models.Role;
+import com.gudo.germs.ui.components.StatusBadge;
+import com.gudo.germs.ui.theme.GermsColors;
+import com.gudo.germs.ui.theme.ThemeManager;
+import com.gudo.germs.utils.BackgroundTask;
+
+import javax.swing.AbstractAction;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.ButtonGroup;
+import javax.swing.DefaultListModel;
+import javax.swing.Icon;
+import javax.swing.JButton;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
+import javax.swing.JScrollBar;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.JToggleButton;
+import javax.swing.JViewport;
+import javax.swing.KeyStroke;
+import javax.swing.ListCellRenderer;
+import javax.swing.ListSelectionModel;
+import javax.swing.Scrollable;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.BasicStroke;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -42,53 +80,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-import javax.swing.AbstractAction;
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
-import javax.swing.DefaultListModel;
-import javax.swing.Icon;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
-import javax.swing.JScrollBar;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JToggleButton;
-import javax.swing.JViewport;
-import javax.swing.KeyStroke;
-import javax.swing.ListCellRenderer;
-import javax.swing.ListSelectionModel;
-import javax.swing.Scrollable;
-import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
-import javax.swing.event.DocumentEvent;
-import javax.swing.event.DocumentListener;
-
-import com.fasterxml.jackson.databind.JsonNode;
-import com.gudo.germs.config.AppContext;
-import com.gudo.germs.models.Incident;
-import com.gudo.germs.models.Profile;
-import com.gudo.germs.models.Role;
-import com.gudo.germs.ui.components.StatusBadge;
-import com.gudo.germs.ui.theme.GermsColors;
-import com.gudo.germs.utils.BackgroundTask;
-
 /**
- * Incident communication channel redesigned as a dark, glass-style live chat.
+ * Incident communication channel: a glass-style live chat that follows the app's light / dark theme.
  *
- * Data and behavior are unchanged: incidents come from ctx.incidents, messages
- * are read from
- * incident_messages and sent through the send_incident_message RPC. Message
- * types map as follows:
- * "Transfer Message" = regular, "Announcement" = announcement, "Urgent" =
- * urgent.
+ * Data and behavior are unchanged: incidents come from ctx.incidents, messages are read from
+ * incident_messages and sent through the send_incident_message RPC. Message types map as follows:
+ * "Transfer Message" = regular, "Announcement" = announcement, "Urgent" = urgent.
  */
 public final class EmergencyCommunicationPanel extends JPanel {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -97,27 +94,47 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private static final int SLIDE_MS = 240;
     private static final int AUTO_COLLAPSE_WIDTH = 900;
     private static final int MAX_BUBBLE_TEXT = 520;
+    private static final int HEADER_BTN = 48; // refresh and sidebar toggle
 
     /**
-     * Fixed dark palette: this screen is a dark "operations console" in both app
-     * themes.
+     * Palette resolved at paint time from ThemeManager, so every custom-painted piece follows the theme.
+     * Dark: navy console with light glass. Light: pale blue-grey with frosted white glass.
      */
     private static final class Pal {
-        static final Color BG_TOP = new Color(0x0A101C);
-        static final Color BG_BOTTOM = new Color(0x131C2E);
-        static final Color POPUP = new Color(0x141C2C);
-        static final Color TEXT = new Color(0xEEF2F9);
-        static final Color DIM = new Color(0x93A4BF);
-        static final Color BLUE = new Color(0x4A9BE8);
-        static final Color AMBER = new Color(0xF0B429);
-        static final Color RED = new Color(0xF2545B);
-        static final Color GREEN = new Color(0x3DD68C);
-        static final Color BORDER = new Color(255, 255, 255, 36);
+        static boolean dark() { return ThemeManager.isDark(); }
+
+        static Color bgTop() { return dark() ? new Color(0x0A101C) : new Color(0xF4F7FC); }
+        static Color bgBottom() { return dark() ? new Color(0x131C2E) : new Color(0xE0E8F4); }
+        static Color popup() { return dark() ? new Color(0x141C2C) : new Color(0xFAFBFE); }
+        static Color title() { return dark() ? Color.WHITE : new Color(0x0F1726); }
+        static Color text() { return dark() ? new Color(0xEEF2F9) : new Color(0x182234); }
+        static Color dim() { return dark() ? new Color(0x93A4BF) : new Color(0x5B6B84); }
+        static Color blue() { return dark() ? new Color(0x4A9BE8) : new Color(0x2474C7); }
+        static Color amber() { return dark() ? new Color(0xF0B429) : new Color(0xB7791F); }
+        static Color red() { return dark() ? new Color(0xF2545B) : new Color(0xD62828); }
+        static Color green() { return dark() ? new Color(0x3DD68C) : new Color(0x218838); }
+
+        static Color line() { return dark() ? new Color(255, 255, 255, 36) : new Color(30, 50, 90, 34); }
+        static Color edge(int a) { return dark() ? new Color(255, 255, 255, a) : new Color(30, 50, 90, Math.max(28, a - 14)); }
+        static Color glassTop(int a) {
+            return dark() ? new Color(255, 255, 255, a) : new Color(255, 255, 255, Math.min(235, 125 + a * 2));
+        }
+        static Color glassBottom(int a) {
+            return dark() ? new Color(255, 255, 255, a) : new Color(255, 255, 255, Math.min(215, 92 + a * 2));
+        }
+        /** Tinted glass is a little less opaque on the light background. */
+        static int tint(int a) { return dark() ? a : a * 3 / 4; }
+        /** Hover / pressed wash for transparent icon buttons. */
+        static Color wash(int a) { return dark() ? new Color(255, 255, 255, a) : new Color(20, 40, 80, a); }
+        static Color washEdge(boolean active) {
+            return dark() ? new Color(255, 255, 255, active ? 70 : 36) : new Color(30, 50, 90, active ? 80 : 44);
+        }
+        static Color shadow(int i) {
+            return dark() ? new Color(0, 0, 0, Math.max(0, 16 - i * 3)) : new Color(20, 40, 80, Math.max(0, 11 - i * 2));
+        }
     }
 
-    private enum Kind {
-        REFRESH, SEND, PANEL, MEGAPHONE, WARNING, MESSAGE
-    }
+    private enum Kind { REFRESH, SEND, PANEL, MEGAPHONE, WARNING, MESSAGE }
 
     private final AppContext ctx;
     private final Profile user;
@@ -128,14 +145,18 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private final CardLayout listCards = new CardLayout();
     private final JPanel listHolder = new JPanel(listCards);
     private final JLabel countLabel = new JLabel(" ");
+    private final JLabel popupHead = new JLabel("ACTIVE INCIDENT CHANNELS");
+    private final JLabel popupEmpty = new JLabel("<html><div style='text-align:center'><b>No active incidents</b><br>"
+            + "Channels appear once an incident is published.</div></html>", SwingConstants.CENTER);
     private final JPopupMenu channelPopup = new JPopupMenu();
     private final JPanel popupPanel = new JPanel(new BorderLayout());
     private final GlassButton channelButton = new GlassButton();
 
     // header
+    private final JLabel titleLabel = new JLabel("Emergency Communication");
     private final JLabel liveLabel = new JLabel();
-    private final IconButton refreshButton = new IconButton(Kind.REFRESH, Pal.TEXT, false, 38, "Refresh");
-    private final IconButton panelToggle = new IconButton(Kind.PANEL, Pal.TEXT, false, 38, "Message types");
+    private final IconButton refreshButton = new IconButton(Kind.REFRESH, false, HEADER_BTN, "Refresh");
+    private final IconButton panelToggle = new IconButton(Kind.PANEL, false, HEADER_BTN, "Message types");
 
     // chat
     private final JLabel channelTitle = new JLabel("No channel selected");
@@ -146,11 +167,13 @@ public final class EmergencyCommunicationPanel extends JPanel {
     // composer
     private final GlassPanel composer = new GlassPanel(new BorderLayout(8, 0), 22, 30, 16, 60);
     private final PlaceholderArea input = new PlaceholderArea(2, 20);
-    private final IconButton sendBtn = new IconButton(Kind.SEND, Pal.BLUE, true, 40, "Send (Enter)");
+    private final IconButton sendBtn = new IconButton(Kind.SEND, true, 44, "Send (Enter)");
     private final GlassButton modeTag = new GlassButton();
     private final JPanel modeTagWrap = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
 
     // right sidebar
+    private final JLabel sideHead = new JLabel("MESSAGE TYPE");
+    private final JLabel sideHint = new JLabel("Choose how your next message is sent.");
     private final ModeOption[] options = new ModeOption[3];
     private SlideContainer slide;
     private final Timer slideTimer = new Timer(12, e -> stepSlide());
@@ -169,6 +192,11 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private boolean forceScroll;
     private boolean channelSelected;
     private boolean sending;
+    private boolean liveOk = true;
+    private boolean themeReady;
+    private boolean placeholderActive;
+    private String phHead = "";
+    private String phSub = "";
     private String mode = "regular";
     private String activeId;
     private String shownChannelId;
@@ -185,8 +213,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
         pollTimer = new Timer(POLL_MS, e -> {
             loadMessages();
-            if (++tick % 5 == 0)
-                loadIncidents();
+            if (++tick % 5 == 0) loadIncidents();
         });
         pollTimer.setCoalesce(true);
         resizeDebounce = new Timer(140, e -> onFeedResized());
@@ -203,47 +230,74 @@ public final class EmergencyCommunicationPanel extends JPanel {
         add(body, BorderLayout.CENTER);
 
         feedScroll.getViewport().addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
-                resizeDebounce.restart();
-            }
+            @Override public void componentResized(ComponentEvent e) { resizeDebounce.restart(); }
         });
         addComponentListener(new ComponentAdapter() {
-            @Override
-            public void componentResized(ComponentEvent e) {
+            @Override public void componentResized(ComponentEvent e) {
                 boolean narrow = getWidth() < AUTO_COLLAPSE_WIDTH;
                 if (narrow != wasNarrow) {
                     wasNarrow = narrow;
-                    if (narrow && sidebarOpen)
-                        setSidebarOpen(false, true);
+                    if (narrow && sidebarOpen) setSidebarOpen(false, true);
                 }
             }
         });
 
         setSidebarOpen(true, false);
-        setMode("regular");
-        setLive(true);
         refreshSendState();
-        showPlaceholder("Select an incident channel",
-                "Use the channel button at the top right to choose an active incident.");
+        showPlaceholder("Select an incident channel", "Use the channel button at the top right to choose an active incident.");
+        applyTheme();
+        themeReady = true;
+    }
+
+    // ------------------------------------------------------------------ theming
+
+    /** FlatLaf calls updateUI on every component when the theme is toggled; re-resolve our colors then. */
+    @Override public void updateUI() {
+        super.updateUI();
+        if (themeReady) SwingUtilities.invokeLater(this::applyTheme);
+    }
+
+    /** Re-applies every color that is set on a component (custom painting reads the palette on its own). */
+    private void applyTheme() {
+        titleLabel.setForeground(Pal.title());
+        channelTitle.setForeground(Pal.text());
+        channelButton.setForeground(Pal.text());
+        modeTag.setForeground(Pal.text());
+        popupHead.setForeground(Pal.dim());
+        countLabel.setForeground(Pal.dim());
+        popupEmpty.setForeground(Pal.dim());
+        popupPanel.setBackground(Pal.popup());
+        channelPopup.setBackground(Pal.popup());
+        channelPopup.setBorder(BorderFactory.createLineBorder(Pal.edge(60)));
+        sideHead.setForeground(Pal.dim());
+        sideHint.setForeground(Pal.dim());
+        input.setForeground(Pal.text());
+        input.setCaretColor(Pal.text());
+        input.setDisabledTextColor(Pal.dim());
+        input.setSelectionColor(alpha(Pal.blue(), 110));
+        setLive(liveOk);
+        setMode(mode);
+        if (placeholderActive) showPlaceholder(phHead, phSub);
+        else if (lastRows != null) rebuildFeed(lastRows);
+        repaint();
     }
 
     // ------------------------------------------------------------------ painting
 
-    @Override
-    protected void paintComponent(Graphics g) {
+    @Override protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         int w = getWidth(), h = Math.max(1, getHeight());
-        g2.setPaint(new GradientPaint(0, 0, Pal.BG_TOP, 0, h, Pal.BG_BOTTOM));
+        g2.setPaint(new GradientPaint(0, 0, Pal.bgTop(), 0, h, Pal.bgBottom()));
         g2.fillRect(0, 0, w, h);
-        glow(g2, w, h, w * 0.88f, h * 0.02f, w * 0.55f, new Color(200, 16, 46, 54));
-        glow(g2, w, h, w * 0.06f, h * 0.98f, w * 0.50f, new Color(36, 116, 199, 46));
+        boolean dark = Pal.dark();
+        glow(g2, w, h, w * 0.88f, h * 0.02f, w * 0.55f, new Color(200, 16, 46, dark ? 54 : 30));
+        glow(g2, w, h, w * 0.06f, h * 0.98f, w * 0.50f, new Color(36, 116, 199, dark ? 46 : 32));
         g2.dispose();
     }
 
     private static void glow(Graphics2D g2, int w, int h, float cx, float cy, float radius, Color c) {
-        g2.setPaint(new RadialGradientPaint(new Point2D.Float(cx, cy), Math.max(1f, radius), new float[] { 0f, 1f },
-                new Color[] { c, new Color(c.getRed(), c.getGreen(), c.getBlue(), 0) }));
+        g2.setPaint(new RadialGradientPaint(new Point2D.Float(cx, cy), Math.max(1f, radius), new float[] {0f, 1f},
+                new Color[] {c, new Color(c.getRed(), c.getGreen(), c.getBlue(), 0)}));
         g2.fillRect(0, 0, w, h);
     }
 
@@ -251,8 +305,12 @@ public final class EmergencyCommunicationPanel extends JPanel {
         return new Color(c.getRed(), c.getGreen(), c.getBlue(), Math.max(0, Math.min(255, a)));
     }
 
+    private static String hex(Color c) {
+        return String.format("#%02X%02X%02X", c.getRed(), c.getGreen(), c.getBlue());
+    }
+
     private static void glass(Graphics2D g2, int x, int y, int w, int h, int arc,
-            Color top, Color bottom, Color border, float borderWidth) {
+                              Color top, Color bottom, Color border, float borderWidth) {
         g2.setPaint(new GradientPaint(x, y, top, x, y + Math.max(1, h), bottom));
         g2.fillRoundRect(x, y, w, h, arc, arc);
         if (border != null) {
@@ -270,9 +328,9 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     private static Color accentFor(String type) {
         return switch (type == null ? "" : type) {
-            case "urgent" -> Pal.RED;
-            case "announcement" -> Pal.AMBER;
-            default -> Pal.BLUE;
+            case "urgent" -> Pal.red();
+            case "announcement" -> Pal.amber();
+            default -> Pal.blue();
         };
     }
 
@@ -283,14 +341,10 @@ public final class EmergencyCommunicationPanel extends JPanel {
         incidentList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         incidentList.setOpaque(false);
         incidentList.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting() && !updatingList)
-                applySelection();
+            if (!e.getValueIsAdjusting() && !updatingList) applySelection();
         });
         incidentList.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                channelPopup.setVisible(false);
-            }
+            @Override public void mouseReleased(MouseEvent e) { channelPopup.setVisible(false); }
         });
 
         JScrollPane scroll = new JScrollPane(incidentList);
@@ -299,87 +353,64 @@ public final class EmergencyCommunicationPanel extends JPanel {
         scroll.getViewport().setOpaque(false);
         scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
-        JLabel empty = new JLabel("<html><div style='text-align:center'><b>No active incidents</b><br>"
-                + "Channels appear once an incident is published.</div></html>", SwingConstants.CENTER);
-        empty.setForeground(Pal.DIM);
         listHolder.setOpaque(false);
         listHolder.add(scroll, "list");
-        listHolder.add(empty, "empty");
+        listHolder.add(popupEmpty, "empty");
         listCards.show(listHolder, "empty");
 
-        JLabel head = new JLabel("ACTIVE INCIDENT CHANNELS");
-        head.setFont(head.getFont().deriveFont(Font.BOLD, 11f));
-        head.setForeground(Pal.DIM);
-        countLabel.setForeground(Pal.DIM);
+        popupHead.setFont(popupHead.getFont().deriveFont(Font.BOLD, 11f));
         countLabel.setFont(countLabel.getFont().deriveFont(11f));
         JPanel top = new JPanel(new BorderLayout());
         top.setOpaque(false);
         top.setBorder(BorderFactory.createEmptyBorder(12, 16, 10, 16));
-        top.add(head, BorderLayout.WEST);
+        top.add(popupHead, BorderLayout.WEST);
         top.add(countLabel, BorderLayout.EAST);
 
-        popupPanel.setBackground(Pal.POPUP);
         popupPanel.add(top, BorderLayout.NORTH);
         popupPanel.add(listHolder, BorderLayout.CENTER);
         popupPanel.setPreferredSize(new Dimension(340, 140));
-        channelPopup.setBorder(BorderFactory.createLineBorder(new Color(255, 255, 255, 50)));
-        channelPopup.setBackground(Pal.POPUP);
         channelPopup.add(popupPanel);
     }
 
     private JComponent buildHeader() {
-        JPanel bar = new JPanel(new BorderLayout(0, 10));
+        JPanel bar = new JPanel(new BorderLayout(16, 0));
         bar.setOpaque(false);
 
-        // Row 1: title + live status
-        JPanel titles = new JPanel();
-        titles.setOpaque(false);
-        titles.setLayout(new BoxLayout(titles, BoxLayout.Y_AXIS));
-        JLabel title = new JLabel("Emergency Communication");
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        title.setForeground(Color.WHITE);
-        title.setAlignmentX(LEFT_ALIGNMENT);
+        JPanel left = new JPanel();
+        left.setOpaque(false);
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        titleLabel.setFont(titleLabel.getFont().deriveFont(Font.BOLD, 22f));
+        titleLabel.setAlignmentX(LEFT_ALIGNMENT);
         liveLabel.setFont(liveLabel.getFont().deriveFont(Font.BOLD, 12f));
         liveLabel.setToolTipText("Messages refresh automatically every " + (POLL_MS / 1000) + " seconds");
         liveLabel.setAlignmentX(LEFT_ALIGNMENT);
-        titles.add(title);
-        titles.add(Box.createVerticalStrut(3));
-        titles.add(liveLabel);
-        bar.add(titles, BorderLayout.NORTH);
+        left.add(titleLabel);
+        left.add(Box.createVerticalStrut(3));
+        left.add(liveLabel);
 
-        // Row 2: controls
         channelButton.setText("Select channel  \u25BE");
         channelButton.addActionListener(e -> {
-            if (channelPopup.isVisible()) {
-                channelPopup.setVisible(false);
-                return;
-            }
-            // Open below the button, left-aligned with it, so it never leaves the window.
-            channelPopup.show(channelButton, 0, channelButton.getHeight() + 6);
+            if (channelPopup.isVisible()) { channelPopup.setVisible(false); return; }
+            channelPopup.show(channelButton, channelButton.getWidth() - popupPanel.getPreferredSize().width,
+                    channelButton.getHeight() + 6);
         });
         refreshButton.addActionListener(e -> refreshNow());
         panelToggle.addActionListener(e -> setSidebarOpen(!sidebarOpen, true));
 
-        // BoxLayout keeps the controls in one row at their natural size (no wrapping).
-        JPanel actions = new JPanel();
-        actions.setOpaque(false);
-        actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
-        actions.add(channelButton);
-        actions.add(Box.createHorizontalStrut(10));
-        actions.add(refreshButton);
-        actions.add(Box.createHorizontalStrut(10));
-        actions.add(panelToggle);
-        actions.add(Box.createHorizontalGlue()); // pushes controls to the left
+        JPanel right = new JPanel();
+        right.setOpaque(false);
+        right.setLayout(new BoxLayout(right, BoxLayout.X_AXIS));
+        channelButton.setAlignmentY(CENTER_ALIGNMENT);
+        refreshButton.setAlignmentY(CENTER_ALIGNMENT);
+        panelToggle.setAlignmentY(CENTER_ALIGNMENT);
+        right.add(channelButton);
+        right.add(Box.createHorizontalStrut(12));
+        right.add(refreshButton);
+        right.add(Box.createHorizontalStrut(10));
+        right.add(panelToggle);
 
-        // Scroll horizontally instead of clipping when the window is very narrow.
-        JScrollPane actionScroll = new JScrollPane(actions,
-                JScrollPane.VERTICAL_SCROLLBAR_NEVER,
-                JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
-        actionScroll.setBorder(null);
-        actionScroll.setOpaque(false);
-        actionScroll.getViewport().setOpaque(false);
-
-        bar.add(actionScroll, BorderLayout.CENTER);
+        bar.add(left, BorderLayout.WEST);
+        bar.add(right, BorderLayout.EAST);
         return bar;
     }
 
@@ -393,7 +424,6 @@ public final class EmergencyCommunicationPanel extends JPanel {
         head.setOpaque(false);
         head.setBorder(BorderFactory.createEmptyBorder(14, 20, 12, 20));
         channelTitle.setFont(channelTitle.getFont().deriveFont(Font.BOLD, 16f));
-        channelTitle.setForeground(Pal.TEXT);
         channelMeta.setOpaque(false);
         JPanel titles = new JPanel();
         titles.setOpaque(false);
@@ -413,8 +443,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         feedScroll.setBorder(null);
         feedScroll.setOpaque(false);
         feedScroll.getViewport().setOpaque(false);
-        feedScroll.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE); // no blit artifacts on translucent
-                                                                              // content
+        feedScroll.getViewport().setScrollMode(JViewport.SIMPLE_SCROLL_MODE); // no blit artifacts on translucent content
         feedScroll.getVerticalScrollBar().setUnitIncrement(16);
         feedScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
@@ -440,45 +469,20 @@ public final class EmergencyCommunicationPanel extends JPanel {
         input.setLineWrap(true);
         input.setWrapStyleWord(true);
         input.setOpaque(false);
-        input.setForeground(Pal.TEXT);
-        input.setCaretColor(Pal.TEXT);
-        input.setDisabledTextColor(Pal.DIM);
-        input.setSelectionColor(alpha(Pal.BLUE, 120));
         input.setBorder(BorderFactory.createEmptyBorder(4, 0, 4, 8));
         input.getInputMap().put(KeyStroke.getKeyStroke("ENTER"), "send");
         input.getInputMap().put(KeyStroke.getKeyStroke("shift ENTER"), "insert-break");
         input.getActionMap().put("send", new AbstractAction() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                sendMessage();
-            }
+            @Override public void actionPerformed(ActionEvent e) { sendMessage(); }
         });
         input.getDocument().addDocumentListener(new DocumentListener() {
-            @Override
-            public void insertUpdate(DocumentEvent e) {
-                refreshSendState();
-            }
-
-            @Override
-            public void removeUpdate(DocumentEvent e) {
-                refreshSendState();
-            }
-
-            @Override
-            public void changedUpdate(DocumentEvent e) {
-                refreshSendState();
-            }
+            @Override public void insertUpdate(DocumentEvent e) { refreshSendState(); }
+            @Override public void removeUpdate(DocumentEvent e) { refreshSendState(); }
+            @Override public void changedUpdate(DocumentEvent e) { refreshSendState(); }
         });
         input.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusGained(FocusEvent e) {
-                composer.setFocused(true, accentFor(mode));
-            }
-
-            @Override
-            public void focusLost(FocusEvent e) {
-                composer.setFocused(false, accentFor(mode));
-            }
+            @Override public void focusGained(FocusEvent e) { composer.setFocused(true, accentFor(mode)); }
+            @Override public void focusLost(FocusEvent e) { composer.setFocused(false, accentFor(mode)); }
         });
 
         JScrollPane inputScroll = new JScrollPane(input);
@@ -511,30 +515,25 @@ public final class EmergencyCommunicationPanel extends JPanel {
         col.setLayout(new BoxLayout(col, BoxLayout.Y_AXIS));
         col.setBorder(BorderFactory.createEmptyBorder(16, 14, 16, 14));
 
-        JLabel head = new JLabel("MESSAGE TYPE");
-        head.setFont(head.getFont().deriveFont(Font.BOLD, 11f));
-        head.setForeground(Pal.DIM);
-        head.setAlignmentX(LEFT_ALIGNMENT);
-        JLabel hint = new JLabel("Choose how your next message is sent.");
-        hint.setFont(hint.getFont().deriveFont(11f));
-        hint.setForeground(Pal.DIM);
-        hint.setAlignmentX(LEFT_ALIGNMENT);
-        col.add(head);
+        sideHead.setFont(sideHead.getFont().deriveFont(Font.BOLD, 11f));
+        sideHead.setAlignmentX(LEFT_ALIGNMENT);
+        sideHint.setFont(sideHint.getFont().deriveFont(11f));
+        sideHint.setAlignmentX(LEFT_ALIGNMENT);
+        col.add(sideHead);
         col.add(Box.createVerticalStrut(2));
-        col.add(hint);
+        col.add(sideHint);
         col.add(Box.createVerticalStrut(14));
 
-        options[0] = new ModeOption("regular", Kind.MESSAGE, "Transfer Message", "Standard message", Pal.BLUE);
-        options[1] = new ModeOption("announcement", Kind.MEGAPHONE, "Announcement", "Broadcast to everyone", Pal.AMBER);
-        options[2] = new ModeOption("urgent", Kind.WARNING, "Urgent", "High-priority alert", Pal.RED);
+        options[0] = new ModeOption("regular", Kind.MESSAGE, "Transfer Message", "Standard message");
+        options[1] = new ModeOption("announcement", Kind.MEGAPHONE, "Announcement", "Broadcast to everyone");
+        options[2] = new ModeOption("urgent", Kind.WARNING, "Urgent", "High-priority alert");
         ButtonGroup group = new ButtonGroup();
         for (int i = 0; i < options.length; i++) {
             ModeOption o = options[i];
             o.addActionListener(e -> setMode(o.key));
             group.add(o);
             col.add(o);
-            if (i < options.length - 1)
-                col.add(Box.createVerticalStrut(10));
+            if (i < options.length - 1) col.add(Box.createVerticalStrut(10));
         }
         card.add(col, BorderLayout.CENTER);
 
@@ -547,24 +546,17 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // ------------------------------------------------------------------ lifecycle
 
-    @Override
-    public void addNotify() {
+    @Override public void addNotify() {
         super.addNotify();
-        if (!pollTimer.isRunning())
-            pollTimer.start();
-        if (unsubscribe == null)
-            unsubscribe = ctx.incidents.bus().subscribe(e -> loadIncidents());
+        if (!pollTimer.isRunning()) pollTimer.start();
+        if (unsubscribe == null) unsubscribe = ctx.incidents.bus().subscribe(e -> loadIncidents());
         loadIncidents();
     }
 
-    @Override
-    public void removeNotify() {
+    @Override public void removeNotify() {
         pollTimer.stop();
         channelPopup.setVisible(false);
-        if (unsubscribe != null) {
-            unsubscribe.run();
-            unsubscribe = null;
-        }
+        if (unsubscribe != null) { unsubscribe.run(); unsubscribe = null; }
         super.removeNotify();
     }
 
@@ -580,21 +572,13 @@ public final class EmergencyCommunicationPanel extends JPanel {
             updatingList = true;
             try {
                 incidentModel.clear();
-                for (Incident i : active)
-                    incidentModel.addElement(i);
+                for (Incident i : active) incidentModel.addElement(i);
                 int idx = -1;
                 for (int i = 0; i < active.size(); i++) {
-                    if (active.get(i).id().equals(keepId)) {
-                        idx = i;
-                        break;
-                    }
+                    if (active.get(i).id().equals(keepId)) { idx = i; break; }
                 }
-                if (idx < 0 && keepId == null && !active.isEmpty())
-                    idx = 0;
-                if (idx >= 0)
-                    incidentList.setSelectedIndex(idx);
-                else
-                    incidentList.clearSelection();
+                if (idx < 0 && keepId == null && !active.isEmpty()) idx = 0;
+                if (idx >= 0) incidentList.setSelectedIndex(idx); else incidentList.clearSelection();
             } finally {
                 updatingList = false;
             }
@@ -616,42 +600,35 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     private void loadMessages() {
         Incident inc = incidentList.getSelectedValue();
-        if (inc == null)
-            return;
+        if (inc == null) return;
         String id = inc.id();
         BackgroundTask.run(() -> ctx.rest.select("incident_messages",
                 "select=id,message,message_type,created_at,profiles(full_name,role)&incident_id=eq." + id
-                        + "&order=created_at.asc"),
-                rows -> {
-                    setLive(true);
-                    Incident current = incidentList.getSelectedValue();
-                    if (current == null || !current.id().equals(id))
-                        return; // channel changed while loading
-                    int signature = rows == null ? 0 : rows.toString().hashCode();
-                    boolean firstLoad = !id.equals(shownChannelId);
-                    if (!firstLoad && signature == shownSignature)
-                        return; // nothing new: keep the conversation untouched
-                    boolean wasAtBottom = isNearBottom();
-                    shownChannelId = id;
-                    shownSignature = signature;
-                    rebuildFeed(rows);
-                    if (firstLoad || wasAtBottom || forceScroll)
-                        scrollToBottom();
-                    forceScroll = false;
-                }, err -> setLive(false));
+                        + "&order=created_at.asc"), rows -> {
+            setLive(true);
+            Incident current = incidentList.getSelectedValue();
+            if (current == null || !current.id().equals(id)) return; // channel changed while loading
+            int signature = rows == null ? 0 : rows.toString().hashCode();
+            boolean firstLoad = !id.equals(shownChannelId);
+            if (!firstLoad && signature == shownSignature) return;   // nothing new: keep the conversation untouched
+            boolean wasAtBottom = isNearBottom();
+            shownChannelId = id;
+            shownSignature = signature;
+            rebuildFeed(rows);
+            if (firstLoad || wasAtBottom || forceScroll) scrollToBottom();
+            forceScroll = false;
+        }, err -> setLive(false));
     }
 
     private void sendMessage() {
         Incident inc = incidentList.getSelectedValue();
         String text = input.getText().trim();
-        if (sending || inc == null || text.isEmpty())
-            return;
+        if (sending || inc == null || text.isEmpty()) return;
         String type = mode;
         if ("urgent".equals(type) && JOptionPane.showConfirmDialog(this,
                 "Send an URGENT alert to everyone on " + inc.incidentNo() + "?",
-                "Confirm urgent alert", JOptionPane.YES_NO_OPTION,
-                JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION)
-            return;
+                "Confirm urgent alert", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE)
+                != JOptionPane.YES_OPTION) return;
 
         sending = true;
         input.setEditable(false);
@@ -701,8 +678,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         input.setEnabled(channelSelected);
         refreshSendState();
         if (inc == null) {
-            showPlaceholder("Select an incident channel",
-                    "Use the channel button at the top right to choose an active incident.");
+            showPlaceholder("Select an incident channel", "Use the channel button at the top right to choose an active incident.");
         } else {
             showPlaceholder("Loading messages\u2026", " ");
             loadMessages();
@@ -720,8 +696,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             channelMeta.add(StatusBadge.severity(inc.severity()));
             channelMeta.add(StatusBadge.incidentStatus(inc.status().name().toLowerCase()));
             String t = String.valueOf(inc.title());
-            if (t.length() > 34)
-                t = t.substring(0, 33) + "\u2026";
+            if (t.length() > 34) t = t.substring(0, 33) + "\u2026";
             channelButton.setIcon(new DotIcon(GermsColors.forSeverity(inc.severity())));
             channelButton.setText(inc.incidentNo() + "  \u00B7  " + t + "  \u25BE");
         }
@@ -731,8 +706,9 @@ public final class EmergencyCommunicationPanel extends JPanel {
     }
 
     private void setLive(boolean ok) {
+        liveOk = ok;
         liveLabel.setText(ok ? "\u25CF Online" : "\u25CF Reconnecting\u2026");
-        liveLabel.setForeground(ok ? Pal.GREEN : Pal.AMBER);
+        liveLabel.setForeground(ok ? Pal.green() : Pal.amber());
     }
 
     private void refreshSendState() {
@@ -748,9 +724,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         modeTagWrap.setVisible(special);
         modeTag.setAccent(c);
         modeTag.setText(("urgent".equals(key) ? "URGENT" : "ANNOUNCEMENT") + "   \u2715");
-        for (ModeOption o : options)
-            if (o != null)
-                o.setSelected(o.key.equals(key));
+        for (ModeOption o : options) if (o != null) o.setSelected(o.key.equals(key));
         composer.setFocused(input.hasFocus(), c);
         composer.revalidate();
         composer.repaint();
@@ -777,26 +751,22 @@ public final class EmergencyCommunicationPanel extends JPanel {
         double f = Math.min(1.0, (System.nanoTime() - slideStart) / (SLIDE_MS * 1_000_000.0));
         double eased = 1 - Math.pow(1 - f, 3);
         slide.setProgress(slideFrom + (slideTo - slideFrom) * eased);
-        if (f >= 1.0)
-            slideTimer.stop();
+        if (f >= 1.0) slideTimer.stop();
     }
 
     // ----------------------------------------------------------------------- feed
 
     private void onFeedResized() {
         int w = feedScroll.getViewport().getWidth();
-        if (lastRows == null || w <= 0 || Math.abs(w - lastBuildWidth) < 40)
-            return;
+        if (lastRows == null || placeholderActive || w <= 0 || Math.abs(w - lastBuildWidth) < 40) return;
         boolean atBottom = isNearBottom();
         rebuildFeed(lastRows);
-        if (atBottom)
-            scrollToBottom();
+        if (atBottom) scrollToBottom();
     }
 
     private int maxBubbleText() {
         int vw = feedScroll.getViewport().getWidth();
-        if (vw <= 0)
-            return MAX_BUBBLE_TEXT;
+        if (vw <= 0) return MAX_BUBBLE_TEXT;
         return Math.max(220, Math.min(MAX_BUBBLE_TEXT, (int) (vw * 0.66)));
     }
 
@@ -807,6 +777,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             showPlaceholder("No messages yet", "Be the first to post an update on this incident.");
             return;
         }
+        placeholderActive = false;
         int maxText = maxBubbleText();
         feed.removeAll();
         LocalDate lastDay = null;
@@ -823,8 +794,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             String type = m.path("message_type").asText("regular");
             boolean mine = sender.equals(user.fullName());
             String time = when == null ? "" : TIME_FMT.format(when);
-            feed.add(new MessageRow(
-                    new MessageBlock(sender, role, time, type, m.path("message").asText(), mine, maxText), mine));
+            feed.add(new MessageRow(new MessageBlock(sender, role, time, type, m.path("message").asText(), mine, maxText), mine));
             feed.add(Box.createVerticalStrut(6));
         }
         feed.add(Box.createVerticalGlue());
@@ -833,11 +803,14 @@ public final class EmergencyCommunicationPanel extends JPanel {
     }
 
     private void showPlaceholder(String head, String sub) {
+        placeholderActive = true;
+        phHead = head;
+        phSub = sub;
         feed.removeAll();
         feed.add(Box.createVerticalGlue());
         JLabel l = new JLabel("<html><div style='text-align:center'><b style='font-size:14px'>" + head
                 + "</b><br>" + sub + "</div></html>", SwingConstants.CENTER);
-        l.setForeground(Pal.DIM);
+        l.setForeground(Pal.dim());
         l.setAlignmentX(Component.CENTER_ALIGNMENT);
         feed.add(l);
         feed.add(Box.createVerticalGlue());
@@ -847,16 +820,13 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     private static JComponent dayRow(String text) {
         JLabel l = new JLabel(text);
-        l.setForeground(Pal.DIM);
+        l.setForeground(Pal.dim());
         l.setFont(l.getFont().deriveFont(Font.BOLD, 11f));
         GlassPanel chip = new GlassPanel(new FlowLayout(FlowLayout.CENTER, 0, 0), 16, 24, 14, 40);
         chip.setBorder(BorderFactory.createEmptyBorder(3, 12, 3, 12));
         chip.add(l);
         JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0)) {
-            @Override
-            public Dimension getMaximumSize() {
-                return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
-            }
+            @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); }
         };
         row.setOpaque(false);
         row.setAlignmentX(LEFT_ALIGNMENT);
@@ -865,8 +835,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
     }
 
     private static String roleLabel(String raw) {
-        if (raw == null || raw.isBlank())
-            return "Staff";
+        if (raw == null || raw.isBlank()) return "Staff";
         try {
             return Role.fromDb(raw).label();
         } catch (Exception e) {
@@ -899,18 +868,15 @@ public final class EmergencyCommunicationPanel extends JPanel {
     }
 
     private static String elide(String s, FontMetrics fm, int width) {
-        if (fm.stringWidth(s) <= width)
-            return s;
+        if (fm.stringWidth(s) <= width) return s;
         String t = s;
-        while (t.length() > 1 && fm.stringWidth(t + "\u2026") > width)
-            t = t.substring(0, t.length() - 1);
+        while (t.length() > 1 && fm.stringWidth(t + "\u2026") > width) t = t.substring(0, t.length() - 1);
         return t + "\u2026";
     }
 
     // ------------------------------------------------------------------- icons
 
-    private static void drawIcon(Graphics2D g2, Kind kind, double cx, double cy, double size, Color color,
-            boolean filled) {
+    private static void drawIcon(Graphics2D g2, Kind kind, double cx, double cy, double size, Color color, boolean filled) {
         Graphics2D g = (Graphics2D) g2.create();
         smooth(g);
         g.translate(cx - size / 2, cy - size / 2);
@@ -985,23 +951,10 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     private static final class DotIcon implements Icon {
         private final Color color;
-
-        DotIcon(Color color) {
-            this.color = color;
-        }
-
-        @Override
-        public int getIconWidth() {
-            return 12;
-        }
-
-        @Override
-        public int getIconHeight() {
-            return 12;
-        }
-
-        @Override
-        public void paintIcon(Component c, Graphics g, int x, int y) {
+        DotIcon(Color color) { this.color = color; }
+        @Override public int getIconWidth() { return 12; }
+        @Override public int getIconHeight() { return 12; }
+        @Override public void paintIcon(Component c, Graphics g, int x, int y) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
             g2.setColor(color);
@@ -1012,13 +965,11 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // ------------------------------------------------------------ custom pieces
 
-    /**
-     * Round icon button with hover / pressed / disabled states; REFRESH can spin.
-     */
+    /** Round icon button with hover / pressed / disabled states; REFRESH can spin. */
     private static final class IconButton extends JButton {
         private final Kind kind;
         private final boolean solid;
-        private Color accent;
+        private Color accent = Pal.blue();
         private boolean active;
         private double angle;
         private boolean stopRequested;
@@ -1026,18 +977,13 @@ public final class EmergencyCommunicationPanel extends JPanel {
             angle += 0.22;
             if (angle >= Math.PI * 2) {
                 angle -= Math.PI * 2;
-                if (stopRequested) {
-                    ((Timer) e.getSource()).stop();
-                    angle = 0;
-                    stopRequested = false;
-                }
+                if (stopRequested) { ((Timer) e.getSource()).stop(); angle = 0; stopRequested = false; }
             }
             repaint();
         });
 
-        IconButton(Kind kind, Color accent, boolean solid, int size, String tip) {
+        IconButton(Kind kind, boolean solid, int size, String tip) {
             this.kind = kind;
-            this.accent = accent;
             this.solid = solid;
             setContentAreaFilled(false);
             setBorderPainted(false);
@@ -1047,37 +993,28 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             setToolTipText(tip);
             getAccessibleContext().setAccessibleName(tip);
-            setPreferredSize(new Dimension(size, size));
-            setMinimumSize(new Dimension(size, size));
+            Dimension d = new Dimension(size, size);
+            setPreferredSize(d);
+            setMinimumSize(d);
+            setMaximumSize(d); // box layouts would otherwise shrink an icon-only button
         }
 
-        void setAccent(Color c) {
-            this.accent = c;
-            repaint();
-        }
-
-        void setActive(boolean on) {
-            this.active = on;
-            repaint();
-        }
+        void setAccent(Color c) { this.accent = c; repaint(); }
+        void setActive(boolean on) { this.active = on; repaint(); }
 
         void setSpinning(boolean on) {
-            if (on) {
-                stopRequested = false;
-                if (!spin.isRunning())
-                    spin.start();
-            } else if (spin.isRunning())
-                stopRequested = true; // finish the current turn, then stop
+            if (on) { stopRequested = false; if (!spin.isRunning()) spin.start(); }
+            else if (spin.isRunning()) stopRequested = true; // finish the current turn, then stop
         }
 
-        @Override
-        protected void paintComponent(Graphics g) {
+        @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
             int w = getWidth(), h = getHeight(), d = Math.min(w, h);
             int x = (w - d) / 2, y = (h - d) / 2;
             boolean on = isEnabled();
             boolean pressed = getModel().isPressed(), hover = getModel().isRollover();
+            boolean dark = Pal.dark();
             Color iconColor;
             if (solid) {
                 if (on) {
@@ -1085,29 +1022,28 @@ public final class EmergencyCommunicationPanel extends JPanel {
                     glass(g2, x, y, d, d, d, alpha(base, 245), alpha(base.darker(), 235), alpha(Color.WHITE, 60), 1f);
                     iconColor = Color.WHITE;
                 } else {
-                    g2.setColor(new Color(255, 255, 255, 22));
+                    g2.setColor(dark ? new Color(255, 255, 255, 22) : new Color(20, 40, 80, 26));
                     g2.fillOval(x, y, d, d);
-                    iconColor = new Color(255, 255, 255, 80);
+                    iconColor = dark ? new Color(255, 255, 255, 80) : new Color(20, 40, 80, 90);
                 }
             } else {
                 int a = !on ? 0 : pressed ? 64 : hover ? 40 : (active ? 34 : 16);
-                g2.setColor(new Color(255, 255, 255, a));
+                g2.setColor(Pal.wash(a));
                 g2.fillOval(x, y, d, d);
-                g2.setColor(new Color(255, 255, 255, active ? 70 : 36));
-                g2.setStroke(new BasicStroke(1f));
+                g2.setColor(Pal.washEdge(active));
+                g2.setStroke(new BasicStroke(1.2f));
                 g2.drawOval(x, y, d - 1, d - 1);
-                iconColor = on ? (active ? Color.WHITE : Pal.TEXT) : Pal.DIM;
+                iconColor = on ? (active ? Pal.title() : Pal.text()) : Pal.dim();
             }
-            if (kind == Kind.REFRESH)
-                g2.rotate(angle, w / 2.0, h / 2.0);
-            drawIcon(g2, kind, w / 2.0, h / 2.0, d * 0.48, iconColor, active);
+            if (kind == Kind.REFRESH) g2.rotate(angle, w / 2.0, h / 2.0);
+            drawIcon(g2, kind, w / 2.0, h / 2.0, d * 0.58, iconColor, active);
             g2.dispose();
         }
     }
 
-    /** Translucent pill button (channel picker and the active-mode tag). */
+    /** Translucent pill button (channel picker; accent != null for the active-mode tag). */
     private static final class GlassButton extends JButton {
-        private Color accent = Color.WHITE;
+        private Color accent; // null = neutral
 
         GlassButton() {
             setContentAreaFilled(false);
@@ -1115,42 +1051,39 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setFocusPainted(false);
             setOpaque(false);
             setRolloverEnabled(true);
-            setForeground(Pal.TEXT);
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+            setBorder(BorderFactory.createEmptyBorder(13, 20, 13, 20));
             setIconTextGap(8);
         }
 
-        void setAccent(Color c) {
-            this.accent = c;
-            repaint();
-        }
+        void setAccent(Color c) { this.accent = c; repaint(); }
 
-        @Override
-        protected void paintComponent(Graphics g) {
+        @Override public Dimension getMaximumSize() { return getPreferredSize(); }
+
+        @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
-            boolean white = accent == Color.WHITE;
             int bump = getModel().isRollover() ? 14 : 0;
-            glass(g2, 0, 0, getWidth(), getHeight(), getHeight(),
-                    alpha(accent, (white ? 26 : 70) + bump), alpha(accent, (white ? 12 : 38) + bump),
-                    alpha(accent, white ? 60 : 170), 1f);
+            if (accent == null) {
+                glass(g2, 0, 0, getWidth(), getHeight(), getHeight(),
+                        Pal.glassTop(26 + bump), Pal.glassBottom(12 + bump), Pal.edge(70), 1f);
+            } else {
+                glass(g2, 0, 0, getWidth(), getHeight(), getHeight(),
+                        alpha(accent, Pal.tint(70) + bump), alpha(accent, Pal.tint(38) + bump), alpha(accent, 170), 1f);
+            }
             g2.dispose();
             super.paintComponent(g);
         }
     }
 
-    /**
-     * Translucent rounded surface; the border brightens while the composer has
-     * focus.
-     */
+    /** Translucent rounded surface; the border brightens while the composer has focus. */
     private static class GlassPanel extends JPanel {
         private final int arc;
         private final int topAlpha;
         private final int bottomAlpha;
         private final int borderAlpha;
         private boolean focused;
-        private Color focusColor = Pal.BLUE;
+        private Color focusColor = Pal.blue();
 
         GlassPanel(LayoutManager layout, int arc, int topAlpha, int bottomAlpha, int borderAlpha) {
             super(layout);
@@ -1167,55 +1100,40 @@ public final class EmergencyCommunicationPanel extends JPanel {
             repaint();
         }
 
-        @Override
-        protected void paintComponent(Graphics g) {
+        @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
-            Color border = focused ? alpha(focusColor, 180) : new Color(255, 255, 255, borderAlpha);
+            Color border = focused ? alpha(focusColor, 180) : Pal.edge(borderAlpha);
             glass(g2, 0, 0, getWidth(), getHeight(), arc,
-                    new Color(255, 255, 255, topAlpha), new Color(255, 255, 255, bottomAlpha), border,
-                    focused ? 1.6f : 1f);
+                    Pal.glassTop(topAlpha), Pal.glassBottom(bottomAlpha), border, focused ? 1.6f : 1f);
             g2.dispose();
             super.paintComponent(g);
         }
     }
 
     private static final class Divider extends JComponent {
-        @Override
-        public Dimension getPreferredSize() {
-            return new Dimension(1, 1);
-        }
+        @Override public Dimension getPreferredSize() { return new Dimension(1, 1); }
 
-        @Override
-        protected void paintComponent(Graphics g) {
-            g.setColor(Pal.BORDER);
+        @Override protected void paintComponent(Graphics g) {
+            g.setColor(Pal.line());
             g.fillRect(0, 0, getWidth(), 1);
         }
     }
 
-    /**
-     * Text area that paints its own placeholder, so it looks right on the dark
-     * glass in either app theme.
-     */
+    /** Text area that paints its own placeholder in the current theme's dim color. */
     private static final class PlaceholderArea extends JTextArea {
         private String placeholder = "";
 
-        PlaceholderArea(int rows, int cols) {
-            super(rows, cols);
-        }
+        PlaceholderArea(int rows, int cols) { super(rows, cols); }
 
-        void setPlaceholder(String p) {
-            this.placeholder = p;
-            repaint();
-        }
+        void setPlaceholder(String p) { this.placeholder = p; repaint(); }
 
-        @Override
-        protected void paintComponent(Graphics g) {
+        @Override protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             if (getDocument().getLength() == 0 && !placeholder.isEmpty()) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 smooth(g2);
-                g2.setColor(isEnabled() ? new Color(147, 164, 191, 170) : new Color(147, 164, 191, 90));
+                g2.setColor(alpha(Pal.dim(), isEnabled() ? 200 : 110));
                 g2.setFont(getFont());
                 Insets in = getInsets();
                 g2.drawString(placeholder, in.left, in.top + g2.getFontMetrics().getAscent());
@@ -1232,36 +1150,14 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
         }
 
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
-            return 24;
-        }
-
-        @Override
-        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
-            return Math.max(40, r.height - 40);
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return false;
-        }
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 24; }
+        @Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return Math.max(40, r.height - 40); }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
 
-    /**
-     * Right-hand sidebar host: its width animates between 0 and the content width,
-     * sliding the content in from the edge.
-     */
+    /** Right-hand sidebar host: its width animates between 0 and the content width, sliding the content in from the edge. */
     private static final class SlideContainer extends JPanel {
         private final int full;
         private double progress = 1;
@@ -1273,9 +1169,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             add(content, BorderLayout.EAST); // anchored to the right edge, so it slides rather than squashes
         }
 
-        double progress() {
-            return progress;
-        }
+        double progress() { return progress; }
 
         void setProgress(double p) {
             progress = Math.max(0, Math.min(1, p));
@@ -1284,8 +1178,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             repaint();
         }
 
-        @Override
-        public Dimension getPreferredSize() {
+        @Override public Dimension getPreferredSize() {
             Dimension d = super.getPreferredSize();
             return new Dimension((int) Math.round(full * progress), d.height);
         }
@@ -1300,16 +1193,10 @@ public final class EmergencyCommunicationPanel extends JPanel {
             add(block, mine ? BorderLayout.EAST : BorderLayout.WEST);
         }
 
-        @Override
-        public Dimension getMaximumSize() {
-            return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
-        }
+        @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); }
     }
 
-    /**
-     * One message: sender line above the bubble, a bubble holding only the text,
-     * and the time below it.
-     */
+    /** One message: sender line above the bubble, a bubble holding only the text, and the time below it. */
     private static final class MessageBlock extends JPanel {
         MessageBlock(String sender, String role, String time, String type, String text, boolean mine, int maxText) {
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -1329,10 +1216,9 @@ public final class EmergencyCommunicationPanel extends JPanel {
                 tag.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
                 meta.add(tag);
             }
-            // Name and role: same size, plain weight. Role is dimmer so the name still
-            // reads first.
-            JLabel who = new JLabel("<html><span style='color:#EEF2F9'>" + escape(sender) + "</span>"
-                    + "<span style='color:#93A4BF'>&nbsp;&nbsp;\u2022&nbsp;&nbsp;" + escape(role) + "</span></html>");
+            // Name and role: same size, plain weight. Role is dimmer so the name still reads first.
+            JLabel who = new JLabel("<html><span style='color:" + hex(Pal.text()) + "'>" + escape(sender) + "</span>"
+                    + "<span style='color:" + hex(Pal.dim()) + "'>&nbsp;&nbsp;\u2022&nbsp;&nbsp;" + escape(role) + "</span></html>");
             who.setFont(who.getFont().deriveFont(Font.PLAIN, 11f));
             meta.add(who);
 
@@ -1340,7 +1226,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
             JLabel ts = new JLabel(time);
             ts.setFont(ts.getFont().deriveFont(Font.PLAIN, 10f));
-            ts.setForeground(Pal.DIM);
+            ts.setForeground(Pal.dim());
             ts.setBorder(BorderFactory.createEmptyBorder(0, pad, 0, pad));
             ts.setAlignmentX(side);
 
@@ -1350,10 +1236,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         }
     }
 
-    /**
-     * Glass bubble holding only the message text: translucent gradient, hairline
-     * border, soft shadow. Sized to its text.
-     */
+    /** Glass bubble holding only the message text: translucent gradient, hairline border, soft shadow. Sized to its text. */
     private static final class MessageBubble extends JPanel {
         private static final int M = 5; // room for the shadow around the bubble
 
@@ -1369,46 +1252,38 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setBorder(BorderFactory.createEmptyBorder(M + 7, M + 14, M + 7, M + 14));
 
             JLabel body = new JLabel("<html>" + escape(text) + "</html>");
-            body.setForeground(Pal.TEXT);
-            // Fit the text; only force wrapping once a line would exceed the maximum bubble
-            // width.
+            body.setForeground(Pal.text());
+            // Fit the text; only force wrapping once a line would exceed the maximum bubble width.
             if (body.getPreferredSize().width > maxText) {
                 body.setText("<html><body style='width:" + maxText + "px'>" + escape(text) + "</body></html>");
             }
             add(body, BorderLayout.CENTER);
         }
 
-        private boolean urgent() {
-            return "urgent".equals(type);
-        }
+        private boolean urgent() { return "urgent".equals(type); }
+        private boolean special() { return urgent() || "announcement".equals(type); }
 
-        private boolean special() {
-            return urgent() || "announcement".equals(type);
-        }
+        /** Stops the layout from stretching the bubble to the width of the name line. */
+        @Override public Dimension getMaximumSize() { return getPreferredSize(); }
 
-        /**
-         * Stops the layout from stretching the bubble to the width of the name line.
-         */
-        @Override
-        public Dimension getMaximumSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
+        @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
             int x = M, y = M - 2, w = getWidth() - 2 * M, h = getHeight() - 2 * M;
             for (int i = 0; i < 4; i++) { // soft shadow
-                g2.setColor(new Color(0, 0, 0, 16 - i * 3));
+                g2.setColor(Pal.shadow(i));
                 g2.fillRoundRect(x - i, y + 2 + i, w + 2 * i, h, 20 + i * 2, 20 + i * 2);
             }
             boolean neutral = !special() && !mine;
-            Color tint = special() ? accentFor(type) : mine ? Pal.BLUE : Color.WHITE;
-            int topA = neutral ? 30 : (mine ? 92 : 70);
-            int botA = neutral ? 13 : (mine ? 54 : 36);
-            Color border = neutral ? new Color(255, 255, 255, 50) : alpha(tint, urgent() ? 210 : 140);
-            glass(g2, x, y, w, h, 20, alpha(tint, topA), alpha(tint, botA), border, urgent() ? 1.6f : 1f);
+            if (neutral) {
+                glass(g2, x, y, w, h, 20, Pal.glassTop(30), Pal.glassBottom(13), Pal.edge(50), 1f);
+            } else {
+                Color tint = special() ? accentFor(type) : Pal.blue();
+                int topA = Pal.tint(mine ? 92 : 70);
+                int botA = Pal.tint(mine ? 54 : 36);
+                glass(g2, x, y, w, h, 20, alpha(tint, topA), alpha(tint, botA),
+                        alpha(tint, urgent() ? 210 : 140), urgent() ? 1.6f : 1f);
+            }
             g2.dispose();
             super.paintComponent(g);
         }
@@ -1420,14 +1295,12 @@ public final class EmergencyCommunicationPanel extends JPanel {
         private final Kind kind;
         private final String title;
         private final String subtitle;
-        private final Color color;
 
-        ModeOption(String key, Kind kind, String title, String subtitle, Color color) {
+        ModeOption(String key, Kind kind, String title, String subtitle) {
             this.key = key;
             this.kind = kind;
             this.title = title;
             this.subtitle = subtitle;
-            this.color = color;
             setContentAreaFilled(false);
             setBorderPainted(false);
             setFocusPainted(false);
@@ -1442,20 +1315,17 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setAlignmentX(LEFT_ALIGNMENT);
         }
 
-        @Override
-        protected void paintComponent(Graphics g) {
+        @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
             int w = getWidth(), h = getHeight();
+            Color color = accentFor(key);
             boolean sel = isSelected(), hover = getModel().isRollover();
             boolean urgent = "urgent".equals(key);
-            int ta = sel ? 78 : urgent ? 32 : 18;
-            int ba = sel ? 42 : urgent ? 16 : 8;
-            if (hover && !sel) {
-                ta += 14;
-                ba += 8;
-            }
-            Color border = sel ? alpha(color, 220) : urgent ? alpha(color, 120) : new Color(255, 255, 255, 36);
+            int ta = Pal.tint(sel ? 78 : urgent ? 32 : 18);
+            int ba = Pal.tint(sel ? 42 : urgent ? 16 : 8);
+            if (hover && !sel) { ta += 14; ba += 8; }
+            Color border = sel ? alpha(color, 220) : urgent ? alpha(color, 120) : Pal.edge(40);
             glass(g2, 0, 0, w, h, 16, alpha(color, ta), alpha(color, ba), border, sel ? 1.6f : 1f);
 
             g2.setColor(alpha(color, 46));
@@ -1464,12 +1334,12 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
             Font tf = getFont().deriveFont(Font.BOLD, 13f);
             g2.setFont(tf);
-            g2.setColor(Pal.TEXT);
+            g2.setColor(Pal.text());
             int textW = w - 60 - (sel ? 28 : 14);
             g2.drawString(elide(title, g2.getFontMetrics(), textW), 60, h / 2 - 3);
             Font sf = getFont().deriveFont(Font.PLAIN, 11f);
             g2.setFont(sf);
-            g2.setColor(Pal.DIM);
+            g2.setColor(Pal.dim());
             g2.drawString(elide(subtitle, g2.getFontMetrics(), textW), 60, h / 2 + 13);
 
             if (sel) {
@@ -1480,14 +1350,12 @@ public final class EmergencyCommunicationPanel extends JPanel {
         }
     }
 
-    /**
-     * Incident entry in the channel popup: severity stripe, number, title, status.
-     */
+    /** Incident entry in the channel popup: severity stripe, number, title, status. */
     private static final class IncidentCell extends JPanel implements ListCellRenderer<Incident> {
         private final JLabel no = new JLabel();
         private final JLabel title = new JLabel();
         private final JLabel status = new JLabel();
-        private Color stripe = Pal.BLUE;
+        private Color stripe = Pal.blue();
         private boolean selected;
 
         IncidentCell() {
@@ -1496,7 +1364,6 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 14));
             no.setFont(no.getFont().deriveFont(Font.BOLD, 12f));
             status.setFont(status.getFont().deriveFont(Font.BOLD, 11f));
-            title.setForeground(Pal.TEXT);
             JPanel top = new JPanel(new BorderLayout());
             top.setOpaque(false);
             top.add(no, BorderLayout.WEST);
@@ -1505,31 +1372,29 @@ public final class EmergencyCommunicationPanel extends JPanel {
             add(title, BorderLayout.CENTER);
         }
 
-        @Override
-        public Component getListCellRendererComponent(JList<? extends Incident> list, Incident inc,
-                int index, boolean isSelected, boolean hasFocus) {
+        @Override public Component getListCellRendererComponent(JList<? extends Incident> list, Incident inc,
+                                                                 int index, boolean isSelected, boolean hasFocus) {
             stripe = GermsColors.forSeverity(inc.severity());
             selected = isSelected;
             no.setText(String.valueOf(inc.incidentNo()));
             no.setForeground(stripe);
             title.setText(inc.title());
+            title.setForeground(Pal.text());
             status.setText(inc.status().label());
             status.setForeground(GermsColors.forIncidentStatus(inc.status().name().toLowerCase()));
             return this;
         }
 
-        @Override
-        public Dimension getPreferredSize() {
+        @Override public Dimension getPreferredSize() {
             Dimension d = super.getPreferredSize();
             return new Dimension(10, Math.max(d.height, 58)); // narrow width keeps the list tracking the viewport
         }
 
-        @Override
-        protected void paintComponent(Graphics g) {
+        @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
             if (selected) {
-                g2.setColor(new Color(255, 255, 255, 26));
+                g2.setColor(Pal.wash(Pal.dark() ? 26 : 20));
                 g2.fillRoundRect(6, 2, getWidth() - 12, getHeight() - 4, 12, 12);
             }
             g2.setColor(stripe);
