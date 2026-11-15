@@ -9,52 +9,10 @@ import com.gudo.germs.ui.components.StatusBadge;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
-import javax.swing.AbstractAction;
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
-import javax.swing.DefaultListModel;
-import javax.swing.Icon;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
-import javax.swing.JScrollBar;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JToggleButton;
-import javax.swing.JViewport;
-import javax.swing.KeyStroke;
-import javax.swing.ListCellRenderer;
-import javax.swing.ListSelectionModel;
-import javax.swing.Scrollable;
-import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
+import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.awt.BasicStroke;
-import java.awt.BorderLayout;
-import java.awt.CardLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.GradientPaint;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Insets;
-import java.awt.LayoutManager;
-import java.awt.RadialGradientPaint;
-import java.awt.Rectangle;
-import java.awt.RenderingHints;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
@@ -79,13 +37,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Incident communication channel redesigned as a dark, glass-style live chat.
- *
- * Data and behavior are unchanged: incidents come from ctx.incidents, messages are read from
- * incident_messages and sent through the send_incident_message RPC. Message types map as follows:
- * "Transfer Message" = regular, "Announcement" = announcement, "Urgent" = urgent.
- */
+
 public final class EmergencyCommunicationPanel extends JPanel {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DAY_FMT = DateTimeFormatter.ofPattern("EEEE, MMM d");
