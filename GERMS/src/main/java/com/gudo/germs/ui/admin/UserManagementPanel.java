@@ -88,7 +88,7 @@ public final class UserManagementPanel extends JPanel {
         refresh.addActionListener(e -> load());
         actions.add(refresh);
 
-        // JPanel header = new JPanel(new BorderLayout(12, 6));
+        JPanel header = new JPanel(new BorderLayout(12, 6));
         header.setOpaque(false);
         header.add(copy, BorderLayout.NORTH);
         header.add(actions, BorderLayout.SOUTH);
