@@ -10,32 +10,7 @@ import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.ui.theme.ThemeManager;
 import com.gudo.germs.utils.BackgroundTask;
 
-import javax.swing.AbstractAction;
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.ButtonGroup;
-import javax.swing.DefaultListModel;
-import javax.swing.Icon;
-import javax.swing.JButton;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JPopupMenu;
-import javax.swing.JScrollBar;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
-import javax.swing.JToggleButton;
-import javax.swing.JViewport;
-import javax.swing.KeyStroke;
-import javax.swing.ListCellRenderer;
-import javax.swing.ListSelectionModel;
-import javax.swing.Scrollable;
-import javax.swing.SwingConstants;
-import javax.swing.SwingUtilities;
-import javax.swing.Timer;
+import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.BasicStroke;
@@ -75,18 +50,15 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Incident communication channel: a glass-style live chat that follows the app's light / dark theme.
- *
- * Data and behavior are unchanged: incidents come from ctx.incidents, messages are read from
- * incident_messages and sent through the send_incident_message RPC. Message types map as follows:
- * "Transfer Message" = regular, "Announcement" = announcement, "Urgent" = urgent.
- */
+
 public final class EmergencyCommunicationPanel extends JPanel {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DAY_FMT = DateTimeFormatter.ofPattern("EEEE, MMM d");
@@ -96,10 +68,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private static final int MAX_BUBBLE_TEXT = 520;
     private static final int HEADER_BTN = 48; // refresh and sidebar toggle
 
-    /**
-     * Palette resolved at paint time from ThemeManager, so every custom-painted piece follows the theme.
-     * Dark: navy console with light glass. Light: pale blue-grey with frosted white glass.
-     */
+    
     private static final class Pal {
         static boolean dark() { return ThemeManager.isDark(); }
 
@@ -203,6 +172,9 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private int shownSignature;
     private JsonNode lastRows;
     private int lastBuildWidth;
+    /** Sender id -> {full name, raw role}, filled from staff_directory when the profile join returns nothing. */
+    private final Map<String, String[]> directory = new ConcurrentHashMap<>();
+    private final Set<String> triedSenders = ConcurrentHashMap.newKeySet();
 
     public EmergencyCommunicationPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 16));
@@ -602,9 +574,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         Incident inc = incidentList.getSelectedValue();
         if (inc == null) return;
         String id = inc.id();
-        BackgroundTask.run(() -> ctx.rest.select("incident_messages",
-                "select=id,message,message_type,created_at,profiles(full_name,role)&incident_id=eq." + id
-                        + "&order=created_at.asc"), rows -> {
+        BackgroundTask.run(() -> fetchMessages(id), rows -> {
             setLive(true);
             Incident current = incidentList.getSelectedValue();
             if (current == null || !current.id().equals(id)) return; // channel changed while loading
@@ -788,11 +758,27 @@ public final class EmergencyCommunicationPanel extends JPanel {
                 feed.add(dayRow(DAY_FMT.format(when)));
                 feed.add(Box.createVerticalStrut(8));
             }
+            // Who sent it: embedded profile first, then the staff directory, then (for our own messages) the session.
+            String sid = senderId(m);
             JsonNode p = m.path("profiles");
-            String sender = p.hasNonNull("full_name") ? p.path("full_name").asText() : "Command Staff";
-            String role = roleLabel(p.path("role").asText(""));
+            String sender = null;
+            String roleRaw = "";
+            if (p.hasNonNull("full_name")) {
+                sender = p.path("full_name").asText();
+                roleRaw = p.path("role").asText("");
+            } else if (sid != null && directory.containsKey(sid)) {
+                sender = directory.get(sid)[0];
+                roleRaw = directory.get(sid)[1];
+            }
+            boolean mine = sid != null ? sid.equalsIgnoreCase(user.id().toString())
+                                       : sender != null && sender.equals(user.fullName());
+            String role = roleLabel(roleRaw);
+            if (mine && sender == null) {
+                sender = user.fullName();
+                role = user.role().label();
+            }
+            if (sender == null) sender = "Unknown sender";
             String type = m.path("message_type").asText("regular");
-            boolean mine = sender.equals(user.fullName());
             String time = when == null ? "" : TIME_FMT.format(when);
             feed.add(new MessageRow(new MessageBlock(sender, role, time, type, m.path("message").asText(), mine, maxText), mine));
             feed.add(Box.createVerticalStrut(6));
@@ -834,8 +820,48 @@ public final class EmergencyCommunicationPanel extends JPanel {
         return row;
     }
 
+    private static final String[] SENDER_COLUMNS = {"sender_id", "user_id", "profile_id", "created_by", "author_id", "posted_by"};
+
+    private static String senderId(JsonNode m) {
+        for (String c : SENDER_COLUMNS) {
+            if (m.hasNonNull(c)) return m.get(c).asText();
+        }
+        return null;
+    }
+
+    /** Loads a channel's messages and, for senders whose profile the join could not return, looks them up by id. */
+    private JsonNode fetchMessages(String incidentId) throws Exception {
+        JsonNode rows = ctx.rest.select("incident_messages",
+                "select=*,profiles(full_name,role)&incident_id=eq." + incidentId + "&order=created_at.asc");
+        if (rows == null || !rows.isArray()) return rows;
+        Set<String> missing = new LinkedHashSet<>();
+        for (JsonNode m : rows) {
+            String sid = senderId(m);
+            if (sid != null && !m.path("profiles").hasNonNull("full_name")
+                    && !directory.containsKey(sid) && !triedSenders.contains(sid)) {
+                missing.add(sid);
+            }
+        }
+        if (!missing.isEmpty()) {
+            triedSenders.addAll(missing); // ask once per sender; relaunch after installing staff_directory
+            try {
+                JsonNode people = ctx.rest.select("staff_directory",
+                        "select=id,full_name,role&id=in.(" + String.join(",", missing) + ")");
+                if (people != null && people.isArray()) {
+                    for (JsonNode person : people) {
+                        directory.put(person.path("id").asText(),
+                                new String[] {person.path("full_name").asText(), person.path("role").asText("")});
+                    }
+                }
+            } catch (Exception ignored) {
+                // staff_directory not installed or not readable: those senders stay "Unknown sender"
+            }
+        }
+        return rows;
+    }
+
     private static String roleLabel(String raw) {
-        if (raw == null || raw.isBlank()) return "Staff";
+        if (raw == null || raw.isBlank()) return "";
         try {
             return Role.fromDb(raw).label();
         } catch (Exception e) {
@@ -1217,8 +1243,10 @@ public final class EmergencyCommunicationPanel extends JPanel {
                 meta.add(tag);
             }
             // Name and role: same size, plain weight. Role is dimmer so the name still reads first.
+            String roleHtml = role == null || role.isBlank() ? ""
+                    : "<span style='color:" + hex(Pal.dim()) + "'>&nbsp;&nbsp;\u2022&nbsp;&nbsp;" + escape(role) + "</span>";
             JLabel who = new JLabel("<html><span style='color:" + hex(Pal.text()) + "'>" + escape(sender) + "</span>"
-                    + "<span style='color:" + hex(Pal.dim()) + "'>&nbsp;&nbsp;\u2022&nbsp;&nbsp;" + escape(role) + "</span></html>");
+                    + roleHtml + "</html>");
             who.setFont(who.getFont().deriveFont(Font.PLAIN, 11f));
             meta.add(who);
 
