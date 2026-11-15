@@ -1,5 +1,27 @@
 package com.gudo.germs.ui.admin;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.util.Map;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JTable;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
+import javax.swing.table.DefaultTableModel;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Profile;
@@ -8,17 +30,11 @@ import com.gudo.germs.ui.components.LocationPickerDialog;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.util.Map;
-import java.util.UUID;
-import javax.swing.SwingUtilities;
-
 /**
  * Evacuation Center & Shelter Management.
  * Supports shelter registration, capacity vs occupancy monitoring,
- * status updates (Open, Full, Temporarily Closed, Closed), and location coordinates.
+ * status updates (Open, Full, Temporarily Closed, Closed), and location
+ * coordinates.
  */
 public final class EvacuationCenterPanel extends JPanel {
     private final AppContext ctx;
@@ -26,8 +42,13 @@ public final class EvacuationCenterPanel extends JPanel {
     private final boolean readOnly;
 
     private final DefaultTableModel model = new DefaultTableModel(
-            new String[]{"ID", "Shelter Name", "Address / Barangay", "Capacity", "Occupancy", "Available Space", "Status", "Coordinates"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "ID", "Shelter Name", "Address / Barangay", "Capacity", "Occupancy", "Available Space",
+                    "Status", "Coordinates" },
+            0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable table = new JTable(model);
     private final JLabel statusLabel = new JLabel(" ");
@@ -50,9 +71,10 @@ public final class EvacuationCenterPanel extends JPanel {
     }
 
     private JPanel buildHeader() {
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
 
+        // Row 1: title + subtitle
         JLabel title = new JLabel(readOnly ? "Evacuation Centers & Shelters" : "Evacuation Center Management");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
         JLabel desc = new JLabel(readOnly
@@ -60,14 +82,17 @@ public final class EvacuationCenterPanel extends JPanel {
                 : "Manage shelter facilities, live occupancy numbers, operating status, and disaster preparedness sites.");
         desc.setForeground(GermsColors.SECONDARY_TEXT);
 
-        JPanel p = new JPanel(new GridLayout(0, 1, 0, 2));
-        p.setOpaque(false);
-        p.add(title);
-        p.add(desc);
-        header.add(p, BorderLayout.WEST);
+        JPanel titles = new JPanel(new GridLayout(0, 1, 0, 2));
+        titles.setOpaque(false);
+        titles.add(title);
+        titles.add(desc);
+        header.add(titles, BorderLayout.NORTH);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        // Row 2: action buttons
+        // BoxLayout keeps everything in one row at its natural size (no wrapping).
+        JPanel actions = new JPanel();
         actions.setOpaque(false);
+        actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
 
         if (!readOnly && user.role() == Role.ADMIN) {
             JButton addBtn = new JButton("+ Register Shelter");
@@ -82,15 +107,19 @@ public final class EvacuationCenterPanel extends JPanel {
             updateStatus.addActionListener(e -> showChangeStatusDialog());
 
             actions.add(addBtn);
+            actions.add(Box.createHorizontalStrut(8));
             actions.add(updateOccupancy);
+            actions.add(Box.createHorizontalStrut(8));
             actions.add(updateStatus);
+            actions.add(Box.createHorizontalStrut(8));
         }
 
         JButton refresh = new JButton("Refresh");
         refresh.addActionListener(e -> loadCenters());
         actions.add(refresh);
+        actions.add(Box.createHorizontalGlue()); // pushes buttons to the left
 
-        header.add(actions, BorderLayout.EAST);
+        header.add(actions, BorderLayout.CENTER);
         return header;
     }
 
@@ -113,10 +142,11 @@ public final class EvacuationCenterPanel extends JPanel {
 
                     String coords = "\u2014";
                     if (c.hasNonNull("latitude") && c.hasNonNull("longitude")) {
-                        coords = String.format(java.util.Locale.ROOT, "%.4f, %.4f", c.path("latitude").asDouble(), c.path("longitude").asDouble());
+                        coords = String.format(java.util.Locale.ROOT, "%.4f, %.4f", c.path("latitude").asDouble(),
+                                c.path("longitude").asDouble());
                     }
 
-                    model.addRow(new Object[]{
+                    model.addRow(new Object[] {
                             c.path("id").asText(),
                             c.path("name").asText(),
                             c.path("address").asText(),
@@ -128,7 +158,8 @@ public final class EvacuationCenterPanel extends JPanel {
                     });
                 }
             }
-            statusLabel.setText(String.format("Loaded %d shelter(s). Total Capacity: %d | Total Occupants: %d | Remaining Space: %d",
+            statusLabel.setText(String.format(
+                    "Loaded %d shelter(s). Total Capacity: %d | Total Occupants: %d | Remaining Space: %d",
                     model.getRowCount(), totalCap, totalOcc, Math.max(0, totalCap - totalOcc)));
         }, err -> {
             statusLabel.setText("Failed to load centers: " + err.getMessage());
@@ -138,7 +169,8 @@ public final class EvacuationCenterPanel extends JPanel {
     private String getSelectedCenterId() {
         int r = table.getSelectedRow();
         if (r < 0) {
-            JOptionPane.showMessageDialog(this, "Please select an evacuation center first.", "Notice", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please select an evacuation center first.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
             return null;
         }
         return String.valueOf(model.getValueAt(table.convertRowIndexToModel(r), 0));
@@ -158,32 +190,41 @@ public final class EvacuationCenterPanel extends JPanel {
                 selectedLocation[0] = picked;
                 selectedLocationText.setText(String.format(java.util.Locale.ROOT, "%s (%.5f, %.5f)",
                         picked.label(), picked.latitude(), picked.longitude()));
-                if (address.getText().isBlank()) address.setText(picked.label());
+                if (address.getText().isBlank())
+                    address.setText(picked.label());
             }
         });
-        JComboBox<String> status = new JComboBox<>(new String[]{"open", "full", "closed", "maintenance"});
+        JComboBox<String> status = new JComboBox<>(new String[] { "open", "full", "closed", "maintenance" });
 
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Center Name:")); form.add(name);
-        form.add(new JLabel("Address / Barangay:")); form.add(address);
-        form.add(new JLabel("Total Capacity:")); form.add(capacity);
+        form.add(new JLabel("Center Name:"));
+        form.add(name);
+        form.add(new JLabel("Address / Barangay:"));
+        form.add(address);
+        form.add(new JLabel("Total Capacity:"));
+        form.add(capacity);
         form.add(new JLabel("Map Location:"));
         JPanel locationPicker = new JPanel(new BorderLayout(8, 0));
         locationPicker.add(chooseLocation, BorderLayout.WEST);
         locationPicker.add(selectedLocationText, BorderLayout.CENTER);
         form.add(locationPicker);
-        form.add(new JLabel("Initial Status:")); form.add(status);
+        form.add(new JLabel("Initial Status:"));
+        form.add(status);
 
-        int res = JOptionPane.showConfirmDialog(this, form, "Register Evacuation Shelter", JOptionPane.OK_CANCEL_OPTION);
-        if (res != JOptionPane.OK_OPTION) return;
+        int res = JOptionPane.showConfirmDialog(this, form, "Register Evacuation Shelter",
+                JOptionPane.OK_CANCEL_OPTION);
+        if (res != JOptionPane.OK_OPTION)
+            return;
 
         String centerName = name.getText().trim();
         if (centerName.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Shelter name is required.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Shelter name is required.", "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
         if (selectedLocation[0] == null) {
-            JOptionPane.showMessageDialog(this, "Select the evacuation center location on the map.", "Location Required", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Select the evacuation center location on the map.",
+                    "Location Required", JOptionPane.WARNING_MESSAGE);
             return;
         }
         LocationPickerDialog.Selection location = selectedLocation[0];
@@ -197,18 +238,20 @@ public final class EvacuationCenterPanel extends JPanel {
                     "status", status.getSelectedItem(),
                     "latitude", location.latitude(),
                     "longitude", location.longitude(),
-                    "created_by", user.id().toString()
-            ));
+                    "created_by", user.id().toString()));
             return Boolean.TRUE;
         }, ok -> {
             loadCenters();
-            JOptionPane.showMessageDialog(this, "Evacuation center registered successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
-        }, err -> JOptionPane.showMessageDialog(this, "Registration failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+            JOptionPane.showMessageDialog(this, "Evacuation center registered successfully.", "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }, err -> JOptionPane.showMessageDialog(this, "Registration failed: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private void showUpdateOccupancyDialog() {
         String id = getSelectedCenterId();
-        if (id == null) return;
+        if (id == null)
+            return;
         int row = table.convertRowIndexToModel(table.getSelectedRow());
         String name = String.valueOf(model.getValueAt(row, 1));
         int cap = (int) model.getValueAt(row, 3);
@@ -216,12 +259,16 @@ public final class EvacuationCenterPanel extends JPanel {
 
         JSpinner occSpinner = new JSpinner(new SpinnerNumberModel(curOcc, 0, cap * 2, 1));
         JPanel p = new JPanel(new GridLayout(0, 2, 8, 8));
-        p.add(new JLabel("Shelter:")); p.add(new JLabel(name));
-        p.add(new JLabel("Max Capacity:")); p.add(new JLabel(String.valueOf(cap)));
-        p.add(new JLabel("Current Occupancy:")); p.add(occSpinner);
+        p.add(new JLabel("Shelter:"));
+        p.add(new JLabel(name));
+        p.add(new JLabel("Max Capacity:"));
+        p.add(new JLabel(String.valueOf(cap)));
+        p.add(new JLabel("Current Occupancy:"));
+        p.add(occSpinner);
 
         int choice = JOptionPane.showConfirmDialog(this, p, "Update Shelter Occupancy", JOptionPane.OK_CANCEL_OPTION);
-        if (choice != JOptionPane.OK_OPTION) return;
+        if (choice != JOptionPane.OK_OPTION)
+            return;
 
         int newOcc = (int) occSpinner.getValue();
         String newStatus = newOcc >= cap ? "full" : "open";
@@ -233,19 +280,20 @@ public final class EvacuationCenterPanel extends JPanel {
             ctx.rest.insertMinimal("evacuation_centers", Map.of(
                     "id", id,
                     "occupancy", newOcc,
-                    "status", newStatus
-            ));
+                    "status", newStatus));
             return Boolean.TRUE;
         }, ok -> loadCenters(), err -> loadCenters());
     }
 
     private void showChangeStatusDialog() {
         String id = getSelectedCenterId();
-        if (id == null) return;
-        String[] options = {"open", "full", "closed", "maintenance"};
+        if (id == null)
+            return;
+        String[] options = { "open", "full", "closed", "maintenance" };
         String sel = (String) JOptionPane.showInputDialog(this, "Select operating status:",
                 "Update Center Status", JOptionPane.PLAIN_MESSAGE, null, options, options[0]);
-        if (sel == null) return;
+        if (sel == null)
+            return;
 
         BackgroundTask.run(() -> {
             ctx.rest.insertMinimal("evacuation_centers", Map.of("id", id, "status", sel));
