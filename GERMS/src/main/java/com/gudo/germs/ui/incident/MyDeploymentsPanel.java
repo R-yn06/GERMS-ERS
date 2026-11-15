@@ -1,5 +1,37 @@
 package com.gudo.germs.ui.incident;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.awt.Rectangle;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.JViewport;
+import javax.swing.Scrollable;
+import javax.swing.SwingUtilities;
+import javax.swing.Timer;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Profile;
@@ -8,17 +40,10 @@ import com.gudo.germs.ui.components.LocationPickerDialog;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
 /**
  * My Deployments, Mission Command, Notifications & Emergency Alarms.
- * Combines incident assignments, operational location sharing, and real-time audible alarms.
+ * Combines incident assignments, operational location sharing, and real-time
+ * audible alarms.
  */
 public final class MyDeploymentsPanel extends JPanel {
     private final AppContext ctx;
@@ -30,8 +55,11 @@ public final class MyDeploymentsPanel extends JPanel {
 
     // Deployment Tab Components
     private final DefaultTableModel deploymentModel = new DefaultTableModel(
-            new String[]{"Assignment ID", "Incident", "Role", "Status", "Destination", "Assigned At"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "Assignment ID", "Incident", "Role", "Status", "Destination", "Assigned At" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable deploymentTable = new JTable(deploymentModel);
     private final JCheckBox locationShareToggle = new JCheckBox(
@@ -44,8 +72,13 @@ public final class MyDeploymentsPanel extends JPanel {
 
     // Notifications & Alarm Tab Components
     private final DefaultTableModel notifModel = new DefaultTableModel(
-            new String[]{"ID", "Incident ID", "Kind", "Priority", "Title", "Incident / Location", "Timestamp", "Status"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "ID", "Incident ID", "Kind", "Priority", "Title", "Incident / Location", "Timestamp",
+                    "Status" },
+            0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable notifTable = new JTable(notifModel);
     private final JCheckBox audibleToggle = new JCheckBox("Enable Audible Alarms", true);
@@ -64,7 +97,14 @@ public final class MyDeploymentsPanel extends JPanel {
         tabbedPane.addTab("Active Deployments & Missions", buildDeploymentsTab());
         tabbedPane.addTab("Notifications & Emergency Alarms", buildNotificationsTab());
         tabbedPane.setFont(tabbedPane.getFont().deriveFont(Font.BOLD, 13f));
-        add(tabbedPane, BorderLayout.CENTER);
+        ScrollBody body = new ScrollBody();
+        body.add(tabbedPane, BorderLayout.CENTER);
+        JScrollPane pageScroll = new JScrollPane(body,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        pageScroll.setBorder(null);
+        pageScroll.getVerticalScrollBar().setUnitIncrement(16);
+        add(pageScroll, BorderLayout.CENTER);
 
         notifPoll.setCoalesce(true);
         loadDeployments();
@@ -72,23 +112,23 @@ public final class MyDeploymentsPanel extends JPanel {
     }
 
     private JPanel buildHeader() {
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
 
+        // Row 1: title + subtitle
         JLabel title = new JLabel("My Deployments & Mission Center");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        JLabel desc = new JLabel("Manage assigned deployments, location broadcast, and monitor emergency alarm dispatch feeds.");
+        JLabel desc = new JLabel(
+                "Manage assigned deployments, location broadcast, and monitor emergency alarm dispatch feeds.");
         desc.setForeground(GermsColors.SECONDARY_TEXT);
 
-        JPanel p = new JPanel(new GridLayout(0, 1, 0, 2));
-        p.setOpaque(false);
-        p.add(title);
-        p.add(desc);
-        header.add(p, BorderLayout.WEST);
+        JPanel titles = new JPanel(new GridLayout(0, 1, 0, 2));
+        titles.setOpaque(false);
+        titles.add(title);
+        titles.add(desc);
+        header.add(titles, BorderLayout.NORTH);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        actions.setOpaque(false);
-
+        // Row 2: alarm status + action buttons
         JButton silenceQuick = new JButton("Silence Alarm");
         silenceQuick.setBackground(GermsColors.PRIMARY_RED);
         silenceQuick.setForeground(Color.WHITE);
@@ -105,11 +145,18 @@ public final class MyDeploymentsPanel extends JPanel {
             loadNotifications();
         });
 
-        actions.add(alarmStatus);
+        // BoxLayout keeps everything in one row at its natural size (no wrapping).
+        JPanel actions = new JPanel();
+        actions.setOpaque(false);
+        actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
         actions.add(silenceQuick);
+        actions.add(Box.createHorizontalStrut(8));
         actions.add(refreshAll);
-        header.add(actions, BorderLayout.EAST);
+        actions.add(Box.createHorizontalStrut(16));
+        actions.add(alarmStatus);
+        actions.add(Box.createHorizontalGlue()); // pushes everything to the left
 
+        header.add(actions, BorderLayout.CENTER);
         return header;
     }
 
@@ -123,7 +170,9 @@ public final class MyDeploymentsPanel extends JPanel {
         deploymentTable.setAutoCreateRowSorter(true);
 
         DefaultTableCellRenderer statusRenderer = new DefaultTableCellRenderer() {
-            @Override public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r, int c) {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r,
+                    int c) {
                 super.getTableCellRendererComponent(t, val, sel, foc, r, c);
                 if (!sel && val != null) {
                     String st = val.toString().toLowerCase();
@@ -141,9 +190,10 @@ public final class MyDeploymentsPanel extends JPanel {
         JPanel bottom = new JPanel(new BorderLayout(0, 8));
         bottom.setOpaque(false);
 
-        JPanel trackingBox = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 6));
-        trackingBox.setBorder(BorderFactory.createTitledBorder("Operational Location Broadcast (Opt-In)"));
+        JPanel trackingBox = new JPanel(new WrapLayout(FlowLayout.LEFT, 12, 6));
+        trackingBox.setOpaque(false);
 
+        locationShareToggle.setOpaque(false);
         locationShareToggle.addActionListener(e -> {
             boolean sharing = locationShareToggle.isSelected();
             if (sharing && selectedLocation == null) {
@@ -162,7 +212,8 @@ public final class MyDeploymentsPanel extends JPanel {
         });
 
         updateLocationBtn.addActionListener(e -> {
-            if (chooseLocation() && locationShareToggle.isSelected()) transmitSelectedLocation();
+            if (chooseLocation() && locationShareToggle.isSelected())
+                transmitSelectedLocation();
         });
 
         stepNextBtn.setBackground(GermsColors.PRIMARY_RED);
@@ -170,11 +221,11 @@ public final class MyDeploymentsPanel extends JPanel {
         stepNextBtn.setFont(stepNextBtn.getFont().deriveFont(Font.BOLD));
         stepNextBtn.addActionListener(e -> advanceSelectedAssignment());
 
+        // The status label changes length, so it goes last and the buttons don't shift.
         trackingBox.add(locationShareToggle);
         trackingBox.add(updateLocationBtn);
-        trackingBox.add(trackingStatus);
-        trackingBox.add(Box.createHorizontalStrut(16));
         trackingBox.add(stepNextBtn);
+        trackingBox.add(trackingStatus);
 
         bottom.add(trackingBox, BorderLayout.NORTH);
 
@@ -200,7 +251,9 @@ public final class MyDeploymentsPanel extends JPanel {
         notifTable.setAutoCreateRowSorter(true);
 
         DefaultTableCellRenderer prioRenderer = new DefaultTableCellRenderer() {
-            @Override public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r, int c) {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r,
+                    int c) {
                 super.getTableCellRendererComponent(t, val, sel, foc, r, c);
                 if (!sel && val != null) {
                     String p = val.toString().toLowerCase();
@@ -214,42 +267,26 @@ public final class MyDeploymentsPanel extends JPanel {
 
         panel.add(new JScrollPane(notifTable), BorderLayout.CENTER);
 
-        // Notifications Controls
-        JPanel footer = new JPanel(new BorderLayout(0, 8));
-        footer.setOpaque(false);
-
-        JPanel leftActions = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
-        leftActions.setOpaque(false);
-
+        // ---- Controls ----
         audibleToggle.setSelected(!alarms.isMuted());
+        audibleToggle.setOpaque(false);
         audibleToggle.addActionListener(e -> {
             alarms.setMuted(!audibleToggle.isSelected());
             alarmStatus.setText(audibleToggle.isSelected() ? "Alarm: Audio Enabled" : "Alarm: Muted");
         });
 
-        JButton ackBtn = new JButton("Acknowledge Alert");
-        ackBtn.addActionListener(e -> acknowledgeSelected());
         JButton acceptBtn = new JButton("Accept Request");
         acceptBtn.addActionListener(e -> respondToSelectedIncident("accepted"));
         JButton declineBtn = new JButton("Decline Request");
         declineBtn.addActionListener(e -> respondToSelectedIncident("declined"));
-
+        JButton ackBtn = new JButton("Acknowledge Alert");
+        ackBtn.addActionListener(e -> acknowledgeSelected());
         JButton silenceBtn = new JButton("Silence Active Siren");
         silenceBtn.addActionListener(e -> {
             alarms.stopAlarm();
             alarmStatus.setText("Alarm: Silenced");
             alarmStatus.setForeground(GermsColors.SECONDARY_TEXT);
         });
-
-        leftActions.add(audibleToggle);
-        leftActions.add(acceptBtn);
-        leftActions.add(declineBtn);
-        leftActions.add(ackBtn);
-        leftActions.add(silenceBtn);
-
-        JPanel testButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 6));
-        testButtons.setOpaque(false);
-        testButtons.add(new JLabel("Test Sirens:"));
 
         JButton testLow = new JButton("Low");
         testLow.addActionListener(e -> alarms.triggerAlarm("test-low", "low", true, true));
@@ -260,32 +297,62 @@ public final class MyDeploymentsPanel extends JPanel {
         JButton testCrit = new JButton("Critical Siren");
         testCrit.addActionListener(e -> alarms.triggerAlarm("test-crit", "critical", true, true));
 
-        testButtons.add(testLow);
-        testButtons.add(testMod);
-        testButtons.add(testHigh);
-        testButtons.add(testCrit);
+        // Row 1: main actions
+        JPanel actionsRow = row();
+        actionsRow.add(acceptBtn);
+        actionsRow.add(Box.createHorizontalStrut(8));
+        actionsRow.add(declineBtn);
+        actionsRow.add(Box.createHorizontalStrut(8));
+        actionsRow.add(ackBtn);
+        actionsRow.add(Box.createHorizontalStrut(8));
+        actionsRow.add(silenceBtn);
+        actionsRow.add(Box.createHorizontalStrut(16));
+        actionsRow.add(audibleToggle);
+        actionsRow.add(Box.createHorizontalGlue());
 
-        JPanel controlBar = new JPanel(new BorderLayout());
-        controlBar.setOpaque(false);
-        controlBar.add(leftActions, BorderLayout.WEST);
-        controlBar.add(testButtons, BorderLayout.EAST);
-        footer.add(controlBar, BorderLayout.NORTH);
+        // Row 2: test sirens
+        JPanel testRow = row();
+        testRow.add(new JLabel("Test Sirens:"));
+        JButton[] tests = { testLow, testMod, testHigh, testCrit };
+        for (JButton b : tests) {
+            testRow.add(Box.createHorizontalStrut(8));
+            testRow.add(b);
+        }
+        testRow.add(Box.createHorizontalGlue());
 
-        notifStatusMsg.setForeground(GermsColors.SECONDARY_TEXT);
-        footer.add(notifStatusMsg, BorderLayout.SOUTH);
+        JPanel controls = new JPanel();
+        controls.setOpaque(false);
+        controls.setLayout(new BoxLayout(controls, BoxLayout.Y_AXIS));
+        controls.add(actionsRow);
+        controls.add(Box.createVerticalStrut(6));
+        controls.add(testRow);
+
+        JPanel footer = new JPanel(new BorderLayout(0, 8));
+        footer.setOpaque(false);
+        footer.add(controls, BorderLayout.NORTH);
 
         panel.add(footer, BorderLayout.SOUTH);
         return panel;
     }
 
-    @Override public void addNotify() {
+    /** One left-aligned horizontal row of controls at natural size. */
+    private static JPanel row() {
+        JPanel p = new JPanel(new WrapLayout(FlowLayout.LEFT, 8, 4));
+        p.setOpaque(false);
+        return p;
+    }
+
+    @Override
+    public void addNotify() {
         super.addNotify();
-        if (!notifPoll.isRunning()) notifPoll.start();
+        if (!notifPoll.isRunning())
+            notifPoll.start();
         loadDeployments();
         loadNotifications();
     }
 
-    @Override public void removeNotify() {
+    @Override
+    public void removeNotify() {
         notifPoll.stop();
         if (locationShareToggle.isSelected()) {
             locationShareToggle.setSelected(false);
@@ -298,19 +365,24 @@ public final class MyDeploymentsPanel extends JPanel {
         deploymentStatusMsg.setText("Loading missions...");
         BackgroundTask.run(() -> {
             return ctx.rest.select("incident_assignments",
-                    "select=id,role_name,status,assigned_at,incidents(incident_no,title,location_text)&responder_id=eq." + user.id() + "&order=assigned_at.desc");
+                    "select=id,role_name,status,assigned_at,incidents(incident_no,title,location_text)&responder_id=eq."
+                            + user.id() + "&order=assigned_at.desc");
         }, rows -> {
             deploymentModel.setRowCount(0);
             if (rows != null && rows.isArray()) {
                 for (JsonNode a : rows) {
                     JsonNode inc = a.path("incidents");
-                    String incTitle = inc.hasNonNull("title") ? (inc.path("incident_no").asText() + " " + inc.path("title").asText()) : "Incident";
-                    String dest = inc.hasNonNull("location_text") ? inc.path("location_text").asText() : "Command Staging Area";
+                    String incTitle = inc.hasNonNull("title")
+                            ? (inc.path("incident_no").asText() + " " + inc.path("title").asText())
+                            : "Incident";
+                    String dest = inc.hasNonNull("location_text") ? inc.path("location_text").asText()
+                            : "Command Staging Area";
 
                     String date = a.path("assigned_at").asText();
-                    if (date.length() > 19) date = date.substring(0, 19).replace('T', ' ');
+                    if (date.length() > 19)
+                        date = date.substring(0, 19).replace('T', ' ');
 
-                    deploymentModel.addRow(new Object[]{
+                    deploymentModel.addRow(new Object[] {
                             a.path("id").asText(),
                             incTitle,
                             a.path("role_name").asText("Assigned Responder"),
@@ -330,7 +402,8 @@ public final class MyDeploymentsPanel extends JPanel {
     public void loadNotifications() {
         BackgroundTask.run(() -> {
             return ctx.rest.select("notifications",
-                    "select=id,incident_id,kind,priority,title,body,created_at,notification_receipts(acknowledged_at)&recipient_id=eq." + user.id() + "&order=created_at.desc&limit=50");
+                    "select=id,incident_id,kind,priority,title,body,created_at,notification_receipts(acknowledged_at)&recipient_id=eq."
+                            + user.id() + "&order=created_at.desc&limit=50");
         }, rows -> {
             notifModel.setRowCount(0);
             boolean hasUnackedCritical = false;
@@ -355,9 +428,10 @@ public final class MyDeploymentsPanel extends JPanel {
                     }
 
                     String date = n.path("created_at").asText();
-                    if (date.length() > 19) date = date.substring(0, 19).replace('T', ' ');
+                    if (date.length() > 19)
+                        date = date.substring(0, 19).replace('T', ' ');
 
-                    notifModel.addRow(new Object[]{
+                    notifModel.addRow(new Object[] {
                             notifId,
                             n.path("incident_id").asText(""),
                             n.path("kind").asText(""),
@@ -383,7 +457,8 @@ public final class MyDeploymentsPanel extends JPanel {
     private void advanceSelectedAssignment() {
         int r = deploymentTable.getSelectedRow();
         if (r < 0) {
-            JOptionPane.showMessageDialog(this, "Please select an assignment to advance.", "Notice", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please select an assignment to advance.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -401,32 +476,37 @@ public final class MyDeploymentsPanel extends JPanel {
         };
 
         if (nextStatus == null) {
-            JOptionPane.showMessageDialog(this, "Assignment is already in final status (" + currentStatus.toUpperCase() + ").", "Notice", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this,
+                    "Assignment is already in final status (" + currentStatus.toUpperCase() + ").", "Notice",
+                    JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
         int confirm = JOptionPane.showConfirmDialog(this,
                 "Advance deployment status to: " + nextStatus.toUpperCase() + "?",
                 "Advance Mission Status", JOptionPane.YES_NO_OPTION);
-        if (confirm != JOptionPane.YES_OPTION) return;
+        if (confirm != JOptionPane.YES_OPTION)
+            return;
 
         BackgroundTask.run(() -> {
             ctx.rest.rpc("update_assignment_status", Map.of(
                     "p_assignment", UUID.fromString(assignmentId),
                     "p_to", nextStatus,
-                    "p_note", "Status advanced by responder: " + user.fullName()
-            ));
+                    "p_note", "Status advanced by responder: " + user.fullName()));
             return Boolean.TRUE;
         }, ok -> {
             loadDeployments();
-            JOptionPane.showMessageDialog(this, "Mission status updated to " + nextStatus.toUpperCase() + ".", "Status Updated", JOptionPane.INFORMATION_MESSAGE);
-        }, err -> JOptionPane.showMessageDialog(this, "Update failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+            JOptionPane.showMessageDialog(this, "Mission status updated to " + nextStatus.toUpperCase() + ".",
+                    "Status Updated", JOptionPane.INFORMATION_MESSAGE);
+        }, err -> JOptionPane.showMessageDialog(this, "Update failed: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private void acknowledgeSelected() {
         int r = notifTable.getSelectedRow();
         if (r < 0) {
-            JOptionPane.showMessageDialog(this, "Select a notification to acknowledge.", "Notice", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Select a notification to acknowledge.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -460,8 +540,8 @@ public final class MyDeploymentsPanel extends JPanel {
                     "p_incident", UUID.fromString(incidentId),
                     "p_decision", decision,
                     "p_note", decision.equals("accepted")
-                            ? "Accepted from notification alert" : "Declined from notification alert"
-            ));
+                            ? "Accepted from notification alert"
+                            : "Declined from notification alert"));
             return Boolean.TRUE;
         }, ok -> {
             notifStatusMsg.setText("Incident request " + decision + ".");
@@ -470,7 +550,8 @@ public final class MyDeploymentsPanel extends JPanel {
     }
 
     private void transmitSelectedLocation() {
-        if (!locationShareToggle.isSelected()) return;
+        if (!locationShareToggle.isSelected())
+            return;
         if (selectedLocation == null) {
             trackingStatus.setText("Select a location on the map before sharing.");
             trackingStatus.setForeground(GermsColors.CRITICAL);
@@ -500,7 +581,8 @@ public final class MyDeploymentsPanel extends JPanel {
     private boolean chooseLocation() {
         LocationPickerDialog.Selection picked = LocationPickerDialog.showDialog(
                 SwingUtilities.getWindowAncestor(this), "Choose Operational Location", selectedLocation);
-        if (picked == null) return false;
+        if (picked == null)
+            return false;
         selectedLocation = picked;
         trackingStatus.setText(String.format("Selected: %s (%.4f, %.4f)",
                 picked.label(), picked.latitude(), picked.longitude()));
@@ -515,8 +597,7 @@ public final class MyDeploymentsPanel extends JPanel {
                     "p_lon", 0.0,
                     "p_accuracy", 0.0,
                     "p_source", "manual",
-                    "p_sharing", false
-            ));
+                    "p_sharing", false));
             return Boolean.TRUE;
         }, ok -> {
             trackingStatus.setText("Location Sharing: Disabled");
@@ -525,5 +606,107 @@ public final class MyDeploymentsPanel extends JPanel {
             trackingStatus.setText("Could not disable sharing: " + err.getMessage());
             trackingStatus.setForeground(GermsColors.CRITICAL);
         });
+    }
+
+    private static final class ScrollBody extends JPanel implements Scrollable {
+        private static final int MIN_HEIGHT = 800;
+
+        ScrollBody() {
+            super(new BorderLayout());
+            setOpaque(false);
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            Dimension d = super.getPreferredSize();
+            return new Dimension(d.width, Math.max(d.height, MIN_HEIGHT));
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
+            return Math.max(40, r.height - 40);
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() instanceof JViewport vp && vp.getHeight() >= MIN_HEIGHT;
+        }
+    }
+
+    private static final class WrapLayout extends FlowLayout {
+        WrapLayout(int align, int hgap, int vgap) {
+            super(align, hgap, vgap);
+        }
+
+        @Override
+        public Dimension preferredLayoutSize(Container target) {
+            return layoutSize(target, true);
+        }
+
+        @Override
+        public Dimension minimumLayoutSize(Container target) {
+            Dimension d = layoutSize(target, false);
+            d.width -= getHgap() + 1;
+            return d;
+        }
+
+        private Dimension layoutSize(Container target, boolean preferred) {
+            synchronized (target.getTreeLock()) {
+                Container c = target;
+                while (c.getSize().width == 0 && c.getParent() != null)
+                    c = c.getParent();
+                int targetWidth = c.getSize().width;
+                if (targetWidth == 0)
+                    targetWidth = Integer.MAX_VALUE;
+
+                Insets in = target.getInsets();
+                int hgap = getHgap(), vgap = getVgap();
+                int maxWidth = targetWidth - (in.left + in.right + hgap * 2);
+
+                Dimension dim = new Dimension(0, 0);
+                int rowWidth = 0, rowHeight = 0;
+                for (int i = 0; i < target.getComponentCount(); i++) {
+                    Component m = target.getComponent(i);
+                    if (!m.isVisible())
+                        continue;
+                    Dimension d = preferred ? m.getPreferredSize() : m.getMinimumSize();
+                    if (rowWidth + d.width > maxWidth && rowWidth > 0) {
+                        addRow(dim, rowWidth, rowHeight);
+                        rowWidth = 0;
+                        rowHeight = 0;
+                    }
+                    if (rowWidth != 0)
+                        rowWidth += hgap;
+                    rowWidth += d.width;
+                    rowHeight = Math.max(rowHeight, d.height);
+                }
+                addRow(dim, rowWidth, rowHeight);
+                dim.width += in.left + in.right + hgap * 2;
+                dim.height += in.top + in.bottom + vgap * 2;
+                return dim;
+            }
+        }
+
+        private void addRow(Dimension dim, int rowWidth, int rowHeight) {
+            dim.width = Math.max(dim.width, rowWidth);
+            if (dim.height > 0)
+                dim.height += getVgap();
+            dim.height += rowHeight;
+        }
     }
 }
