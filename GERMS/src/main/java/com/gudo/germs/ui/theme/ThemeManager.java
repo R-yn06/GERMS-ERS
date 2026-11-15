@@ -1,38 +1,63 @@
 package com.gudo.germs.ui.theme;
 
+import java.awt.Font;
+import java.awt.GraphicsEnvironment;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
+import java.util.prefs.Preferences;
+
+import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
 
-import javax.swing.UIManager;
-import java.awt.Font;
-import java.awt.GraphicsEnvironment;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.prefs.Preferences;
-
-/** Installs FlatLaf in light or dark mode with GERMS brand defaults and remembers the choice. */
+/** 
+ * Installs FlatLaf in light or dark mode with GERMS brand defaults, 
+ * remembers the choice, and broadcasts theme changes to registered listeners.
+ */
 public final class ThemeManager {
     private static final Preferences PREFS = Preferences.userNodeForPackage(ThemeManager.class);
     private static final String KEY_DARK = "theme.dark";
     private static boolean dark;
+    private static final List<Consumer<Boolean>> listeners = new ArrayList<>();
 
     private ThemeManager() { }
 
-    public static boolean isDark() { return dark; }
+    public static boolean isDark() { 
+        return dark; 
+    }
 
-    public static void installSaved() { apply(PREFS.getBoolean(KEY_DARK, false)); }
+    /** Register a callback whenever the theme changes. */
+    public static void addThemeListener(Consumer<Boolean> listener) {
+        if (!listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+
+    public static void removeThemeListener(Consumer<Boolean> listener) {
+        listeners.remove(listener);
+    }
+
+    public static void installSaved() { 
+        apply(PREFS.getBoolean(KEY_DARK, false)); 
+    }
 
     public static void toggle() {
         apply(!dark);
-        PREFS.putBoolean(KEY_DARK, dark);
     }
 
-    /** Safe to call at startup or later; refreshes all open windows. */
+    /** Safe to call at startup or later; refreshes all open windows and notifies listeners. */
     public static void apply(boolean useDark) {
         dark = useDark;
+        PREFS.putBoolean(KEY_DARK, dark);
+
         FlatLaf.setGlobalExtraDefaults(Map.ofEntries(
                 Map.entry("@accentColor", "#C8102E"),
                 Map.entry("@background", useDark ? "#15171C" : "#F5F6F8"),
@@ -44,9 +69,26 @@ public final class ThemeManager {
                 Map.entry("Table.rowHeight", "28"),
                 Map.entry("TableHeader.height", "32"),
                 Map.entry("TabbedPane.tabHeight", "34")));
-        if (useDark) FlatDarkLaf.setup(); else FlatLightLaf.setup();
+
+        if (useDark) {
+            FlatDarkLaf.setup();
+        } else {
+            FlatLightLaf.setup();
+        }
+
         UIManager.put("defaultFont", baseFont());
         FlatLaf.updateUI();
+
+        // Notify custom components on the Swing Event Dispatch Thread
+        SwingUtilities.invokeLater(() -> {
+            for (Consumer<Boolean> listener : new ArrayList<>(listeners)) {
+                try {
+                    listener.accept(dark);
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                }
+            }
+        });
     }
 
     private static Font baseFont() {
