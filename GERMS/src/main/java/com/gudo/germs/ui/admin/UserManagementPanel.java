@@ -15,18 +15,24 @@ import java.util.UUID;
 
 /**
  * User & Responder Management Interface.
- * Supports viewing all accounts, promoting Guests to Responders with classification assignment,
+ * Supports viewing all accounts, promoting Guests to Responders with
+ * classification assignment,
  * managing availability, creating accounts, and requesting deployments.
  */
 public final class UserManagementPanel extends JPanel {
     private final AppContext ctx;
     private final DefaultTableModel model = new DefaultTableModel(
-            new String[]{"ID", "Name", "Email", "Role", "Classification", "Active", "Availability", "Deployment"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "ID", "Name", "Email", "Role", "Classification", "Active", "Availability", "Deployment" },
+            0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable table = new JTable(model);
     private final JLabel state = new JLabel(" ");
-    private final JComboBox<String> filterBox = new JComboBox<>(new String[]{"All Accounts", "Responders Only", "Guests / Users", "Administrators"});
+    private final JComboBox<String> filterBox = new JComboBox<>(
+            new String[] { "All Accounts", "Responders Only", "Guests / Users", "Administrators" });
 
     public UserManagementPanel(AppContext ctx) {
         super(new BorderLayout(0, 12));
@@ -35,7 +41,8 @@ public final class UserManagementPanel extends JPanel {
 
         JLabel title = new JLabel("User & Responder Management");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        JLabel description = new JLabel("Manage personnel records, promote guests to responders, configure classifications, and monitor availability.");
+        JLabel description = new JLabel(
+                "Manage personnel records, promote guests to responders, configure classifications, and monitor availability.");
         description.setForeground(GermsColors.SECONDARY_TEXT);
 
         JPanel copy = new JPanel(new BorderLayout(0, 4));
@@ -81,7 +88,7 @@ public final class UserManagementPanel extends JPanel {
         refresh.addActionListener(e -> load());
         actions.add(refresh);
 
-        JPanel header = new JPanel(new BorderLayout(12, 6));
+        // JPanel header = new JPanel(new BorderLayout(12, 6));
         header.setOpaque(false);
         header.add(copy, BorderLayout.NORTH);
         header.add(actions, BorderLayout.SOUTH);
@@ -99,14 +106,18 @@ public final class UserManagementPanel extends JPanel {
     private void load() {
         String sel = (String) filterBox.getSelectedItem();
         String filter = "";
-        if ("Responders Only".equals(sel)) filter = "&role=eq.responder";
-        else if ("Guests / Users".equals(sel)) filter = "&role=eq.guest";
-        else if ("Administrators".equals(sel)) filter = "&role=eq.admin";
+        if ("Responders Only".equals(sel))
+            filter = "&role=eq.responder";
+        else if ("Guests / Users".equals(sel))
+            filter = "&role=eq.guest";
+        else if ("Administrators".equals(sel))
+            filter = "&role=eq.admin";
 
         String finalFilter = filter;
         state.setText("Loading accounts from Supabase...");
         BackgroundTask.run(() -> ctx.rest.select("profiles",
-                "select=id,full_name,email,role,is_active,responder_availability(status),incident_assignments!incident_assignments_responder_id_fkey(status,incident_id),profile_classifications!profile_classifications_profile_id_fkey(responder_classifications(name,code))&order=full_name.asc" + finalFilter),
+                "select=id,full_name,email,role,is_active,responder_availability(status),incident_assignments!incident_assignments_responder_id_fkey(status,incident_id),profile_classifications!profile_classifications_profile_id_fkey(responder_classifications(name,code))&order=full_name.asc"
+                        + finalFilter),
                 this::render, e -> state.setText("Could not load users: " + e.getMessage()));
     }
 
@@ -115,7 +126,8 @@ public final class UserManagementPanel extends JPanel {
         if (rows != null && rows.isArray()) {
             for (JsonNode n : rows) {
                 JsonNode availability = n.path("responder_availability");
-                if (availability.isArray() && !availability.isEmpty()) availability = availability.get(0);
+                if (availability.isArray() && !availability.isEmpty())
+                    availability = availability.get(0);
 
                 JsonNode assignments = n.path("incident_assignments");
                 boolean deployed = false;
@@ -138,7 +150,7 @@ public final class UserManagementPanel extends JPanel {
                     }
                 }
 
-                model.addRow(new Object[]{
+                model.addRow(new Object[] {
                         n.path("id").asText(),
                         n.path("full_name").asText(),
                         n.path("email").asText(),
@@ -157,7 +169,8 @@ public final class UserManagementPanel extends JPanel {
     private String selectedId() {
         int row = table.getSelectedRow();
         if (row < 0) {
-            JOptionPane.showMessageDialog(this, "Please select an account first.", "No Selection", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please select an account first.", "No Selection",
+                    JOptionPane.WARNING_MESSAGE);
             return null;
         }
         return String.valueOf(model.getValueAt(table.convertRowIndexToModel(row), 0));
@@ -165,13 +178,15 @@ public final class UserManagementPanel extends JPanel {
 
     private void promoteSelected() {
         String id = selectedId();
-        if (id == null) return;
+        if (id == null)
+            return;
         int row = table.convertRowIndexToModel(table.getSelectedRow());
         String name = String.valueOf(model.getValueAt(row, 1));
         String currentRole = String.valueOf(model.getValueAt(row, 3));
 
         if ("RESPONDER".equalsIgnoreCase(currentRole)) {
-            JOptionPane.showMessageDialog(this, name + " is already a Responder.", "Notice", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, name + " is already a Responder.", "Notice",
+                    JOptionPane.INFORMATION_MESSAGE);
             return;
         }
 
@@ -198,7 +213,8 @@ public final class UserManagementPanel extends JPanel {
         p.add(clsBox);
 
         int res = JOptionPane.showConfirmDialog(this, p, "Promote Account to Responder", JOptionPane.OK_CANCEL_OPTION);
-        if (res != JOptionPane.OK_OPTION) return;
+        if (res != JOptionPane.OK_OPTION)
+            return;
 
         String selected = (String) clsBox.getSelectedItem();
         String code = selected != null ? selected.split(" - ")[0].trim() : "DMS_SAR";
@@ -209,14 +225,15 @@ public final class UserManagementPanel extends JPanel {
             ctx.rest.rpc("promote_to_responder", Map.of(
                     "p_profile", UUID.fromString(id),
                     "p_classification_code", code,
-                    "p_division_code", division
-            ));
+                    "p_division_code", division));
             return Boolean.TRUE;
         }, ok -> {
-            JOptionPane.showMessageDialog(this, name + " has been promoted to Responder successfully!", "Promotion Completed", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, name + " has been promoted to Responder successfully!",
+                    "Promotion Completed", JOptionPane.INFORMATION_MESSAGE);
             load();
         }, err -> {
-            JOptionPane.showMessageDialog(this, "Promotion failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Promotion failed: " + err.getMessage(), "Error",
+                    JOptionPane.ERROR_MESSAGE);
             load();
         });
     }
@@ -226,18 +243,26 @@ public final class UserManagementPanel extends JPanel {
         JTextField email = new JTextField();
         JTextField phone = new JTextField();
         JPasswordField password = new JPasswordField();
-        JComboBox<String> role = new JComboBox<>(new String[]{"guest", "responder", "admin"});
+        JComboBox<String> role = new JComboBox<>(new String[] { "guest", "responder", "admin" });
 
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Full name:")); form.add(name);
-        form.add(new JLabel("Email:")); form.add(email);
-        form.add(new JLabel("Phone:")); form.add(phone);
-        form.add(new JLabel("Password (min 8 chars):")); form.add(password);
-        form.add(new JLabel("Role:")); form.add(role);
+        form.add(new JLabel("Full name:"));
+        form.add(name);
+        form.add(new JLabel("Email:"));
+        form.add(email);
+        form.add(new JLabel("Phone:"));
+        form.add(phone);
+        form.add(new JLabel("Password (min 8 chars):"));
+        form.add(password);
+        form.add(new JLabel("Role:"));
+        form.add(role);
 
-        if (JOptionPane.showConfirmDialog(this, form, "Add GERMS Account", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+        if (JOptionPane.showConfirmDialog(this, form, "Add GERMS Account",
+                JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION)
+            return;
         if (name.getText().isBlank() || email.getText().isBlank() || password.getPassword().length < 8) {
-            JOptionPane.showMessageDialog(this, "Name and email are required; password must be at least 8 characters.", "Invalid account", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Name and email are required; password must be at least 8 characters.",
+                    "Invalid account", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
@@ -250,8 +275,7 @@ public final class UserManagementPanel extends JPanel {
                         "email", email.getText(),
                         "phone", phone.getText(),
                         "password", new String(password.getPassword()),
-                        "role", selRole
-                ));
+                        "role", selRole));
             } catch (Exception e) {
                 // If edge function not configured, use client auth signup fallback
                 ctx.auth.register(email.getText(), new String(password.getPassword()), name.getText(), phone.getText());
@@ -260,26 +284,35 @@ public final class UserManagementPanel extends JPanel {
         }, ok -> {
             state.setText("Account created.");
             load();
-        }, e -> JOptionPane.showMessageDialog(this, "Account creation failed: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+        }, e -> JOptionPane.showMessageDialog(this, "Account creation failed: " + e.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private void editSelected() {
         String id = selectedId();
-        if (id == null) return;
+        if (id == null)
+            return;
         int row = table.convertRowIndexToModel(table.getSelectedRow());
         JTextField name = new JTextField(String.valueOf(model.getValueAt(row, 1)));
         JTextField email = new JTextField(String.valueOf(model.getValueAt(row, 2)));
-        JComboBox<String> role = new JComboBox<>(new String[]{"guest", "responder", "admin"});
+        JComboBox<String> role = new JComboBox<>(new String[] { "guest", "responder", "admin" });
         role.setSelectedItem(String.valueOf(model.getValueAt(row, 3)).toLowerCase());
-        JCheckBox active = new JCheckBox("Active Account", "Active".equalsIgnoreCase(String.valueOf(model.getValueAt(row, 5))));
+        JCheckBox active = new JCheckBox("Active Account",
+                "Active".equalsIgnoreCase(String.valueOf(model.getValueAt(row, 5))));
 
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Full name")); form.add(name);
-        form.add(new JLabel("Email")); form.add(email);
-        form.add(new JLabel("Role")); form.add(role);
-        form.add(new JLabel("Status")); form.add(active);
+        form.add(new JLabel("Full name"));
+        form.add(name);
+        form.add(new JLabel("Email"));
+        form.add(email);
+        form.add(new JLabel("Role"));
+        form.add(role);
+        form.add(new JLabel("Status"));
+        form.add(active);
 
-        if (JOptionPane.showConfirmDialog(this, form, "Update Account", JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+        if (JOptionPane.showConfirmDialog(this, form, "Update Account",
+                JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION)
+            return;
 
         BackgroundTask.run(() -> {
             ctx.rest.rpc("update_profile_admin", Map.of(
@@ -298,11 +331,13 @@ public final class UserManagementPanel extends JPanel {
 
     private void setAvailability() {
         String id = selectedId();
-        if (id == null) return;
-        String[] statuses = {"available", "standby", "unavailable", "off_duty"};
+        if (id == null)
+            return;
+        String[] statuses = { "available", "standby", "unavailable", "off_duty" };
         String selected = (String) JOptionPane.showInputDialog(this, "Responder readiness status:",
                 "Set Availability", JOptionPane.PLAIN_MESSAGE, null, statuses, statuses[0]);
-        if (selected == null) return;
+        if (selected == null)
+            return;
 
         BackgroundTask.run(() -> {
             ctx.rest.rpc("admin_set_responder_availability", Map.of(
@@ -313,30 +348,37 @@ public final class UserManagementPanel extends JPanel {
         }, ok -> {
             state.setText("Responder availability updated.");
             load();
-        }, e -> JOptionPane.showMessageDialog(this, e.getMessage(), "Availability update failed", JOptionPane.ERROR_MESSAGE));
+        }, e -> JOptionPane.showMessageDialog(this, e.getMessage(), "Availability update failed",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private void requestDeployment() {
         String id = selectedId();
-        if (id == null) return;
+        if (id == null)
+            return;
 
         BackgroundTask.run(() -> ctx.incidents.visibleTo(false), incidents -> {
             java.util.List<Incident> active = incidents.stream().filter(i -> i.status().isActive()).toList();
             if (active.isEmpty()) {
-                JOptionPane.showMessageDialog(this, "There are no active incidents available for deployment.", "No Incidents", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(this, "There are no active incidents available for deployment.",
+                        "No Incidents", JOptionPane.INFORMATION_MESSAGE);
                 return;
             }
             JComboBox<Incident> picker = new JComboBox<>(active.toArray(Incident[]::new));
             JTextField instructions = new JTextField();
             JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-            form.add(new JLabel("Incident:")); form.add(picker);
-            form.add(new JLabel("Instructions:")); form.add(instructions);
+            form.add(new JLabel("Incident:"));
+            form.add(picker);
+            form.add(new JLabel("Instructions:"));
+            form.add(instructions);
 
             if (JOptionPane.showConfirmDialog(this, form, "Request Responder Deployment",
-                    JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) return;
+                    JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION)
+                return;
 
             Incident incident = (Incident) picker.getSelectedItem();
-            if (incident == null) return;
+            if (incident == null)
+                return;
 
             BackgroundTask.run(() -> {
                 ctx.rest.rpc("request_responder_deployment", Map.of(
@@ -346,15 +388,21 @@ public final class UserManagementPanel extends JPanel {
                 return Boolean.TRUE;
             }, ok -> {
                 state.setText("Deployment request sent to responder.");
-                JOptionPane.showMessageDialog(this, "Deployment request sent to responder successfully.", "Deployment Dispatched", JOptionPane.INFORMATION_MESSAGE);
-            }, e -> JOptionPane.showMessageDialog(this, e.getMessage(), "Deployment request failed", JOptionPane.ERROR_MESSAGE));
-        }, e -> JOptionPane.showMessageDialog(this, e.getMessage(), "Could not load incidents", JOptionPane.ERROR_MESSAGE));
+                JOptionPane.showMessageDialog(this, "Deployment request sent to responder successfully.",
+                        "Deployment Dispatched", JOptionPane.INFORMATION_MESSAGE);
+            }, e -> JOptionPane.showMessageDialog(this, e.getMessage(), "Deployment request failed",
+                    JOptionPane.ERROR_MESSAGE));
+        }, e -> JOptionPane.showMessageDialog(this, e.getMessage(), "Could not load incidents",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     private void deactivateSelected() {
         String id = selectedId();
-        if (id == null) return;
-        if (JOptionPane.showConfirmDialog(this, "Deactivate the selected account?", "Confirm Deactivation", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION) return;
+        if (id == null)
+            return;
+        if (JOptionPane.showConfirmDialog(this, "Deactivate the selected account?", "Confirm Deactivation",
+                JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION)
+            return;
 
         BackgroundTask.run(() -> {
             ctx.rest.rpc("deactivate_profile_admin", Map.of("p_profile", UUID.fromString(id)));

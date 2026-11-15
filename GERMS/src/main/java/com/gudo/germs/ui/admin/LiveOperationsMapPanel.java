@@ -1,5 +1,28 @@
 package com.gudo.germs.ui.admin;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.event.ActionListener;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTable;
+import javax.swing.table.DefaultTableModel;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Profile;
@@ -9,23 +32,15 @@ import com.gudo.germs.ui.components.OpenStreetMapPanel.MarkerType;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.awt.event.ActionListener;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * Centralized Live Operations Map for Incident Command & Responders.
  * Displays interactive OpenStreetMap with live incident coordinates,
- * opt-in deployed responder tracking, evacuation shelters, and resource locations.
+ * opt-in deployed responder tracking, evacuation shelters, and resource
+ * locations.
  */
 public final class LiveOperationsMapPanel extends JPanel {
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd HH:mm").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd HH:mm")
+            .withZone(ZoneId.systemDefault());
 
     private final AppContext ctx;
     private final Profile user;
@@ -37,8 +52,11 @@ public final class LiveOperationsMapPanel extends JPanel {
     private final JCheckBox showResources = new JCheckBox("Resources", true);
 
     private final DefaultTableModel listModel = new DefaultTableModel(
-            new String[]{"Type", "Title / Name", "Location / Details", "Lat", "Lon"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "Type", "Title / Name", "Location / Details", "Lat", "Lon" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable listTable = new JTable(listModel);
     private final JLabel statusLabel = new JLabel("Loading operational coordinates...");
@@ -53,41 +71,63 @@ public final class LiveOperationsMapPanel extends JPanel {
 
         add(buildHeader(), BorderLayout.NORTH);
         add(buildMainSplit(), BorderLayout.CENTER);
-        add(statusLabel, BorderLayout.SOUTH);
+        add(buildHeader(), BorderLayout.NORTH);
+        add(buildMainSplit(), BorderLayout.CENTER);
+        add(buildBottomBar(), BorderLayout.SOUTH);
 
         loadData();
     }
 
     private JPanel buildHeader() {
-        JPanel p = new JPanel(new BorderLayout(12, 4));
+        JPanel p = new JPanel(new BorderLayout(0, 10));
         p.setOpaque(false);
 
+        // Row 1: title + subtitle
         JLabel title = new JLabel("Live Operations Map");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        JLabel subtitle = new JLabel("Centralized GIS tracking: Active incidents, responder positions, evacuation shelters, and staging areas.");
+        JLabel subtitle = new JLabel(
+                "Centralized GIS tracking: Active incidents, responder positions, evacuation shelters, and staging areas.");
         subtitle.setForeground(GermsColors.SECONDARY_TEXT);
 
         JPanel titles = new JPanel(new GridLayout(0, 1, 0, 2));
         titles.setOpaque(false);
         titles.add(title);
         titles.add(subtitle);
-        p.add(titles, BorderLayout.WEST);
+        p.add(titles, BorderLayout.NORTH);
 
-        // Quick Controls
-        JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        controls.setOpaque(false);
+        // Row 2: map tools
+        JButton btnZoomOut = new JButton("\u2212");
+        btnZoomOut.setToolTipText("Zoom out");
+        btnZoomOut.addActionListener(e -> map.zoomOut());
+        JButton btnZoomIn = new JButton("+");
+        btnZoomIn.setToolTipText("Zoom in");
+        btnZoomIn.addActionListener(e -> map.zoomIn());
+        JButton refresh = new JButton("Refresh");
+        refresh.addActionListener(e -> loadData());
 
-        controls.add(showIncidents);
-        controls.add(showResponders);
-        controls.add(showEvacuation);
-        controls.add(showResources);
+        JPanel tools = controlGroup("Map");
+        tools.add(btnZoomOut);
+        tools.add(btnZoomIn);
+        tools.add(refresh);
 
+        p.add(tools, BorderLayout.CENTER);
+        return p;
+    }
+
+    private JPanel buildBottomBar() {
+        JPanel bottom = new JPanel(new BorderLayout(0, 6));
+        bottom.setOpaque(false);
+
+        // Layers group
         ActionListener filterAction = e -> applyFilters();
-        showIncidents.addActionListener(filterAction);
-        showResponders.addActionListener(filterAction);
-        showEvacuation.addActionListener(filterAction);
-        showResources.addActionListener(filterAction);
+        JPanel layers = controlGroup("Layers");
+        for (JCheckBox cb : new JCheckBox[] { showIncidents, showResponders, showEvacuation, showResources }) {
+            cb.setOpaque(false);
+            cb.addActionListener(filterAction);
+            layers.add(cb);
+        }
 
+        // Jump-to group
         JButton btnDavao = new JButton("Davao Center");
         btnDavao.addActionListener(e -> map.setCenter(7.0731, 125.6128, 13));
         JButton btnSPMC = new JButton("SPMC Hospital");
@@ -95,23 +135,31 @@ public final class LiveOperationsMapPanel extends JPanel {
         JButton btnRedCross = new JButton("Red Cross Chapter");
         btnRedCross.addActionListener(e -> map.setCenter(7.0682, 125.6067, 16));
 
-        JButton btnZoomIn = new JButton("+");
-        btnZoomIn.addActionListener(e -> map.zoomIn());
-        JButton btnZoomOut = new JButton("\u2212");
-        btnZoomOut.addActionListener(e -> map.zoomOut());
+        JPanel jump = controlGroup("Jump to");
+        jump.add(btnDavao);
+        jump.add(btnSPMC);
+        jump.add(btnRedCross);
 
-        JButton refresh = new JButton("Refresh");
-        refresh.addActionListener(e -> loadData());
+        JPanel row = new JPanel(new FlowLayout(FlowLayout.LEFT, 24, 0));
+        row.setOpaque(false);
+        row.add(layers);
+        row.add(jump);
 
-        controls.add(btnDavao);
-        controls.add(btnSPMC);
-        controls.add(btnRedCross);
-        controls.add(btnZoomIn);
-        controls.add(btnZoomOut);
-        controls.add(refresh);
+        bottom.add(row, BorderLayout.NORTH);
+        bottom.add(statusLabel, BorderLayout.SOUTH);
+        return bottom;
+    }
 
-        p.add(controls, BorderLayout.EAST);
-        return p;
+    /** Small titled, bordered container used to group related controls. */
+    private JPanel controlGroup(String caption) {
+        JPanel g = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
+        g.setOpaque(false);
+
+        JLabel lbl = new JLabel(caption.toUpperCase());
+        lbl.setFont(lbl.getFont().deriveFont(Font.BOLD, 10f));
+        lbl.setForeground(GermsColors.SECONDARY_TEXT);
+        g.add(lbl);
+        return g;
     }
 
     private JComponent buildMainSplit() {
@@ -126,7 +174,8 @@ public final class LiveOperationsMapPanel extends JPanel {
                         double lat = Double.parseDouble(String.valueOf(listModel.getValueAt(modelRow, 3)));
                         double lon = Double.parseDouble(String.valueOf(listModel.getValueAt(modelRow, 4)));
                         map.setCenter(lat, lon, 15);
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
                 }
             }
         });
@@ -159,7 +208,7 @@ public final class LiveOperationsMapPanel extends JPanel {
             JsonNode resRows = ctx.rest.select("resources",
                     "select=id,name,category,status,location,quantity,available_quantity&order=name.asc");
 
-            return new Object[]{incRows, respRows, evacRows, resRows};
+            return new Object[] { incRows, respRows, evacRows, resRows };
         }, result -> {
             allMarkers.clear();
             listModel.setRowCount(0);
@@ -176,8 +225,10 @@ public final class LiveOperationsMapPanel extends JPanel {
                         double lat = i.path("latitude").asDouble();
                         double lon = i.path("longitude").asDouble();
                         String title = i.path("incident_no").asText() + " \u00B7 " + i.path("title").asText();
-                        String details = i.path("severity").asText().toUpperCase() + " | " + i.path("status").asText() + " | " + i.path("location_text").asText();
-                        allMarkers.add(new MapMarker(i.path("id").asText(), title, lat, lon, MarkerType.INCIDENT, details));
+                        String details = i.path("severity").asText().toUpperCase() + " | " + i.path("status").asText()
+                                + " | " + i.path("location_text").asText();
+                        allMarkers.add(
+                                new MapMarker(i.path("id").asText(), title, lat, lon, MarkerType.INCIDENT, details));
                         incCount++;
                     }
                 }
@@ -191,8 +242,11 @@ public final class LiveOperationsMapPanel extends JPanel {
                     JsonNode prof = r.path("profiles");
                     String name = prof.hasNonNull("full_name") ? prof.path("full_name").asText() : "Responder";
                     String timeStr = r.path("recorded_at").asText();
-                    String details = "Reported: " + (timeStr.length() > 16 ? timeStr.substring(0, 16).replace('T', ' ') : timeStr) + " (Source: " + r.path("source").asText() + ")";
-                    allMarkers.add(new MapMarker(r.path("profile_id").asText(), "\u25CF " + name, lat, lon, MarkerType.RESPONDER, details));
+                    String details = "Reported: "
+                            + (timeStr.length() > 16 ? timeStr.substring(0, 16).replace('T', ' ') : timeStr)
+                            + " (Source: " + r.path("source").asText() + ")";
+                    allMarkers.add(new MapMarker(r.path("profile_id").asText(), "\u25CF " + name, lat, lon,
+                            MarkerType.RESPONDER, details));
                     respCount++;
                 }
             }
@@ -206,15 +260,18 @@ public final class LiveOperationsMapPanel extends JPanel {
                         String name = e.path("name").asText();
                         int cap = e.path("capacity").asInt();
                         int occ = e.path("occupancy").asInt();
-                        String details = "Status: " + e.path("status").asText().toUpperCase() + " | Occupancy: " + occ + " / " + cap;
-                        allMarkers.add(new MapMarker(e.path("id").asText(), "\u2302 " + name, lat, lon, MarkerType.EVACUATION, details));
+                        String details = "Status: " + e.path("status").asText().toUpperCase() + " | Occupancy: " + occ
+                                + " / " + cap;
+                        allMarkers.add(new MapMarker(e.path("id").asText(), "\u2302 " + name, lat, lon,
+                                MarkerType.EVACUATION, details));
                         evacCount++;
                     }
                 }
             }
 
             applyFilters();
-            statusLabel.setText(String.format("Loaded: %d incidents, %d live responders, %d evacuation shelters.", incCount, respCount, evacCount));
+            statusLabel.setText(String.format("Loaded: %d incidents, %d live responders, %d evacuation shelters.",
+                    incCount, respCount, evacCount));
         }, err -> {
             statusLabel.setText("Failed to load map points: " + err.getMessage());
         });
@@ -231,14 +288,18 @@ public final class LiveOperationsMapPanel extends JPanel {
 
         for (MapMarker m : allMarkers) {
             boolean keep = false;
-            if (m.type() == MarkerType.INCIDENT && inc) keep = true;
-            else if (m.type() == MarkerType.RESPONDER && resp) keep = true;
-            else if (m.type() == MarkerType.EVACUATION && evac) keep = true;
-            else if (m.type() == MarkerType.RESOURCE && res) keep = true;
+            if (m.type() == MarkerType.INCIDENT && inc)
+                keep = true;
+            else if (m.type() == MarkerType.RESPONDER && resp)
+                keep = true;
+            else if (m.type() == MarkerType.EVACUATION && evac)
+                keep = true;
+            else if (m.type() == MarkerType.RESOURCE && res)
+                keep = true;
 
             if (keep) {
                 filtered.add(m);
-                listModel.addRow(new Object[]{
+                listModel.addRow(new Object[] {
                         m.type().defaultLabel,
                         m.title(),
                         m.details(),

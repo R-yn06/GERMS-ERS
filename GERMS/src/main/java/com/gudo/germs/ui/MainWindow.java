@@ -11,7 +11,14 @@ import com.gudo.germs.models.Profile;
 import com.gudo.germs.ui.auth.LoginPanel;
 import com.gudo.germs.utils.BackgroundTask;
 
-/** Top-level window; swaps between the login screen and the role-specific shell. */
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import java.awt.CardLayout;
+import java.awt.Dimension;
+
+/**
+ * Top-level window; swaps between the login screen and the role-specific shell.
+ */
 public final class MainWindow extends JFrame {
     private static final String LOGIN = "login";
     private static final String SHELL = "shell";
@@ -37,9 +44,8 @@ public final class MainWindow extends JFrame {
     }
 
     private void showShell(Profile user) {
-        if (shell != null) {
+        if (shell != null)
             root.remove(shell);
-        }
         shell = new Shell(ctx, user, this::signOut);
         root.add(shell, SHELL);
         layout.show(root, SHELL);
@@ -48,14 +54,10 @@ public final class MainWindow extends JFrame {
     }
 
     private void signOut() {
-        BackgroundTask.run(
-            () -> { 
-                ctx.auth.logout(); 
-                return Boolean.TRUE; 
-            }, 
-            ok -> showLogin(), 
-            err -> showLogin()
-        );
+        BackgroundTask.run(() -> {
+            ctx.auth.logout();
+            return Boolean.TRUE;
+        }, ok -> showLogin(), err -> showLogin());
     }
 
     private void showLogin() {
@@ -66,13 +68,9 @@ public final class MainWindow extends JFrame {
         loginPanel = new LoginPanel(ctx, this::showShell, () -> showShell(Profile.guest()));
         root.add(loginPanel, LOGIN);
         layout.show(root, LOGIN);
-
         if (shell != null) {
             root.remove(shell);
             shell = null;
         }
-
-        root.revalidate();
-        root.repaint();
     }
 }

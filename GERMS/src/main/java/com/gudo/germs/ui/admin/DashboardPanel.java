@@ -1,5 +1,38 @@
 package com.gudo.germs.ui.admin;
 
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.Insets;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
+import javax.swing.JTabbedPane;
+import javax.swing.JTable;
+import javax.swing.JTextArea;
+import javax.swing.JTextField;
+import javax.swing.Timer;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.DefaultTableModel;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
@@ -14,24 +47,16 @@ import com.gudo.germs.ui.components.StatCard;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
-import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.DefaultTableModel;
-import java.awt.*;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
 /**
  * Command Dashboard & Central Operations Hub.
- * Streamlines incident statistics, deployed personnel tracking, live OpenStreetMap pinpoints of
- * ongoing incidents and responders, and an integrated broadcast console for administrator announcements.
+ * Streamlines incident statistics, deployed personnel tracking, live
+ * OpenStreetMap pinpoints of
+ * ongoing incidents and responders, and an integrated broadcast console for
+ * administrator announcements.
  */
 public final class DashboardPanel extends JPanel {
-    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd, HH:mm").withZone(ZoneId.systemDefault());
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd, HH:mm")
+            .withZone(ZoneId.systemDefault());
 
     private final AppContext ctx;
     private final Profile user;
@@ -50,22 +75,31 @@ public final class DashboardPanel extends JPanel {
 
     // Incident Pinpoint Table
     private final DefaultTableModel incidentModel = new DefaultTableModel(
-            new String[]{"No.", "Title", "Severity", "Status", "Location", "Coordinates"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "No.", "Title", "Severity", "Status", "Location", "Coordinates" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable incidentTable = new JTable(incidentModel);
 
     // Deployed Responders Table
     private final DefaultTableModel responderModel = new DefaultTableModel(
-            new String[]{"Responder Name", "Role / Task", "Incident", "Deployment Status", "Last Location"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "Responder Name", "Role / Task", "Incident", "Deployment Status", "Last Location" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable responderTable = new JTable(responderModel);
 
     // Broadcast Announcements Table
     private final DefaultTableModel announcementModel = new DefaultTableModel(
-            new String[]{"Priority", "Advisory Title", "Broadcast Summary", "Published Date"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "Priority", "Advisory Title", "Broadcast Summary", "Published Date" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable announcementTable = new JTable(announcementModel);
 
@@ -91,9 +125,10 @@ public final class DashboardPanel extends JPanel {
     }
 
     private JPanel buildHeader() {
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
 
+        // Row 1: title + subtitle
         JLabel title = new JLabel("Command Operations Dashboard");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
         JLabel subtitle = new JLabel(isAdmin
@@ -105,10 +140,13 @@ public final class DashboardPanel extends JPanel {
         titles.setOpaque(false);
         titles.add(title);
         titles.add(subtitle);
-        header.add(titles, BorderLayout.WEST);
+        header.add(titles, BorderLayout.NORTH);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        // Row 2: action buttons
+        // BoxLayout keeps everything in one row at its natural size (no wrapping).
+        JPanel actions = new JPanel();
         actions.setOpaque(false);
+        actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
 
         if (isAdmin) {
             JButton broadcastBtn = new JButton("+ Broadcast Announcement");
@@ -117,13 +155,15 @@ public final class DashboardPanel extends JPanel {
             broadcastBtn.setFont(broadcastBtn.getFont().deriveFont(Font.BOLD));
             broadcastBtn.addActionListener(e -> showBroadcastDialog());
             actions.add(broadcastBtn);
+            actions.add(Box.createHorizontalStrut(8));
         }
 
         JButton refreshBtn = new JButton("Refresh Dashboard");
         refreshBtn.addActionListener(e -> refreshAllData());
         actions.add(refreshBtn);
+        actions.add(Box.createHorizontalGlue()); // pushes buttons to the left
 
-        header.add(actions, BorderLayout.EAST);
+        header.add(actions, BorderLayout.CENTER);
         return header;
     }
 
@@ -141,10 +181,12 @@ public final class DashboardPanel extends JPanel {
         kpiRow.add(deployedRespondersCard);
         center.add(kpiRow, BorderLayout.NORTH);
 
-        // 2. Middle Split: Left Map (Live Spatial Pins) and Right Tabbed Operational Feeds
+        // 2. Middle Split: Left Map (Live Spatial Pins) and Right Tabbed Operational
+        // Feeds
         JPanel mapContainer = new JPanel(new BorderLayout(0, 6));
         mapContainer.setOpaque(false);
-        mapContainer.setBorder(BorderFactory.createTitledBorder("Live Operational Map (Ongoing Incidents & Responders)"));
+        mapContainer
+                .setBorder(BorderFactory.createTitledBorder("Live Operational Map (Ongoing Incidents & Responders)"));
 
         JPanel mapControls = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
         mapControls.setOpaque(false);
@@ -177,7 +219,9 @@ public final class DashboardPanel extends JPanel {
         incidentTable.setRowHeight(26);
         incidentTable.setAutoCreateRowSorter(true);
         DefaultTableCellRenderer sevRenderer = new DefaultTableCellRenderer() {
-            @Override public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r, int c) {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r,
+                    int c) {
                 super.getTableCellRendererComponent(t, val, sel, foc, r, c);
                 if (!sel && val != null) {
                     setForeground(GermsColors.forSeverity(val.toString().toLowerCase()));
@@ -187,7 +231,9 @@ public final class DashboardPanel extends JPanel {
             }
         };
         DefaultTableCellRenderer statusRenderer = new DefaultTableCellRenderer() {
-            @Override public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r, int c) {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r,
+                    int c) {
                 super.getTableCellRendererComponent(t, val, sel, foc, r, c);
                 if (!sel && val != null) {
                     setForeground(GermsColors.forIncidentStatus(val.toString().toLowerCase()));
@@ -203,14 +249,16 @@ public final class DashboardPanel extends JPanel {
             if (!e.getValueIsAdjusting()) {
                 int row = incidentTable.getSelectedRow();
                 if (row >= 0) {
-                    String coordStr = String.valueOf(incidentModel.getValueAt(incidentTable.convertRowIndexToModel(row), 5));
+                    String coordStr = String
+                            .valueOf(incidentModel.getValueAt(incidentTable.convertRowIndexToModel(row), 5));
                     if (coordStr.contains(",")) {
                         try {
                             String[] parts = coordStr.split(",");
                             double lat = Double.parseDouble(parts[0].trim());
                             double lon = Double.parseDouble(parts[1].trim());
                             map.setCenter(lat, lon, 15);
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
             }
@@ -224,7 +272,8 @@ public final class DashboardPanel extends JPanel {
             if (!e.getValueIsAdjusting()) {
                 int row = responderTable.getSelectedRow();
                 if (row >= 0) {
-                    String loc = String.valueOf(responderModel.getValueAt(responderTable.convertRowIndexToModel(row), 4));
+                    String loc = String
+                            .valueOf(responderModel.getValueAt(responderTable.convertRowIndexToModel(row), 4));
                     if (loc.contains("(") && loc.contains(")")) {
                         try {
                             String coords = loc.substring(loc.indexOf('(') + 1, loc.indexOf(')'));
@@ -232,7 +281,8 @@ public final class DashboardPanel extends JPanel {
                             double lat = Double.parseDouble(parts[0].trim());
                             double lon = Double.parseDouble(parts[1].trim());
                             map.setCenter(lat, lon, 16);
-                        } catch (Exception ignored) {}
+                        } catch (Exception ignored) {
+                        }
                     }
                 }
             }
@@ -274,14 +324,18 @@ public final class DashboardPanel extends JPanel {
         return footer;
     }
 
-    @Override public void addNotify() {
+    @Override
+    public void addNotify() {
         super.addNotify();
-        if (busUnsubscribe == null) busUnsubscribe = service.bus().subscribe(e -> refreshAllData());
-        if (!autoRefreshTimer.isRunning()) autoRefreshTimer.start();
+        if (busUnsubscribe == null)
+            busUnsubscribe = service.bus().subscribe(e -> refreshAllData());
+        if (!autoRefreshTimer.isRunning())
+            autoRefreshTimer.start();
         refreshAllData();
     }
 
-    @Override public void removeNotify() {
+    @Override
+    public void removeNotify() {
         autoRefreshTimer.stop();
         if (busUnsubscribe != null) {
             busUnsubscribe.run();
@@ -309,7 +363,7 @@ public final class DashboardPanel extends JPanel {
             JsonNode announcements = ctx.rest.select("emergency_announcements",
                     "select=*&order=published_at.desc&limit=25");
 
-            return new Object[]{incidents, assignments, respLocations, announcements};
+            return new Object[] { incidents, assignments, respLocations, announcements };
         }, result -> {
             @SuppressWarnings("unchecked")
             List<Incident> incidents = (List<Incident>) result[0];
@@ -320,7 +374,8 @@ public final class DashboardPanel extends JPanel {
             // --- Update KPI Cards ---
             long total = incidents.size();
             long active = incidents.stream().filter(i -> i.status().isActive()).count();
-            long critical = incidents.stream().filter(i -> i.status().isActive() && "critical".equalsIgnoreCase(i.severity())).count();
+            long critical = incidents.stream()
+                    .filter(i -> i.status().isActive() && "critical".equalsIgnoreCase(i.severity())).count();
             int deployedCount = (assignments != null && assignments.isArray()) ? assignments.size() : 0;
 
             totalIncidentsCard.setValue(String.valueOf(total));
@@ -344,10 +399,9 @@ public final class DashboardPanel extends JPanel {
                                 inc.latitude(),
                                 inc.longitude(),
                                 MarkerType.INCIDENT,
-                                inc.severity().toUpperCase() + " | " + inc.status().label() + " | " + inc.location()
-                        ));
+                                inc.severity().toUpperCase() + " | " + inc.status().label() + " | " + inc.location()));
                     }
-                    incidentModel.addRow(new Object[]{
+                    incidentModel.addRow(new Object[] {
                             inc.reference(),
                             inc.title(),
                             inc.severity().toUpperCase(),
@@ -368,11 +422,14 @@ public final class DashboardPanel extends JPanel {
                     String status = a.path("status").asText("assigned").toUpperCase();
 
                     JsonNode inc = a.path("incidents");
-                    String incText = inc.hasNonNull("title") ? (inc.path("incident_no").asText() + " " + inc.path("title").asText()) : "Assigned Mission";
+                    String incText = inc.hasNonNull("title")
+                            ? (inc.path("incident_no").asText() + " " + inc.path("title").asText())
+                            : "Assigned Mission";
 
-                    String locationStr = inc.hasNonNull("location_text") ? inc.path("location_text").asText() : "Mission Staging Area";
+                    String locationStr = inc.hasNonNull("location_text") ? inc.path("location_text").asText()
+                            : "Mission Staging Area";
 
-                    responderModel.addRow(new Object[]{name, role, incText, status, locationStr});
+                    responderModel.addRow(new Object[] { name, role, incText, status, locationStr });
                 }
             }
 
@@ -390,8 +447,7 @@ public final class DashboardPanel extends JPanel {
                                 lat,
                                 lon,
                                 MarkerType.RESPONDER,
-                                "Active Unit | Last Signal: " + r.path("recorded_at").asText()
-                        ));
+                                "Active Unit | Last Signal: " + r.path("recorded_at").asText()));
                     }
                 }
             }
@@ -405,9 +461,10 @@ public final class DashboardPanel extends JPanel {
                     String date = an.path("published_at").asText();
                     try {
                         date = TIME_FMT.format(Instant.parse(date));
-                    } catch (Exception ignored) {}
+                    } catch (Exception ignored) {
+                    }
 
-                    announcementModel.addRow(new Object[]{
+                    announcementModel.addRow(new Object[] {
                             an.path("priority").asText("normal").toUpperCase(),
                             an.path("title").asText(),
                             an.path("description").asText(),
@@ -428,20 +485,26 @@ public final class DashboardPanel extends JPanel {
         JTextArea descArea = new JTextArea(4, 24);
         descArea.setLineWrap(true);
         descArea.setWrapStyleWord(true);
-        JComboBox<String> priorityBox = new JComboBox<>(new String[]{"normal", "high", "critical"});
+        JComboBox<String> priorityBox = new JComboBox<>(new String[] { "normal", "high", "critical" });
 
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Advisory Title:")); form.add(titleField);
-        form.add(new JLabel("Priority Level:")); form.add(priorityBox);
-        form.add(new JLabel("Broadcast Message / Instructions:")); form.add(new JScrollPane(descArea));
+        form.add(new JLabel("Advisory Title:"));
+        form.add(titleField);
+        form.add(new JLabel("Priority Level:"));
+        form.add(priorityBox);
+        form.add(new JLabel("Broadcast Message / Instructions:"));
+        form.add(new JScrollPane(descArea));
 
-        int res = JOptionPane.showConfirmDialog(this, form, "Broadcast Incident Command Emergency Announcement", JOptionPane.OK_CANCEL_OPTION);
-        if (res != JOptionPane.OK_OPTION) return;
+        int res = JOptionPane.showConfirmDialog(this, form, "Broadcast Incident Command Emergency Announcement",
+                JOptionPane.OK_CANCEL_OPTION);
+        if (res != JOptionPane.OK_OPTION)
+            return;
 
         String title = titleField.getText().trim();
         String desc = descArea.getText().trim();
         if (title.isEmpty() || desc.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Title and description are required.", "Validation Error", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Title and description are required.", "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
 
@@ -452,12 +515,13 @@ public final class DashboardPanel extends JPanel {
                     "priority", priorityBox.getSelectedItem(),
                     "is_public", true,
                     "status", "published",
-                    "created_by", user.id().toString()
-            ));
+                    "created_by", user.id().toString()));
             return Boolean.TRUE;
         }, ok -> {
             refreshAllData();
-            JOptionPane.showMessageDialog(this, "Emergency advisory broadcasted to all units and public channels.", "Broadcast Sent", JOptionPane.INFORMATION_MESSAGE);
-        }, err -> JOptionPane.showMessageDialog(this, "Broadcast error: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+            JOptionPane.showMessageDialog(this, "Emergency advisory broadcasted to all units and public channels.",
+                    "Broadcast Sent", JOptionPane.INFORMATION_MESSAGE);
+        }, err -> JOptionPane.showMessageDialog(this, "Broadcast error: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 }
