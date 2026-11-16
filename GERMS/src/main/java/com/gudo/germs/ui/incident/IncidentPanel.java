@@ -1,17 +1,15 @@
 package com.gudo.germs.ui.incident;
 
-import com.gudo.germs.models.Incident;
-import com.gudo.germs.models.IncidentStatus;
-import com.gudo.germs.models.Profile;
-import com.gudo.germs.models.ResponseTeam;
-import com.gudo.germs.models.Role;
-import com.gudo.germs.models.TimelineEntry;
-import com.gudo.germs.config.AppContext;
-import com.gudo.germs.services.IncidentService;
-import com.gudo.germs.ui.components.StatusBadge;
-import com.gudo.germs.ui.components.LocationPickerDialog;
-import com.gudo.germs.ui.theme.GermsColors;
-import com.gudo.germs.utils.BackgroundTask;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.GridLayout;
+import java.awt.Rectangle;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -19,7 +17,6 @@ import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JComponent;
-import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -30,34 +27,45 @@ import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.ListSelectionModel;
+import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import java.awt.BorderLayout;
-import java.awt.Component;
-import java.awt.Dialog.ModalityType;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Font;
-import java.awt.GridLayout;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.concurrent.atomic.AtomicReference;
 
-/** Main workflow screen: report an incident, publish it, assign a team, step it through response, close it. */
+import com.gudo.germs.config.AppContext;
+import com.gudo.germs.models.Incident;
+import com.gudo.germs.models.IncidentStatus;
+import com.gudo.germs.models.Profile;
+import com.gudo.germs.models.ResponseTeam;
+import com.gudo.germs.models.Role;
+import com.gudo.germs.models.TimelineEntry;
+import com.gudo.germs.services.IncidentService;
+import com.gudo.germs.ui.components.LocationPickerDialog;
+import com.gudo.germs.ui.components.StatusBadge;
+import com.gudo.germs.ui.theme.GermsColors;
+import com.gudo.germs.utils.BackgroundTask;
+
+/**
+ * Main workflow screen: report an incident, publish it, assign a team, step it
+ * through response, close it.
+ */
 public final class IncidentPanel extends JPanel {
-    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("MMM d, HH:mm").withZone(ZoneId.systemDefault());
-    private static final String[] TYPES = {"Flood", "Fire", "Landslide", "Typhoon", "Vehicular accident", "Medical emergency", "Other"};
-    private static final String[] SEVERITIES = {"low", "moderate", "high", "critical"};
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("MMM d, HH:mm")
+            .withZone(ZoneId.systemDefault());
+    private static final String[] TYPES = { "Flood", "Fire", "Landslide", "Typhoon", "Vehicular accident",
+            "Medical emergency", "Other" };
+    private static final String[] SEVERITIES = { "low", "moderate", "high", "critical" };
 
     private final IncidentService service;
     private final Profile user;
     private final boolean admin;
 
     private final DefaultTableModel model = new DefaultTableModel(
-            new String[] {"ID", "Incident", "Severity", "Status", "Team"}, 0) {
-        @Override public boolean isCellEditable(int r, int c) { return false; }
+            new String[] { "ID", "Incident", "Severity", "Status", "Team" }, 0) {
+        @Override
+        public boolean isCellEditable(int r, int c) {
+            return false;
+        }
     };
     private final JTable table = new JTable(model);
     private final JLabel heading = new JLabel("Select an incident");
@@ -89,34 +97,64 @@ public final class IncidentPanel extends JPanel {
     }
 
     private JComponent buildHeader() {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setOpaque(false);
+        JPanel header = new JPanel(new BorderLayout(0, 10));
+        header.setOpaque(false);
+
+        // Row 1: title + subtitle
         JLabel title = new JLabel("Incidents");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
+        JLabel desc = new JLabel("Report, publish, assign, and track incidents through response and closure.");
+        desc.setForeground(GermsColors.SECONDARY_TEXT);
+
+        JPanel titles = new JPanel(new GridLayout(0, 1, 0, 2));
+        titles.setOpaque(false);
+        titles.add(title);
+        titles.add(desc);
+        header.add(titles, BorderLayout.NORTH);
+
+        // Row 2: action button
         JButton report = new JButton("+ Report incident");
         report.setBackground(GermsColors.PRIMARY_RED);
         report.setForeground(java.awt.Color.WHITE);
         report.addActionListener(e -> reportDialog());
-        p.add(title, BorderLayout.WEST);
-        p.add(report, BorderLayout.EAST);
-        JPanel south = new JPanel(new BorderLayout());
-        south.setOpaque(false);
-        south.add(p, BorderLayout.NORTH);
-        south.add(message, BorderLayout.SOUTH);
-        return south;
+
+        JPanel actions = new JPanel();
+        actions.setOpaque(false);
+        actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
+        actions.add(report);
+        actions.add(Box.createHorizontalGlue());
+        header.add(actions, BorderLayout.CENTER);
+
+        // Row 3: status message
+        header.add(message, BorderLayout.SOUTH);
+        return header;
     }
 
     private JComponent buildSplit() {
         table.setRowHeight(30);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        table.getSelectionModel().addListSelectionListener(e -> { if (!e.getValueIsAdjusting()) updateDetail(); });
-        table.getColumnModel().getColumn(0).setMaxWidth(80);
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting())
+                updateDetail();
+        });
+
+        // Column widths act as proportions when the window resizes.
+        int[] widths = { 80, 240, 90, 130, 150 };
+        for (int i = 0; i < widths.length; i++) {
+            table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+        }
+        table.getColumnModel().getColumn(0).setMaxWidth(100);
+        table.getColumnModel().getColumn(0).setMinWidth(60);
+
         DefaultTableCellRenderer colored = new DefaultTableCellRenderer() {
-            @Override public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
                 super.getTableCellRendererComponent(t, v, sel, foc, r, c);
                 if (!sel && r < rows.size()) {
                     Incident i = rows.get(table.convertRowIndexToModel(r));
-                    setForeground(c == 2 ? GermsColors.forSeverity(i.severity()) : GermsColors.forIncidentStatus(i.status().key()));
+                    setForeground(c == 2 ? GermsColors.forSeverity(i.severity())
+                            : GermsColors.forIncidentStatus(i.status().key()));
                     setFont(getFont().deriveFont(Font.BOLD));
                 }
                 return this;
@@ -125,27 +163,23 @@ public final class IncidentPanel extends JPanel {
         table.getColumnModel().getColumn(2).setCellRenderer(colored);
         table.getColumnModel().getColumn(3).setCellRenderer(colored);
 
-        JPanel detail = new JPanel();
-        detail.setLayout(new BoxLayout(detail, BoxLayout.Y_AXIS));
-        detail.setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 0));
+        // ---- Detail pane ----
         heading.setFont(heading.getFont().deriveFont(Font.BOLD, 18f));
         meta.setForeground(GermsColors.SECONDARY_TEXT);
+
         timeline.setEditable(false);
         timeline.setLineWrap(true);
         timeline.setWrapStyleWord(true);
-        JScrollPane tlScroll = new JScrollPane(timeline);
-        tlScroll.setPreferredSize(new Dimension(320, 220));
-
         descriptionText.setEditable(false);
         descriptionText.setLineWrap(true);
         descriptionText.setWrapStyleWord(true);
-        JScrollPane descScroll = new JScrollPane(descriptionText);
 
         detailTabs.removeAll();
-        detailTabs.addTab("Activity Timeline", tlScroll);
+        detailTabs.addTab("Activity Timeline", new JScrollPane(timeline));
         detailTabs.addTab("Interactive Map", incidentMap);
-        detailTabs.addTab("Description & Notes", descScroll);
-        detailTabs.setPreferredSize(new Dimension(360, 260));
+        detailTabs.addTab("Description & Notes", new JScrollPane(descriptionText));
+        detailTabs.setPreferredSize(new Dimension(320, 260));
+        detailTabs.setMinimumSize(new Dimension(0, 200));
 
         JPanel actions = new JPanel(new GridLayout(0, 1, 0, 8));
         actions.setOpaque(false);
@@ -175,31 +209,94 @@ public final class IncidentPanel extends JPanel {
             ro.setForeground(GermsColors.SECONDARY_TEXT);
             actions.add(ro);
         }
-        for (JComponent c : new JComponent[] {heading, meta, detailTabs, actions}) c.setAlignmentX(LEFT_ALIGNMENT);
-        detail.add(heading);
-        detail.add(Box.createVerticalStrut(4));
-        detail.add(meta);
-        detail.add(Box.createVerticalStrut(12));
-        detail.add(detailTabs);
-        detail.add(Box.createVerticalStrut(12));
-        detail.add(actions);
 
-        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, new JScrollPane(table), detail);
+        JPanel headings = new JPanel();
+        headings.setOpaque(false);
+        headings.setLayout(new BoxLayout(headings, BoxLayout.Y_AXIS));
+        heading.setAlignmentX(LEFT_ALIGNMENT);
+        meta.setAlignmentX(LEFT_ALIGNMENT);
+        headings.add(heading);
+        headings.add(Box.createVerticalStrut(2));
+        headings.add(meta);
+
+        DetailPanel detail = new DetailPanel();
+        detail.setBorder(BorderFactory.createEmptyBorder(0, 16, 0, 0));
+        detail.add(headings, BorderLayout.NORTH);
+        detail.add(detailTabs, BorderLayout.CENTER);
+        detail.add(actions, BorderLayout.SOUTH);
+
+        JScrollPane detailScroll = new JScrollPane(detail,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        detailScroll.setBorder(null);
+        detailScroll.getVerticalScrollBar().setUnitIncrement(16);
+        detailScroll.setMinimumSize(new Dimension(340, 200));
+
+        JScrollPane tableScroll = new JScrollPane(table);
+        tableScroll.setMinimumSize(new Dimension(320, 200));
+
+        JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tableScroll, detailScroll);
         split.setResizeWeight(0.55);
+        split.setContinuousLayout(true);
         split.setBorder(null);
         return split;
     }
 
-    /** Subscribe while on screen (Observer); unsubscribe when removed so logout leaves no stale listeners. */
-    @Override public void addNotify() {
+    /**
+     * Detail column: tracks the viewport width (no sideways scrolling) and
+     * stretches to its height when there is room.
+     */
+    private static final class DetailPanel extends JPanel implements Scrollable {
+        DetailPanel() {
+            super(new BorderLayout(0, 4));
+            setOpaque(false);
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
+            return Math.max(40, r.height - 40);
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return getParent() instanceof javax.swing.JViewport vp && vp.getHeight() > getPreferredSize().height;
+        }
+    }
+
+    /**
+     * Subscribe while on screen (Observer); unsubscribe when removed so logout
+     * leaves no stale listeners.
+     */
+    @Override
+    public void addNotify() {
         super.addNotify();
-        if (unsubscribe == null) unsubscribe = service.bus().subscribe(e -> refresh());
+        if (unsubscribe == null)
+            unsubscribe = service.bus().subscribe(e -> refresh());
         loadTeams();
         refresh();
     }
 
-    @Override public void removeNotify() {
-        if (unsubscribe != null) { unsubscribe.run(); unsubscribe = null; }
+    @Override
+    public void removeNotify() {
+        if (unsubscribe != null) {
+            unsubscribe.run();
+            unsubscribe = null;
+        }
         super.removeNotify();
     }
 
@@ -211,12 +308,14 @@ public final class IncidentPanel extends JPanel {
             int sel = -1;
             for (int i = 0; i < list.size(); i++) {
                 Incident inc = list.get(i);
-                model.addRow(new Object[] {inc.reference(), inc.title(), StatusBadge.label(inc.severity()),
-                        inc.status().label(), inc.team() == null ? "\u2014" : inc.team()});
-                if (inc.id().equals(keep)) sel = i;
+                model.addRow(new Object[] { inc.reference(), inc.title(), StatusBadge.label(inc.severity()),
+                        inc.status().label(), inc.team() == null ? "\u2014" : inc.team() });
+                if (inc.id().equals(keep))
+                    sel = i;
             }
 
-            if (sel >= 0) table.setRowSelectionInterval(sel, sel);
+            if (sel >= 0)
+                table.setRowSelectionInterval(sel, sel);
             updateDetail();
         }, err -> showMessage("Could not load incidents: " + err.getMessage(), true));
     }
@@ -224,7 +323,8 @@ public final class IncidentPanel extends JPanel {
     private void loadTeams() {
         BackgroundTask.run(service::responseTeams, teams -> {
             teamBox.removeAllItems();
-            for (ResponseTeam team : teams) teamBox.addItem(team);
+            for (ResponseTeam team : teams)
+                teamBox.addItem(team);
             updateDetail();
         }, err -> showMessage("Could not load response teams: " + err.getMessage(), true));
     }
@@ -257,15 +357,21 @@ public final class IncidentPanel extends JPanel {
         meta.setText(i.type() + "  \u00B7  " + i.location() + "  \u00B7  Reported by " + i.reportedBy());
         StringBuilder sb = new StringBuilder();
         for (TimelineEntry t : i.timeline()) {
-            sb.append(TIME.format(t.at())).append("  ").append(t.actor()).append('\n').append("    ").append(t.text()).append("\n\n");
+            sb.append(TIME.format(t.at())).append("  ").append(t.actor()).append('\n').append("    ").append(t.text())
+                    .append("\n\n");
         }
         timeline.setText(sb.toString());
         timeline.setCaretPosition(0);
-        descriptionText.setText("Incident Details:\n" + (i.description() == null || i.description().isBlank() ? "No additional narrative provided." : i.description())
+        descriptionText.setText("Incident Details:\n"
+                + (i.description() == null || i.description().isBlank() ? "No additional narrative provided."
+                        : i.description())
                 + "\n\nAssigned Response Team: " + (i.team() == null ? "None (Unassigned)" : i.team())
                 + "\nSeverity: " + i.severity().toUpperCase()
                 + "\nStatus: " + i.status().label()
-                + "\nCoordinates: " + (i.latitude() != null && i.longitude() != null ? String.format(java.util.Locale.ROOT, "%.5f, %.5f", i.latitude(), i.longitude()) : "Not pinned"));
+                + "\nCoordinates: "
+                + (i.latitude() != null && i.longitude() != null
+                        ? String.format(java.util.Locale.ROOT, "%.5f, %.5f", i.latitude(), i.longitude())
+                        : "Not pinned"));
 
         if (i.latitude() != null && i.longitude() != null) {
             incidentMap.setCenter(i.latitude(), i.longitude(), 15);
@@ -279,7 +385,8 @@ public final class IncidentPanel extends JPanel {
         }
 
         var next = i.status().next();
-        advance.setText(next.map(n -> "Advance to: " + n.label()).orElse("No further steps (" + i.status().label() + ")"));
+        advance.setText(
+                next.map(n -> "Advance to: " + n.label()).orElse("No further steps (" + i.status().label() + ")"));
         advance.setEnabled(next.isPresent() && admin);
         updateSeverity.setVisible(admin || user.role() == Role.RESPONDER);
         updateSeverity.setEnabled(admin || user.role() == Role.RESPONDER);
@@ -301,12 +408,14 @@ public final class IncidentPanel extends JPanel {
 
     private void doAdvance() {
         Incident i = selected();
-        if (i == null) return;
+        if (i == null)
+            return;
         String closureSummary = null;
         if (i.status().next().orElse(null) == IncidentStatus.CLOSED) {
             closureSummary = JOptionPane.showInputDialog(this, "Enter the incident closure summary:",
                     "Close incident", JOptionPane.PLAIN_MESSAGE);
-            if (closureSummary == null) return;
+            if (closureSummary == null)
+                return;
             if (closureSummary.isBlank()) {
                 showMessage("A closure summary is required.", true);
                 return;
@@ -320,7 +429,8 @@ public final class IncidentPanel extends JPanel {
 
     private void doUpdateSeverity() {
         Incident incident = selected();
-        if (incident == null) return;
+        if (incident == null)
+            return;
 
         JComboBox<String> severity = new JComboBox<>(SEVERITIES);
         severity.setSelectedItem(incident.severity().toLowerCase(java.util.Locale.ROOT));
@@ -329,10 +439,12 @@ public final class IncidentPanel extends JPanel {
         form.add(new JLabel("Select the updated severity:"));
         form.add(severity);
         if (JOptionPane.showConfirmDialog(this, form, "Update Incident Severity",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION)
+            return;
 
         String newSeverity = (String) severity.getSelectedItem();
-        if (newSeverity == null || newSeverity.equalsIgnoreCase(incident.severity())) return;
+        if (newSeverity == null || newSeverity.equalsIgnoreCase(incident.severity()))
+            return;
         BackgroundTask.run(() -> service.updateSeverity(incident.id(), newSeverity),
                 updated -> showMessage(updated.reference() + " severity changed to "
                         + updated.severity().toUpperCase(java.util.Locale.ROOT) + ".", false),
@@ -341,9 +453,11 @@ public final class IncidentPanel extends JPanel {
 
     private void doAssign() {
         Incident i = selected();
-        if (i == null) return;
+        if (i == null)
+            return;
         ResponseTeam team = (ResponseTeam) teamBox.getSelectedItem();
-        if (team == null) return;
+        if (team == null)
+            return;
         BackgroundTask.run(() -> service.assignTeam(i.id(), team),
                 u -> showMessage(team.name() + " assigned to " + u.reference() + ".", false),
                 err -> showMessage(err.getMessage(), true));
@@ -351,10 +465,16 @@ public final class IncidentPanel extends JPanel {
 
     private void doRespond(String decision) {
         Incident incident = selected();
-        if (incident == null) return;
-        String note = JOptionPane.showInputDialog(this, "Optional note for command:", "Incident response", JOptionPane.PLAIN_MESSAGE);
-        if (note == null) return;
-        BackgroundTask.run(() -> { service.respond(incident.id(), decision, note); return null; },
+        if (incident == null)
+            return;
+        String note = JOptionPane.showInputDialog(this, "Optional note for command:", "Incident response",
+                JOptionPane.PLAIN_MESSAGE);
+        if (note == null)
+            return;
+        BackgroundTask.run(() -> {
+            service.respond(incident.id(), decision, note);
+            return null;
+        },
                 ignored -> showMessage("Your " + decision + " response was recorded.", false),
                 err -> showMessage("Response was not recorded: " + err.getMessage(), true));
     }
@@ -374,7 +494,8 @@ public final class IncidentPanel extends JPanel {
                 selectedLocation.set(picked);
                 selectedLocationText.setText(String.format(java.util.Locale.ROOT, "%s (%.5f, %.5f)",
                         picked.label(), picked.latitude(), picked.longitude()));
-                if (location.getText().isBlank()) location.setText(picked.label());
+                if (location.getText().isBlank())
+                    location.setText(picked.label());
             }
         });
         JComboBox<String> type = new JComboBox<>(TYPES);
@@ -382,19 +503,25 @@ public final class IncidentPanel extends JPanel {
         severity.setSelectedItem("moderate");
 
         JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Title:")); form.add(title);
-        form.add(new JLabel("Type / Category:")); form.add(type);
-        form.add(new JLabel("Location Name:")); form.add(location);
-        form.add(new JLabel("Severity Level:")); form.add(severity);
+        form.add(new JLabel("Title:"));
+        form.add(title);
+        form.add(new JLabel("Type / Category:"));
+        form.add(type);
+        form.add(new JLabel("Location Name:"));
+        form.add(location);
+        form.add(new JLabel("Severity Level:"));
+        form.add(severity);
         form.add(new JLabel("Map Location:"));
         JPanel locationPicker = new JPanel(new BorderLayout(8, 0));
         locationPicker.add(chooseLocation, BorderLayout.WEST);
         locationPicker.add(selectedLocationText, BorderLayout.CENTER);
         form.add(locationPicker);
-        form.add(new JLabel("Description / Instructions:")); form.add(new JScrollPane(descArea));
+        form.add(new JLabel("Description / Instructions:"));
+        form.add(new JScrollPane(descArea));
 
         if (JOptionPane.showConfirmDialog(this, form, "Report / Log an Emergency Incident",
-                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION) return;
+                JOptionPane.OK_CANCEL_OPTION, JOptionPane.PLAIN_MESSAGE) != JOptionPane.OK_OPTION)
+            return;
 
         LocationPickerDialog.Selection picked = selectedLocation.get();
         Double finalLat = picked == null ? null : picked.latitude();
@@ -403,13 +530,13 @@ public final class IncidentPanel extends JPanel {
 
         if (admin) {
             BackgroundTask.run(() -> service.report(title.getText(), (String) type.getSelectedItem(),
-                            location.getText(), (String) severity.getSelectedItem(), user.fullName(),
-                            finalLat, finalLon, desc),
+                    location.getText(), (String) severity.getSelectedItem(), user.fullName(),
+                    finalLat, finalLon, desc),
                     i -> showMessage(i.reference() + " created as Draft. An admin must publish it.", false),
                     err -> showMessage(err.getMessage(), true));
         } else {
             BackgroundTask.run(() -> service.submitGuestReport(title.getText(), (String) type.getSelectedItem(),
-                            location.getText(), (String) severity.getSelectedItem(), user.fullName(), finalLat, finalLon),
+                    location.getText(), (String) severity.getSelectedItem(), user.fullName(), finalLat, finalLon),
                     i -> showMessage(i.reference() + " submitted for dispatcher verification.", false),
                     err -> showMessage(err.getMessage(), true));
         }
