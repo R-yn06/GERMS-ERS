@@ -19,6 +19,7 @@ In the Supabase SQL Editor, execute the SQL migration scripts in exact numerical
 10. `database/migrations/010_fix_auth_registration_search_path.sql`
 11. `database/migrations/011_fix_profile_relationships.sql`
 12. `database/migrations/012_incident_severity_updates.sql`
+13. `database/migrations/013_responder_alert_preferences.sql`
 
 ## First Administrator Account
 1. In Supabase Dashboard, go to **Authentication > Users** and click **Add User**.

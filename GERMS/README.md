@@ -1,5 +1,5 @@
 # GERMS: Gudo Emergency Response Management System
-Java 25 + Swing + FlatLaf desktop client, Supabase backend (Auth, PostgreSQL + RLS, Realtime, Storage).
+Java 25 + Swing + FlatLaf desktop client, Supabase backend (Auth, PostgreSQL + RLS, PostgREST, and secured RPCs).
 Emergency Responder Management System primarily intended for Red Cross emergency response operations (Davao City Chapter).
 
 ## Setup
@@ -17,8 +17,9 @@ Emergency Responder Management System primarily intended for Red Cross emergency
    - `database/migrations/010_fix_auth_registration_search_path.sql` (Fix Auth signup trigger type resolution)
    - `database/migrations/011_fix_profile_relationships.sql` (Disambiguate profile embeds and expose audit actors)
    - `database/migrations/012_incident_severity_updates.sql` (Allow admins and actively assigned responders to update incident severity)
+   - `database/migrations/013_responder_alert_preferences.sql` (Responder alert preferences and broadcast deployment requests)
 3. **First admin**: follow the bootstrap comments at the top of `database/seed_data.sql`.
-4. **Client config**: copy `src/main/resources/application.properties.example` to `application.properties` in the project root, or set `GERMS_SUPABASE_URL` and `GERMS_SUPABASE_ANON_KEY`. Use the **anon/publishable** key only. The app refuses service-role or secret keys.
+4. **Client config**: create `application.properties` in the project root, or set `GERMS_SUPABASE_URL` and `GERMS_SUPABASE_ANON_KEY`. Use the **anon/publishable** key only. The app refuses service-role or secret keys.
 5. **Run**: `mvn exec:java` (JDK 25).
 6. **Package**: `mvn package`, then `java -jar target/germs-0.1.0-SNAPSHOT.jar` (run from the folder holding `application.properties`).
 7. **Tests**: `mvn test`.
@@ -28,7 +29,7 @@ Emergency Responder Management System primarily intended for Red Cross emergency
 ### Guest / Public User
 - Register for an account or explore via guest mode.
 - Submit emergency incident reports (enters verification queue).
-- View submitted incident reports and live verification progress.
+- Use the submitted-reports screen; visibility and review status are governed by the active database policies.
 - Access public emergency announcements and weather warnings.
 - Browse public evacuation centers and emergency hotline directories.
 
@@ -57,6 +58,6 @@ Emergency Responder Management System primarily intended for Red Cross emergency
 - Append-only activity & audit logs.
 
 ## Security Architecture
-- Clients have no direct write access to incidents, assignments, audit logs, or resources. All privileged writes execute via `SECURITY DEFINER` RPCs that enforce server-side RBAC and RLS policies.
+- Incident, assignment, audit, allocation, and command-sensitive writes execute through `SECURITY DEFINER` RPCs that enforce server-side RBAC and RLS policies. Admin resource creation is a direct insert protected by an admin-only RLS policy.
 - Role promotion and user management are authorized server-side.
 - Zero service-role credentials in client code: client runs strictly using public anon/publishable keys with authenticated JWTs.

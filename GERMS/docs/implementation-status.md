@@ -1,6 +1,6 @@
 # Implementation Status: Phase 3 Complete Emergency Operations
 
-Legend: **Implemented & Verified** = Tested and operational in workspace automated test suite and build pipeline; **Live-Dependent** = Requires applied migrations on the target Supabase instance.
+Legend: **Implemented & Verified** = Covered by the repository's automated tests/build records; **Live-Dependent** = Requires applied migrations and a configured target Supabase instance.
 
 | Area | Status | Notes |
 |---|---|---|
@@ -11,7 +11,7 @@ Legend: **Implemented & Verified** = Tested and operational in workspace automat
 | **Dispatch Center & Incident Command** | Implemented & Verified | Response monitoring, conflict-checked assignment confirmation, emergency override, deployment cancellation, mission resolution |
 | **Interactive OpenStreetMap GIS** | Implemented & Verified | Pure Swing tile renderer with memory/disk caching, pan, zoom, click-to-pin, differentiated markers for incidents, responders, shelters, and resources |
 | **Emergency Alarms & Notifications** | Implemented & Verified | `AlarmService` synthesizing severity-based audio waveforms (Low, Moderate, High, Critical warble siren), silencing, deduplication, active status check |
-| **Live Responder GPS Tracking** | Implemented & Verified | Opt-in coordinate sharing with periodic heartbeat to `responder_locations` and Command Map display |
+| **Opt-in Responder Operational Location Sharing** | Implemented & Verified | Opt-in coordinate sharing with periodic heartbeat to `responder_locations` and Command Map display; not continuous background GPS tracking |
 | **Team & Squad Management** | Implemented & Verified | Response team creation, squad leader designation, member roster, dispatch to incidents |
 | **Resource & Equipment Management** | Implemented & Verified | Equipment inventory (medical, rescue, ambulances), condition tracking, atomic incident allocation, release/consumed tracking |
 | **Evacuation Center Management** | Implemented & Verified | Shelter registration, total capacity vs live occupancy tracking, operating statuses |
@@ -21,4 +21,4 @@ Legend: **Implemented & Verified** = Tested and operational in workspace automat
 | **Reports & Operational Analytics** | Implemented & Verified | Metric cards, incident breakdown by severity/category, deployment completion rate, CSV export |
 | **Activity & Audit Logs** | Implemented & Verified | Tamper-evident, append-only chronological audit log viewer |
 | **Decommissioning of Unrelated Code** | Implemented & Verified | Safely removed training/educational modules, standardized on 14 admin modules, 9 responder modules, and 6 guest modules |
-| **Database Migrations (001–012)** | Implemented | Migrations 001 through 012 ready for execution in Supabase SQL editor |
+| **Database Migrations (001–013)** | Implemented | Migrations 001 through 013 ready for execution in Supabase SQL editor |

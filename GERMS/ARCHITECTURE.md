@@ -11,7 +11,7 @@ The Supabase project serves as the authoritative data and security layer: Supaba
 - `admin/`:
   - `DashboardPanel`: Operational command summary cards.
   - `DispatchPanel`: Live incident command, response monitoring, conflict-checked assignment confirmation, and operation resolution.
-  - `LiveOperationsMapPanel`: Real-time OpenStreetMap GIS integrating incident markers, deployed responders, evacuation centers, and resources.
+  - `LiveOperationsMapPanel`: Refreshable OpenStreetMap GIS integrating incident markers, opted-in responder locations, evacuation centers, and resources.
   - `UserManagementPanel`: Personnel directory, Guest-to-Responder role promotion, responder classifications, and availability controls.
   - `TeamManagementPanel`: Squad creation, team leader designation, member roster management, and team-based deployment.
   - `ResourceManagementPanel`: Emergency equipment inventory, condition tracking, and atomic incident allocation.
@@ -23,7 +23,7 @@ The Supabase project serves as the authoritative data and security layer: Supaba
   - `FieldSituationReportPanel`: Deployed responder SITREP submission (casualties, field conditions, medical needs) and command feedback.
   - `EmergencyCommunicationPanel`: Incident-specific coordination channels, urgent broadcasts, and team threads.
   - `NotificationPanel`: Persistent notification inbox, alarm silencing, acknowledgement, and audio testing.
-  - `MyDeploymentsPanel`: Responder assignment history, mission status advancement, and opt-in live GPS tracking.
+  - `MyDeploymentsPanel`: Responder assignment history, mission status advancement, and opt-in operational location sharing.
   - `MyTeamPanel`: Responder assigned squad roster, team leader, and contact information.
 - `guest/`:
   - `GuestReportPanel`: Public preliminary incident submission form.
@@ -43,7 +43,7 @@ The Supabase project serves as the authoritative data and security layer: Supaba
 ### 3. Models Layer (`com.gudo.germs.models`)
 - `Incident`: Immutable incident snapshot containing coordinates, description, timeline, status, and metadata.
 - `IncidentBuilder`: Fluent builder with required field validation.
-- `IncidentStatus`: State Pattern enum governing legal lifecycle forward transitions (`draft/submitted -> published -> acknowledged -> mobilizing -> active_response -> stabilized -> closed -> archived`).
+- `IncidentStatus`: State Pattern enum governing legal lifecycle forward transitions (`draft -> published -> acknowledged -> mobilizing -> active_response -> stabilized -> closed -> archived`), with aliases for legacy status names.
 - `Profile`: User record with `Role` (Admin, Responder, Guest) and activation flag.
 - `ResponseTeam`: Response squad representation.
 - `TimelineEntry`: Chronological incident event record.
@@ -56,7 +56,18 @@ The Supabase project serves as the authoritative data and security layer: Supaba
 
 ### 5. Security & Access Control (`com.gudo.germs.security`, `database/migrations`)
 - UI `AccessPolicy`: Presentation filter mapping roles to visible modules.
-- Database Migrations 001–012: Authoritative security boundary enforcing Postgres Row Level Security (RLS) on all tables, and `SECURITY DEFINER` RPCs checking caller role (`is_admin()`, `is_responder()`). The auth signup trigger pins its search path and schema-qualifies the profile role type; migration 011 declares the audit actor-to-profile relationship for PostgREST; migration 012 restricts incident severity changes to administrators and actively assigned responders.
+- Database Migrations 001–013: Authoritative security boundary enforcing Postgres Row Level Security (RLS) on all tables, and `SECURITY DEFINER` RPCs checking caller role (`is_admin()`, `is_responder()`). The auth signup trigger pins its search path and schema-qualifies the profile role type; migration 011 declares the audit actor-to-profile relationship for PostgREST; migration 012 restricts incident severity changes to administrators and actively assigned responders; migration 013 adds responder-controlled deployment-alert preferences and broadcast deployment requests.
+
+## Current Migration Inventory
+
+The database currently contains migrations `001` through `013`. Migration 013
+adds responder-controlled deployment-alert preferences and the admin broadcast
+deployment request RPC. Apply it after migration 012; the older documentation
+that stops at 012 is historical.
+
+For the complete non-technical and technical defense preparation guide,
+including workflows, security explanations, demo order, panel questions, and
+limitations, see [DEFENSE_GUIDE.md](DEFENSE_GUIDE.md).
 
 ## GIS & OpenStreetMap Architecture
 The interactive map uses standard OpenStreetMap Slippy Map tiles rendered in Java Swing:
@@ -70,5 +81,5 @@ Emergency alarms do not rely on missing audio assets. The `AlarmService` synthes
 - **Low**: 880 Hz sine wave chime with smooth exponential decay.
 - **Moderate**: Ascending dual alert chime (659 Hz -> 880 Hz).
 - **High**: Urgent 3-pulse cadence alternating between 784 Hz and 1046 Hz.
-- **Critical**: 900–1350 Hz warbling emergency siren cycling until silenced or acknowledged.
+- **Critical**: 900–1350 Hz warbling emergency siren repeated for up to five cycles unless silenced.
 - Inactive responders and users with audible notifications disabled receive visual notifications only.

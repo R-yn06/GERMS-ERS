@@ -34,7 +34,7 @@ The automated test suite covers:
 - **Conflict Prevention**: Attempt to confirm the same responder to another active incident without checking the emergency override checkbox; verify assignment is blocked. Check the override box and verify assignment succeeds.
 - **Mission Progress**: As Responder, open **My Deployments**. Advance status: `assigned -> preparing -> en_route -> arrived -> on_task -> completed`.
 
-### 5. Live Responder GPS Location Tracking
+### 5. Opt-in Responder Operational Location Sharing
 - As Responder, open **My Deployments** and check **Opt-in: Share My Operational Location with Command Center**. Enter coordinates (or transmit heartbeat).
 - As Administrator, open **Live Operations Map**. Verify the blue responder dot appears with the responder's name and last reported timestamp.
 

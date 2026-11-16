@@ -1,39 +1,223 @@
 # GERMS Database Documentation
 
-Supabase PostgreSQL is the authoritative system of record.
-Apply SQL migrations in numeric order from `database/migrations/` (001 through 012).
+## 1. Database role in the system
 
-## Migrations Overview
+Supabase PostgreSQL is the authoritative system of record for GERMS. The
+Java desktop client communicates with it over HTTPS through Supabase Auth and
+PostgREST. Simple reads use PostgREST table/view queries; privileged or
+multi-step writes use PostgreSQL RPC functions.
 
-| Migration | Purpose | Key Tables / Objects |
-|-----------|---------|----------------------|
-| `001_core_schema.sql` | Identity, Core Incidents, Assignments, Audit | `profiles`, `service_divisions`, `responder_classifications`, `incidents`, `incident_updates`, `incident_responses`, `incident_assignments`, `notifications`, `audit_logs`, `guest_reports` |
-| `002_rls_policies.sql` | Row Level Security & Helpers | RLS enabled on all public tables; `is_admin()`, `is_responder()`, `can_view_incident()`, `public_advisories` view |
-| `003_rpc_functions.sql` | Privileged RPC Operations | `create_incident`, `publish_incident`, `set_incident_status`, `assign_responder`, `update_assignment_status`, `acknowledge_notification`, `incident_response_summary` |
-| `004_reference_seed.sql` | Static Reference Data | Divisions (DMS, SAFETY, VOLUNTEER, etc.), Classifications, ICS Positions, Status transitions |
-| `005_response_teams.sql` | Response Teams | `response_teams`, `assign_incident_team` RPC |
-| `006_operations_resources.sql` | Operational Resources & Centers | `evacuation_centers`, `disaster_resources` |
-| `007_admin_management.sql` | Administrative Profile Controls | `update_profile_admin`, `deactivate_profile_admin` |
-| `008_responder_command.sql` | Responder Command & Readiness | `admin_set_responder_availability`, `request_responder_deployment` |
-| `009_phase3_operations.sql` | Phase 3 Operations, SITREPs, Comms, Alarms | `team_members`, `resources`, `resource_allocations`, `field_situation_reports`, `incident_messages`, `emergency_contacts`, `emergency_announcements`, `notification_preferences`, `promote_to_responder`, `allocate_resource`, `release_resource`, `submit_field_situation_report`, `send_incident_message`, `update_responder_location` |
-| `010_fix_auth_registration_search_path.sql` | Auth Signup Trigger Fix | Schema-qualifies `user_role` and pins the signup trigger search path so Supabase Auth can create guest profiles |
-| `011_fix_profile_relationships.sql` | PostgREST Profile Relationships | Adds the audit actor relationship needed for profile embeds; retains historical audit rows with `NOT VALID` |
-| `012_incident_severity_updates.sql` | Authorized Incident Severity Updates | Adds `update_incident_severity`, restricted to administrators and responders with an active assignment; records incident history and audit entries |
+The client does **not** connect to PostgreSQL directly and does not contain a
+service-role key. Every request carries the public anon/publishable key and,
+when authenticated, the current user's JWT. PostgreSQL RLS and RPC
+authorization remain authoritative even if a caller bypasses the Swing UI.
 
-## Key Entity Relationships
+Apply migrations in exact numeric order:
 
-- **Identity**: `profiles.id -> auth.users(id) ON DELETE CASCADE`. Supports roles: `admin`, `responder`, `guest`.
-- **Classifications**: `profile_classifications(profile_id, classification_id) -> responder_classifications(id)`.
-- **Teams**: `response_teams(id)` has `leader_id -> profiles(id)`. Squad members stored in `team_members(team_id, profile_id)`.
-- **Incidents**: `incidents(id)` references `created_by -> profiles(id)`, `published_by -> profiles(id)`, `response_team_id -> response_teams(id)`.
-- **Responses & Deployments**: `incident_responses(incident_id, responder_id)`, `incident_assignments(incident_id, responder_id)`. Partial unique index ensures at most one active assignment per responder.
-- **Resource Inventory & Allocation**: `resources(id)` tracks equipment quantity, available quantity, condition, and status. `resource_allocations(resource_id, incident_id)` tracks atomic allocations.
-- **Field SITREPs**: `field_situation_reports(id)` links to `incident_id`, `reporter_id`, and `team_id`, recording casualties, conditions, and urgent medical needs.
-- **Emergency Comms**: `incident_messages(incident_id, sender_id)` provides persistent channel messages.
-- **Contacts & Advisories**: `emergency_contacts` and `emergency_announcements` provide public and operational coordination data.
+```text
+001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009
+     -> 010 -> 011 -> 012 -> 013
+```
 
-## Server-Side Security Model
-1. **Default Deny**: All tables have RLS enabled with default deny.
-2. **SECURITY DEFINER Functions**: Privileged operations pin `search_path` to trusted schemas (or an empty path with fully qualified names) and verify authorization via `private.require_admin()` or `is_responder()`.
-3. **Audit Trail**: All privileged actions write atomically to `audit_logs`, which is append-only (mutation blocked by trigger).
-4. **Client Anon Key Only**: The Java desktop client operates exclusively with the public anon key and authenticated session JWTs.
+## 2. Migration inventory
+
+| Migration | Purpose | Main objects |
+|---|---|---|
+| `001_core_schema.sql` | Core types, identity, incidents, assignments, notifications, audit, and guest reports | `profiles`, `incidents`, `incident_updates`, `incident_responses`, `incident_assignments`, `assignment_status_history`, `notifications`, `notification_receipts`, `audit_logs`, `guest_reports` |
+| `002_rls_policies.sql` | Row Level Security and authorization helpers | `is_admin()`, `is_responder()`, `can_view_incident()`, `public_advisories`, table policies |
+| `003_rpc_functions.sql` | Core privileged incident/response operations | `create_incident`, `update_incident`, `publish_incident`, `set_incident_status`, `post_incident_update`, `respond_to_incident`, `assign_responder`, `update_assignment_status`, notification RPCs, response summary |
+| `004_reference_seed.sql` | Reference data and legal transition data | service divisions, classifications, certifications, command positions, incident/assignment status transitions |
+| `005_response_teams.sql` | Response teams and team assignment | `response_teams`, `assign_incident_team` |
+| `006_operations_resources.sql` | Evacuation centers and the original disaster-resource tables | `evacuation_centers`, `disaster_resources` |
+| `007_admin_management.sql` | Server-authorized profile administration | `update_profile_admin`, `deactivate_profile_admin` |
+| `008_responder_command.sql` | Responder readiness and individual deployment requests | `admin_set_responder_availability`, `request_responder_deployment` |
+| `009_phase3_operations.sql` | Guest-profile trigger, expanded notifications, teams, resources, SITREPs, messaging, contacts, announcements, and operational locations | `notification_preferences`, `team_members`, `resources`, `resource_allocations`, `field_situation_reports`, `incident_messages`, `emergency_contacts`, `emergency_announcements`; phase-3 RPCs |
+| `010_fix_auth_registration_search_path.sql` | Makes Auth signup trigger type resolution and search path explicit | updated `handle_new_user` trigger |
+| `011_fix_profile_relationships.sql` | Fixes PostgREST profile relationships and audit actor embedding | profile/audit foreign-key relationship adjustments |
+| `012_incident_severity_updates.sql` | Allows authorized severity changes while preserving history and audit | `update_incident_severity` |
+| `013_responder_alert_preferences.sql` | Adds responder-controlled deployment-alert preferences and admin broadcast requests | `responder_notification_preferences`, `set_deployment_notification_preference`, `request_all_active_responder_deployments` |
+
+## 3. Enumerated domain values
+
+Defined in `001_core_schema.sql`:
+
+- `user_role`: `admin`, `responder`; migration 009 adds `guest`.
+- `incident_status`: `draft`, `published`, `acknowledged`, `mobilizing`,
+  `active_response`, `stabilized`, `closed`, `archived`.
+- `incident_severity`: `low`, `moderate`, `high`, `critical`.
+- `incident_category`: `flood`, `typhoon`, `fire`, `landslide`,
+  `vehicular_accident`, `medical_emergency`, `search_and_rescue`,
+  `mass_casualty`, `evacuation`, `relief_operation`, `other`.
+- `response_decision`: `accepted`, `declined`.
+- `assignment_status`: `assigned`, `preparing`, `en_route`, `arrived`,
+  `on_task`, `completed`, `released`, `cancelled`.
+- `availability_status`: `available`, `standby`, `unavailable`, `off_duty`.
+
+The legal incident and assignment transitions are stored as data in
+`incident_status_transitions` and `assignment_status_transitions`, seeded by
+`004_reference_seed.sql`. The Java model also validates the main incident
+forward lifecycle and blocks `mobilizing` until a response team is assigned.
+
+## 4. Entity groups and relationships
+
+```text
+auth.users 1--1 profiles
+profiles 1--* incidents              (created_by / published_by)
+profiles *--* response_teams         (through team_members)
+response_teams 1--* incidents        (response_team_id)
+incidents 1--* incident_updates
+incidents 1--* incident_responses
+incidents 1--* incident_assignments
+incident_assignments 1--* assignment_status_history
+incidents 1--* notifications
+resources 1--* resource_allocations *--1 incidents
+incidents 1--* field_situation_reports
+incidents 1--* incident_messages
+profiles 1--1 responder_availability
+profiles 1--1 responder_locations
+profiles 1--1 responder_notification_preferences
+```
+
+### Identity and responder readiness
+
+- `profiles` references `auth.users(id)` with cascade deletion.
+- A signup trigger creates a profile using Auth metadata and assigns the
+  `guest` role after migration 009.
+- `service_divisions`, `responder_classifications`, and `certifications`
+  describe responder capability.
+- `profile_divisions`, `profile_classifications`, and
+  `responder_qualifications` connect people to those references.
+- `responder_availability` stores readiness.
+- `responder_locations` stores the latest opt-in operational point, accuracy,
+  source, sharing flag, and timestamp. It is not a continuous tracking log.
+
+### Incidents and history
+
+`incidents` stores the current operational snapshot: incident number, title,
+description, category, severity, status, location, coordinates, public
+visibility, commander, publication, and closure information.
+
+`incident_updates` is the chronological history of status changes, notes,
+field updates, and command entries. `incident_requirements` records requested
+division/classification/headcount.
+
+### Response and dispatch
+
+- `incident_responses` records responder accept/decline decisions.
+- `incident_assignments` records confirmed deployments.
+- `assignment_status_history` preserves assignment progress.
+- A partial unique index prevents duplicate active assignments for the same
+  responder and incident. Cross-incident conflict rules are additionally
+  enforced by the assignment RPC and system settings.
+- `response_teams` and `team_members` represent squads, leaders, and rosters.
+- `incident_command_positions` and `incident_command_assignments` support
+  incident-command roles.
+
+### Operations and public information
+
+- `resources` and `resource_allocations` track equipment, quantity,
+  availability, condition, incident allocation, release, and consumption.
+- `evacuation_centers` stores shelters, capacity, occupancy, status, and
+  location.
+- `field_situation_reports` stores situation, field conditions, affected
+  people, casualties, medical/resource needs, urgency, location, and admin
+  feedback.
+- `incident_messages` stores persistent incident-channel communication.
+- `emergency_contacts` stores public hotlines, hospitals, LGUs, and partners.
+- `emergency_announcements` stores public or operational advisories.
+- `guest_reports` stores preliminary reports with `unverified`, `verified`,
+  `rejected`, or `converted` status.
+
+### Notifications and preferences
+
+- `notifications` stores recipient, incident, kind, priority, title, body,
+  and creation time.
+- `notification_receipts` tracks observed and acknowledged state.
+- `notification_preferences` (migration 009) stores general audio/severity/
+  desktop notification settings.
+- `responder_notification_preferences` (migration 013) specifically controls
+  whether a responder receives deployment requests.
+
+The desktop shell currently checks unacknowledged notifications on a
+five-second timer. The checked-in client does not implement a Supabase
+Realtime subscription or websocket channel.
+
+## 5. RLS and server-side authorization
+
+RLS is enabled on the core and phase-3 tables. Policies are intentionally
+different per data type:
+
+- Profiles: users can read/update their own allowed profile fields; admins
+  can manage profiles through authorized operations.
+- Reference data: authenticated users can read divisions,
+  classifications, certifications, command positions, and transition data.
+- Availability/location: a responder can manage their own row; admins can
+  read operational data where policy permits.
+- Incidents and incident history: visibility is controlled by
+  `can_view_incident(id)`.
+- Responses/assignments/history: responders see their own operational rows;
+  admins can review command data.
+- Notifications/receipts: recipients can see and acknowledge their own
+  notifications; admins can review operational notifications.
+- Audit logs: administrators can read them; mutation is blocked by the
+  append-only trigger.
+- Guest reports: anonymous/authenticated callers can insert only an
+  unverified, unreviewed report; admin policies control review/update access.
+- Resources, allocations, teams, and admin-managed reference operations are
+  restricted by admin policies or secured RPCs.
+- Emergency contacts and announcements have separate public-read policies
+  for rows marked public/published.
+
+The UI `AccessPolicy` only controls navigation. It is not a security
+boundary.
+
+## 6. RPC and transaction rules
+
+Privileged operations run as `SECURITY DEFINER` functions with a controlled
+`search_path` and server-side role checks. Important operations include:
+
+- Incident creation, update, publication, status change, and severity change.
+- Responder response, assignment, assignment-status change, and cancellation.
+- Team assignment and responder promotion.
+- Availability changes and deployment requests.
+- Resource allocation/release.
+- SITREP submission and incident messaging.
+- Responder location update.
+- Notification observation/acknowledgement.
+- Deployment-alert preference changes and broadcast requests.
+
+The functions are important because they keep authorization, validation,
+locking, related writes, notifications, and auditing in one database
+operation. Resource allocation, for example, must decrement availability
+atomically rather than relying on a client-side read-then-write sequence.
+
+## 7. Audit and integrity controls
+
+- Foreign keys protect identity, incident, assignment, team, resource, and
+  message relationships.
+- Check constraints validate coordinates, quantities, statuses, text lengths,
+  and allowed categories.
+- Unique constraints prevent duplicate memberships, responses, and active
+  assignment rows.
+- `incident_updates` and `assignment_status_history` preserve operational
+  history.
+- `audit_logs` is append-only; `private.block_audit_mutation()` rejects
+  updates and deletes.
+- Privileged RPCs call `private.audit(...)` for command actions.
+- Database timestamps provide chronological operational records.
+
+## 8. Backend setup and bootstrap
+
+1. Create a Supabase project.
+2. Run migrations `001` through `013` in order.
+3. Create/confirm the first Auth user.
+4. Set that user's matching `profiles.role` to `admin` using the bootstrap
+   SQL in `SETUP.md`.
+5. Configure the desktop client with the project URL and public anon/
+   publishable key.
+
+The repository includes a generic `RestClient.invokeFunction(...)` method and
+the UI references an `admin-create-user` function for administrative account
+creation. Any deployed Supabase Edge Function used for that flow must be
+configured separately; the checked-in database migrations remain the source of
+truth for the PostgreSQL schema and authorization model.
