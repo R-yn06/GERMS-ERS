@@ -2,7 +2,6 @@ package com.gudo.germs.ui.incident;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
-import com.gudo.germs.models.Profile;
 import com.gudo.germs.services.AlarmService;
 import com.gudo.germs.ui.RefreshablePanel;
 import com.gudo.germs.ui.theme.GermsColors;
@@ -22,11 +21,11 @@ import java.util.UUID;
  */
 public final class NotificationPanel extends JPanel implements RefreshablePanel {
     private final AppContext ctx;
-    private final Profile user;
     private final AlarmService alarms = AlarmService.get();
 
     private final DefaultTableModel model = new DefaultTableModel(
-            new String[]{"ID", "Priority", "Title", "Incident / Location", "Timestamp", "Status"}, 0) {
+            new String[]{"ID", "Priority", "Alert", "Details", "Recipient", "Incident / Location",
+                    "Responder Status", "Command Status", "Timestamp"}, 0) {
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable table = new JTable(model);
@@ -34,11 +33,11 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
     private final JCheckBox audibleToggle = new JCheckBox("Enable Audible Alarms", true);
     private final JLabel alarmStatus = new JLabel("Alarm: Idle");
     private final JLabel footerStatus = new JLabel(" ");
+    private String activeAlertId;
 
-    public NotificationPanel(AppContext ctx, Profile user) {
+    public NotificationPanel(AppContext ctx) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
-        this.user = user;
         setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
         add(buildHeader(), BorderLayout.NORTH);
@@ -59,7 +58,7 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
 
         JLabel title = new JLabel("Notifications & Emergency Alarms");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        JLabel desc = new JLabel("Incident dispatch alerts, severity-based emergency alarms, and operational notifications.");
+        JLabel desc = new JLabel("System-wide responder alerts. Review the recipient and incident, then acknowledge to close the alert.");
         desc.setForeground(GermsColors.SECONDARY_TEXT);
 
         JPanel p = new JPanel(new GridLayout(0, 1, 0, 2));
@@ -143,10 +142,11 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
     public void loadNotifications() {
         BackgroundTask.run(() -> {
             return ctx.rest.select("notifications",
-                    "select=id,priority,title,body,created_at,notification_receipts(acknowledged_at)&recipient_id=eq." + user.id() + "&order=created_at.desc&limit=50");
+                    "select=id,priority,title,body,created_at,profiles!notifications_recipient_id_fkey(full_name),incidents(incident_no,title,location_text),notification_receipts(acknowledged_at),admin_notification_receipts(acknowledged_at)&order=created_at.desc&limit=100");
         }, rows -> {
             model.setRowCount(0);
             boolean hasUnacknowledgedAlerts = false;
+            JsonNode latestUnacknowledged = null;
 
             if (rows != null && rows.isArray()) {
                 for (JsonNode n : rows) {
@@ -160,23 +160,46 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
                     }
 
                     String notifId = n.path("id").asText();
-                    if (!acked) {
+                    JsonNode adminReceipt = n.path("admin_notification_receipts");
+                    boolean commandAcknowledged = adminReceipt.isArray()
+                            ? !adminReceipt.isEmpty() && adminReceipt.get(0).hasNonNull("acknowledged_at")
+                            : adminReceipt.isObject() && adminReceipt.hasNonNull("acknowledged_at");
+                    if (!commandAcknowledged) {
                         hasUnacknowledgedAlerts = true;
-                        alarms.triggerAlarm(notifId, prio, true, audibleToggle.isSelected());
+                        if (latestUnacknowledged == null) latestUnacknowledged = n;
                     }
 
                     String date = n.path("created_at").asText();
                     if (date.length() > 19) date = date.substring(0, 19).replace('T', ' ');
+
+                    JsonNode recipient = n.path("profiles");
+                    JsonNode incident = n.path("incidents");
+                    String incidentName = incident.hasNonNull("incident_no")
+                            ? incident.path("incident_no").asText() + " " + incident.path("title").asText()
+                            : incident.path("title").asText("General alert");
+                    String location = incident.path("location_text").asText();
+                    if (!location.isBlank()) incidentName += " — " + location;
 
                     model.addRow(new Object[]{
                             notifId,
                             prio,
                             n.path("title").asText(),
                             n.path("body").asText(""),
-                            date,
-                            acked ? "Acknowledged" : "NEW (UNACKNOWLEDGED)"
+                            recipient.path("full_name").asText("Responder"),
+                            incidentName,
+                            acked ? "Acknowledged" : "Not acknowledged",
+                            commandAcknowledged ? "Acknowledged" : "Needs command review",
+                            date
                     });
                 }
+            }
+            if (latestUnacknowledged != null) {
+                activeAlertId = latestUnacknowledged.path("id").asText();
+                alarms.triggerAlarm(activeAlertId,
+                        latestUnacknowledged.path("priority").asText("normal"), true, audibleToggle.isSelected());
+            } else if (activeAlertId != null) {
+                alarms.stopAlarm();
+                activeAlertId = null;
             }
             if (hasUnacknowledgedAlerts) {
                 alarmStatus.setText("Alarm: ACTIVE ALERT!");
@@ -185,7 +208,11 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
                 alarmStatus.setText("Alarm: Idle");
                 alarmStatus.setForeground(GermsColors.SECONDARY_TEXT);
             }
-            footerStatus.setText(model.getRowCount() + " notification(s) on file.");
+            footerStatus.setText(model.getRowCount() == 0
+                    ? "No responder alerts have been generated yet."
+                    : model.getRowCount() + " system alert(s) · " + (hasUnacknowledgedAlerts
+                            ? "acknowledgment required"
+                            : "all acknowledged"));
         }, err -> footerStatus.setText("Could not load notifications: " + err.getMessage()));
     }
 
@@ -198,14 +225,21 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
 
         int modelRow = table.convertRowIndexToModel(r);
         String notifId = String.valueOf(model.getValueAt(modelRow, 0));
+        if ("Acknowledged".equals(model.getValueAt(modelRow, 7))) {
+            footerStatus.setText("The selected alert has already been acknowledged by command.");
+            return;
+        }
 
-        alarms.stopAlarm();
         BackgroundTask.run(() -> {
-            ctx.rest.rpc("acknowledge_notification", Map.of("p_id", UUID.fromString(notifId)));
+            ctx.rest.rpc("admin_acknowledge_notification", Map.of("p_id", UUID.fromString(notifId)));
             return Boolean.TRUE;
         }, ok -> {
+            if (notifId.equals(activeAlertId)) {
+                alarms.stopAlarm();
+                activeAlertId = null;
+            }
             loadNotifications();
-        }, err -> loadNotifications());
+        }, err -> footerStatus.setText("Could not acknowledge alert: " + err.getMessage()));
     }
 }
 

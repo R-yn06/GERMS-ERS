@@ -296,7 +296,7 @@ public final class Shell extends JPanel {
     private JComponent create(Module module) {
         return switch (module) {
             case DASHBOARD -> new DashboardPanel(ctx, user);
-            case NOTIFICATIONS -> new NotificationPanel(ctx, user);
+            case NOTIFICATIONS -> new NotificationPanel(ctx);
             case SETTINGS -> new SettingsPanel(ctx, user);
             case INCIDENTS -> new IncidentPanel(ctx, user);
             case DISPATCH -> new DispatchPanel(ctx, user);

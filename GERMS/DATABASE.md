@@ -16,7 +16,7 @@ Apply migrations in exact numeric order:
 
 ```text
 001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009
-     -> 010 -> 011 -> 012 -> 013
+     -> 010 -> 011 -> 012 -> 013 -> 014
 ```
 
 ## 2. Migration inventory
@@ -36,6 +36,7 @@ Apply migrations in exact numeric order:
 | `011_fix_profile_relationships.sql` | Fixes PostgREST profile relationships and audit actor embedding | profile/audit foreign-key relationship adjustments |
 | `012_incident_severity_updates.sql` | Allows authorized severity changes while preserving history and audit | `update_incident_severity` |
 | `013_responder_alert_preferences.sql` | Adds responder-controlled deployment-alert preferences and admin broadcast requests | `responder_notification_preferences`, `set_deployment_notification_preference`, `request_all_active_responder_deployments` |
+| `014_admin_notification_center.sql` | Adds a separate administrator acknowledgment for shared responder alerts | `admin_notification_receipts`, `admin_acknowledge_notification` |
 
 ## 3. Enumerated domain values
 
@@ -209,7 +210,7 @@ atomically rather than relying on a client-side read-then-write sequence.
 ## 8. Backend setup and bootstrap
 
 1. Create a Supabase project.
-2. Run migrations `001` through `013` in order.
+2. Run migrations `001` through `014` in order.
 3. Create/confirm the first Auth user.
 4. Set that user's matching `profiles.role` to `admin` using the bootstrap
    SQL in `SETUP.md`.
