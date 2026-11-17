@@ -38,7 +38,7 @@ import com.gudo.germs.utils.BackgroundTask;
  * opt-in deployed responder tracking, evacuation shelters, and resource
  * locations.
  */
-public final class LiveOperationsMapPanel extends JPanel {
+public final class LiveOperationsMapPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd HH:mm")
             .withZone(ZoneId.systemDefault());
 
@@ -69,8 +69,6 @@ public final class LiveOperationsMapPanel extends JPanel {
         this.user = user;
         setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
 
-        add(buildHeader(), BorderLayout.NORTH);
-        add(buildMainSplit(), BorderLayout.CENTER);
         add(buildHeader(), BorderLayout.NORTH);
         add(buildMainSplit(), BorderLayout.CENTER);
         add(buildBottomBar(), BorderLayout.SOUTH);
@@ -231,6 +229,7 @@ public final class LiveOperationsMapPanel extends JPanel {
                                 new MapMarker(i.path("id").asText(), title, lat, lon, MarkerType.INCIDENT, details));
                         incCount++;
                     }
+
                 }
             }
 
@@ -309,5 +308,10 @@ public final class LiveOperationsMapPanel extends JPanel {
             }
         }
         map.setMarkers(filtered);
+    }
+
+    @Override
+    public void refreshData() {
+        loadData();
     }
 }

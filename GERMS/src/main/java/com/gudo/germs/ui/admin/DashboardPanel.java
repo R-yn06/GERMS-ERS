@@ -18,14 +18,11 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
-import javax.swing.JTextField;
-import javax.swing.Timer;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
@@ -47,17 +44,14 @@ import com.gudo.germs.utils.BackgroundTask;
  * Command Dashboard & Central Operations Hub.
  * Streamlines incident statistics, deployed personnel tracking, live
  * OpenStreetMap pinpoints of
- * ongoing incidents and responders, and an integrated broadcast console for
- * administrator announcements.
+ * ongoing incidents and responders.
  */
-public final class DashboardPanel extends JPanel {
+public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd, HH:mm")
             .withZone(ZoneId.systemDefault());
 
     private final AppContext ctx;
-    private final Profile user;
     private final IncidentService service;
-    private final boolean isAdmin;
     private final boolean isGuest;
 
     // KPI Stat Cards
@@ -89,18 +83,13 @@ public final class DashboardPanel extends JPanel {
     };
     private final JTable responderTable = new JTable(responderModel);
 
-    // Broadcast Announcements Table — REMOVED
-
     private final JLabel statusLabel = new JLabel("Synchronizing operational command data...");
     private Runnable busUnsubscribe;
-    private final Timer autoRefreshTimer = new Timer(8000, e -> refreshAllData());
 
     public DashboardPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 10));
         this.ctx = ctx;
-        this.user = user;
         this.service = ctx.incidents;
-        this.isAdmin = user.role() == Role.ADMIN;
         this.isGuest = user.role() == Role.GUEST;
 
         setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
@@ -109,7 +98,6 @@ public final class DashboardPanel extends JPanel {
         add(buildCenterContent(), BorderLayout.CENTER);
         add(buildFooter(), BorderLayout.SOUTH);
 
-        autoRefreshTimer.setCoalesce(true);
     }
 
     private JPanel buildHeader() {
@@ -119,9 +107,7 @@ public final class DashboardPanel extends JPanel {
         // Row 1: title + subtitle
         JLabel title = new JLabel("Command Operations Dashboard");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        JLabel subtitle = new JLabel(isAdmin
-                ? "Incident Command, Live Spatial Monitoring, Deployed Personnel, and Disaster Advisories."
-                : "Operational status overview, active field assignments, and verified safety advisories.");
+        JLabel subtitle = new JLabel("Incident command, live spatial monitoring, and deployed personnel.");
         subtitle.setForeground(GermsColors.SECONDARY_TEXT);
 
         JPanel titles = new JPanel(new GridLayout(0, 1, 0, 2));
@@ -288,14 +274,11 @@ public final class DashboardPanel extends JPanel {
         super.addNotify();
         if (busUnsubscribe == null)
             busUnsubscribe = service.bus().subscribe(e -> refreshAllData());
-        if (!autoRefreshTimer.isRunning())
-            autoRefreshTimer.start();
         refreshAllData();
     }
 
     @Override
     public void removeNotify() {
-        autoRefreshTimer.stop();
         if (busUnsubscribe != null) {
             busUnsubscribe.run();
             busUnsubscribe = null;
@@ -413,6 +396,11 @@ public final class DashboardPanel extends JPanel {
         }, err -> {
             statusLabel.setText("Data synchronization error: " + err.getMessage());
         });
+    }
+
+    @Override
+    public void refreshData() {
+        refreshAllData();
     }
 
 }

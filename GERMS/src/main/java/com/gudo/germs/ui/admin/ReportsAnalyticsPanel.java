@@ -23,7 +23,7 @@ import java.util.Map;
  * Computes live operational metrics from Supabase, summarizes incidents by severity and category,
  * monitors responder readiness and shelter capacity, and exports operational CSV reports.
  */
-public final class ReportsAnalyticsPanel extends JPanel {
+public final class ReportsAnalyticsPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
 
@@ -141,6 +141,7 @@ public final class ReportsAnalyticsPanel extends JPanel {
                     } else if (!"draft".equalsIgnoreCase(st)) {
                         active++;
                     }
+
                 }
             }
 
@@ -212,6 +213,11 @@ public final class ReportsAnalyticsPanel extends JPanel {
         } catch (Exception e) {
             JOptionPane.showMessageDialog(this, "Export failed: " + e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    @Override
+    public void refreshData() {
+        loadAnalytics();
     }
 }
 

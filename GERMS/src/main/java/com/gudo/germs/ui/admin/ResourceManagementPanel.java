@@ -37,7 +37,7 @@ import com.gudo.germs.utils.BackgroundTask;
  * Supports inventory tracking, atomic resource allocation to incidents,
  * condition updates, and release of deployed equipment.
  */
-public final class ResourceManagementPanel extends JPanel {
+public final class ResourceManagementPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
 
@@ -175,6 +175,7 @@ public final class ResourceManagementPanel extends JPanel {
                             r.path("location").asText("Central Warehouse")
                     });
                 }
+
             }
             statusLabel.setText(resourceModel.getRowCount() + " resource inventory items loaded.");
             if (resourceTable.getRowCount() > 0 && resourceTable.getSelectedRow() < 0) {
@@ -387,5 +388,10 @@ public final class ResourceManagementPanel extends JPanel {
                     JOptionPane.INFORMATION_MESSAGE);
         }, err -> JOptionPane.showMessageDialog(this, "Release failed: " + err.getMessage(), "Error",
                 JOptionPane.ERROR_MESSAGE));
+    }
+
+    @Override
+    public void refreshData() {
+        loadResources();
     }
 }

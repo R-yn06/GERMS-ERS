@@ -20,7 +20,7 @@ import java.util.Map;
  * Used by Red Cross Administrators to broadcast official disaster warnings,
  * weather alerts, and evacuation orders to the public and operational responders.
  */
-public final class PublicAnnouncementsPanel extends JPanel {
+public final class PublicAnnouncementsPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm").withZone(ZoneId.systemDefault());
 
     private final AppContext ctx;
@@ -130,6 +130,7 @@ public final class PublicAnnouncementsPanel extends JPanel {
                             a.path("status").asText().toUpperCase()
                     });
                 }
+
             }
             statusLabel.setText(model.getRowCount() + " announcement(s) published.");
             if (table.getRowCount() > 0 && table.getSelectedRow() < 0) {
@@ -175,6 +176,11 @@ public final class PublicAnnouncementsPanel extends JPanel {
             loadAnnouncements();
             JOptionPane.showMessageDialog(this, "Emergency advisory broadcasted successfully.", "Success", JOptionPane.INFORMATION_MESSAGE);
         }, err -> JOptionPane.showMessageDialog(this, "Broadcast failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
+    }
+
+    @Override
+    public void refreshData() {
+        loadAnnouncements();
     }
 }
 

@@ -19,7 +19,7 @@ import java.util.UUID;
  * classification assignment,
  * managing availability, creating accounts, and requesting deployments.
  */
-public final class UserManagementPanel extends JPanel {
+public final class UserManagementPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final DefaultTableModel model = new DefaultTableModel(
             new String[] { "ID", "Name", "Email", "Role", "Classification", "Active", "Availability", "Deployment" },
@@ -119,6 +119,11 @@ public final class UserManagementPanel extends JPanel {
                 "select=id,full_name,email,role,is_active,responder_availability(status),incident_assignments!incident_assignments_responder_id_fkey(status,incident_id),profile_classifications!profile_classifications_profile_id_fkey(responder_classifications(name,code))&order=full_name.asc"
                         + finalFilter),
                 this::render, e -> state.setText("Could not load users: " + e.getMessage()));
+    }
+
+    @Override
+    public void refreshData() {
+        load();
     }
 
     private void render(JsonNode rows) {

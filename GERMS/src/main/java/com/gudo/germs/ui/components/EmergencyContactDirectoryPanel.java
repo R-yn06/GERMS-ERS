@@ -32,7 +32,7 @@ import com.gudo.germs.utils.BackgroundTask;
  * Guests for critical hotlines,
  * hospital facilities, partner NGOs, and local government coordination numbers.
  */
-public final class EmergencyContactDirectoryPanel extends JPanel {
+public final class EmergencyContactDirectoryPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
     private final boolean readOnly;
@@ -210,5 +210,10 @@ public final class EmergencyContactDirectoryPanel extends JPanel {
                     JOptionPane.INFORMATION_MESSAGE);
         }, err -> JOptionPane.showMessageDialog(this, "Failed to add contact: " + err.getMessage(), "Error",
                 JOptionPane.ERROR_MESSAGE));
+    }
+
+    @Override
+    public void refreshData() {
+        loadContacts();
     }
 }

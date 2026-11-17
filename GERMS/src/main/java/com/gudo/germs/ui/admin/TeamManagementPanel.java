@@ -37,7 +37,7 @@ import com.gudo.germs.utils.BackgroundTask;
  * leaders,
  * manage rosters, monitor deployment status, and dispatch teams to incidents.
  */
-public final class TeamManagementPanel extends JPanel {
+public final class TeamManagementPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
 
@@ -408,5 +408,10 @@ public final class TeamManagementPanel extends JPanel {
         public String toString() {
             return display;
         }
+    }
+
+    @Override
+    public void refreshData() {
+        loadTeams();
     }
 }

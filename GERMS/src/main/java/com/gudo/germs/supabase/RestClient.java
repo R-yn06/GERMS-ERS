@@ -37,9 +37,9 @@ public final class RestClient {
     }
 
     /** PATCH (update) rows matching the query filter. */
-    public void patch(String table, String query, Object body) throws SupabaseException {
-        http.send("PATCH", "/rest/v1/" + table + (query == null || query.isEmpty() ? "" : "?" + query),
+    public JsonNode patch(String table, String query, Object body) throws SupabaseException {
+        return http.send("PATCH", "/rest/v1/" + table + (query == null || query.isEmpty() ? "" : "?" + query),
                 SupabaseHttp.JSON.valueToTree(body).toString(), sessions.accessToken(),
-                java.util.Map.of("Prefer", "return=minimal"));
+                Map.of("Prefer", "return=representation"));
     }
 }

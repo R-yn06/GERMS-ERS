@@ -36,7 +36,7 @@ import com.gudo.germs.utils.BackgroundTask;
  * status updates (Open, Full, Temporarily Closed, Closed), and location
  * coordinates.
  */
-public final class EvacuationCenterPanel extends JPanel {
+public final class EvacuationCenterPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
     private final boolean readOnly;
@@ -299,5 +299,10 @@ public final class EvacuationCenterPanel extends JPanel {
             ctx.rest.insertMinimal("evacuation_centers", Map.of("id", id, "status", sel));
             return Boolean.TRUE;
         }, ok -> loadCenters(), err -> loadCenters());
+    }
+
+    @Override
+    public void refreshData() {
+        loadCenters();
     }
 }

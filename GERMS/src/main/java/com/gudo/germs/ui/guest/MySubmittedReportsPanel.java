@@ -15,7 +15,7 @@ import java.awt.*;
  * Allows members of the public to check verification and response status
  * of their submitted incident reports.
  */
-public final class MySubmittedReportsPanel extends JPanel {
+public final class MySubmittedReportsPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
 
@@ -99,6 +99,11 @@ public final class MySubmittedReportsPanel extends JPanel {
         }, err -> {
             statusLabel.setText("Could not load reports: " + err.getMessage());
         });
+    }
+
+    @Override
+    public void refreshData() {
+        loadReports();
     }
 }
 

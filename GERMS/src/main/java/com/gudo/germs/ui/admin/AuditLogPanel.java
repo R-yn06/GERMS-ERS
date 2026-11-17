@@ -28,7 +28,7 @@ import com.gudo.germs.utils.BackgroundTask;
  * Displays append-only chronological history of all incident updates,
  * command decisions, responder deployments, and administrative actions.
  */
-public final class AuditLogPanel extends JPanel {
+public final class AuditLogPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
 
@@ -139,6 +139,7 @@ public final class AuditLogPanel extends JPanel {
                             l.path("details").toString()
                     });
                 }
+
             }
             statusLabel.setText(model.getRowCount() + " audit event(s) retrieved from database.");
         }, err -> {
@@ -162,5 +163,10 @@ public final class AuditLogPanel extends JPanel {
         ta.setEditable(false);
         ta.setLineWrap(true);
         JOptionPane.showMessageDialog(this, new JScrollPane(ta), "Audit Details: " + action, JOptionPane.PLAIN_MESSAGE);
+    }
+
+    @Override
+    public void refreshData() {
+        loadLogs();
     }
 }

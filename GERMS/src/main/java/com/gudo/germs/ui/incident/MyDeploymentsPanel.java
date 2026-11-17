@@ -25,7 +25,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
-import javax.swing.Timer;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
@@ -42,7 +41,7 @@ import com.gudo.germs.utils.BackgroundTask;
  * Combines incident assignments, operational location sharing, and real-time
  * audible alarms.
  */
-public final class MyDeploymentsPanel extends JPanel {
+public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
     private final AlarmService alarms = AlarmService.get();
@@ -81,7 +80,6 @@ public final class MyDeploymentsPanel extends JPanel {
     private final JCheckBox audibleToggle = new JCheckBox("Enable Audible Alarms", true);
     private final JLabel alarmStatus = new JLabel("Alarm: Idle");
     private final JLabel notifStatusMsg = new JLabel(" ");
-    private final Timer notifPoll = new Timer(5000, e -> loadNotifications());
 
     public MyDeploymentsPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 10));
@@ -96,7 +94,6 @@ public final class MyDeploymentsPanel extends JPanel {
         tabbedPane.setFont(tabbedPane.getFont().deriveFont(Font.BOLD, 13f));
         add(tabbedPane, BorderLayout.CENTER);
 
-        notifPoll.setCoalesce(true);
         loadDeployments();
         loadNotifications();
     }
@@ -327,20 +324,24 @@ public final class MyDeploymentsPanel extends JPanel {
     @Override
     public void addNotify() {
         super.addNotify();
-        if (!notifPoll.isRunning())
-            notifPoll.start();
         loadDeployments();
         loadNotifications();
     }
 
     @Override
     public void removeNotify() {
-        notifPoll.stop();
         if (locationShareToggle.isSelected()) {
             locationShareToggle.setSelected(false);
             disableLocationSharing();
         }
+
         super.removeNotify();
+    }
+
+    @Override
+    public void refreshData() {
+        loadDeployments();
+        loadNotifications();
     }
 
     public void loadDeployments() {

@@ -20,6 +20,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Supports repetition control, deduplication, active status checks, and instant dismissal/acknowledgement.
  */
 public final class AlarmService {
+    private static final long URGENT_ALARM_DURATION_NANOS = java.util.concurrent.TimeUnit.SECONDS.toNanos(20);
+
     private static AlarmService instance;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
@@ -129,19 +131,19 @@ public final class AlarmService {
     }
 
     private void playHighAlarm() throws LineUnavailableException {
-        // Urgent 5-pulse cadence alternating between 784Hz and 1046Hz (~8 seconds total)
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        for (int i = 0; i < 5 && playing.get(); i++) {
+        long deadline = System.nanoTime() + URGENT_ALARM_DURATION_NANOS;
+        while (playing.get() && System.nanoTime() < deadline) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
             out.writeBytes(generateTone(784, 180, 0.80f, false));
             out.writeBytes(generateTone(1046, 220, 0.85f, false));
             out.writeBytes(new byte[1600]);
+            playRawPcm(out.toByteArray(), 44100);
         }
-        playRawPcm(out.toByteArray(), 44100);
     }
 
     private void playCriticalAlarm() throws LineUnavailableException {
-        // High-priority warbling siren — runs up to 20 cycles (~20s) unless acknowledged
-        for (int cycle = 0; cycle < 20 && playing.get(); cycle++) {
+        long deadline = System.nanoTime() + URGENT_ALARM_DURATION_NANOS;
+        while (playing.get() && System.nanoTime() < deadline) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             for (int f = 880; f <= 1400; f += 25) {
                 out.writeBytes(generateTone(f, 20, 0.92f, false));
@@ -151,7 +153,12 @@ public final class AlarmService {
             }
             playRawPcm(out.toByteArray(), 44100);
             if (!playing.get()) break;
-            try { Thread.sleep(80); } catch (InterruptedException e) { break; }
+            try {
+                Thread.sleep(80);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
         }
     }
 

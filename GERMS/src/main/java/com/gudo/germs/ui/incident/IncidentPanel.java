@@ -49,7 +49,7 @@ import com.gudo.germs.utils.BackgroundTask;
  * Main workflow screen: report an incident, publish it, assign a team, step it
  * through response, close it.
  */
-public final class IncidentPanel extends JPanel {
+public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("MMM d, HH:mm")
             .withZone(ZoneId.systemDefault());
     private static final String[] TYPES = { "Flood", "Fire", "Landslide", "Typhoon", "Vehicular accident",
@@ -84,7 +84,6 @@ public final class IncidentPanel extends JPanel {
 
     private List<Incident> rows = List.of();
     private Runnable unsubscribe;
-    private final javax.swing.Timer autoRefreshTimer = new javax.swing.Timer(10000, e -> refresh());
 
     public IncidentPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
@@ -288,15 +287,12 @@ public final class IncidentPanel extends JPanel {
         super.addNotify();
         if (unsubscribe == null)
             unsubscribe = service.bus().subscribe(e -> refresh());
-        autoRefreshTimer.setCoalesce(true);
-        if (!autoRefreshTimer.isRunning()) autoRefreshTimer.start();
         loadTeams();
         refresh();
     }
 
     @Override
     public void removeNotify() {
-        autoRefreshTimer.stop();
         if (unsubscribe != null) {
             unsubscribe.run();
             unsubscribe = null;
@@ -322,6 +318,11 @@ public final class IncidentPanel extends JPanel {
                 table.setRowSelectionInterval(sel, sel);
             updateDetail();
         }, err -> showMessage("Could not load incidents: " + err.getMessage(), true));
+    }
+
+    @Override
+    public void refreshData() {
+        refresh();
     }
 
     private void loadTeams() {

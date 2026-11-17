@@ -15,7 +15,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -58,6 +57,7 @@ import com.gudo.germs.ui.incident.FieldSituationReportPanel;
 import com.gudo.germs.ui.incident.IncidentPanel;
 import com.gudo.germs.ui.incident.MyDeploymentsPanel;
 import com.gudo.germs.ui.incident.MyTeamPanel;
+import com.gudo.germs.ui.incident.NotificationPanel;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.ui.theme.ThemeManager;
 import com.gudo.germs.utils.BackgroundTask;
@@ -74,6 +74,8 @@ public final class Shell extends JPanel {
     private final Map<Module, JComponent> built = new EnumMap<>(Module.class);
     private final AlarmService alarms = AlarmService.get();
     private final Timer alertWatcher = new Timer(8000, e -> checkEmergencyAlerts());
+    private final Timer pageRefresh = new Timer(8000, e -> refreshCurrentPage());
+    private Module activeModule;
 
     public Shell(AppContext ctx, Profile user, Runnable onLogout) {
         super(new BorderLayout());
@@ -119,6 +121,7 @@ public final class Shell extends JPanel {
         if (!modules.isEmpty())
             show(modules.get(0));
         alertWatcher.setCoalesce(true);
+        pageRefresh.setCoalesce(true);
     }
 
     @Override
@@ -128,11 +131,13 @@ public final class Shell extends JPanel {
             alertWatcher.start();
             checkEmergencyAlerts();
         }
+        if (!pageRefresh.isRunning()) pageRefresh.start();
     }
 
     @Override
     public void removeNotify() {
         alertWatcher.stop();
+        pageRefresh.stop();
         alarms.stopAlarm();
         super.removeNotify();
     }
@@ -237,12 +242,23 @@ public final class Shell extends JPanel {
     }
 
     private void show(Module module) {
-        built.computeIfAbsent(module, m -> {
-            JComponent panel = create(m);
-            content.add(panel, m.name());
-            return panel;
-        });
+        activeModule = module;
+        JComponent panel = built.get(module);
+        boolean alreadyBuilt = panel != null;
+        if (!alreadyBuilt) {
+            panel = create(module);
+            content.add(panel, module.name());
+            built.put(module, panel);
+        }
         cards.show(content, module.name());
+        if (alreadyBuilt) refreshCurrentPage();
+    }
+
+    private void refreshCurrentPage() {
+        JComponent panel = activeModule == null ? null : built.get(activeModule);
+        if (panel instanceof RefreshablePanel refreshable) {
+            refreshable.refreshData();
+        }
     }
 
     private static final class MenuIcon implements Icon {
@@ -280,6 +296,7 @@ public final class Shell extends JPanel {
     private JComponent create(Module module) {
         return switch (module) {
             case DASHBOARD -> new DashboardPanel(ctx, user);
+            case NOTIFICATIONS -> new NotificationPanel(ctx, user);
             case SETTINGS -> new SettingsPanel(ctx, user);
             case INCIDENTS -> new IncidentPanel(ctx, user);
             case DISPATCH -> new DispatchPanel(ctx, user);

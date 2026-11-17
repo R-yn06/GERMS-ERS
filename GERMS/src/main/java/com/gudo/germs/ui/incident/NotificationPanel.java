@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Profile;
 import com.gudo.germs.services.AlarmService;
+import com.gudo.germs.ui.RefreshablePanel;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
@@ -19,7 +20,7 @@ import java.util.UUID;
  * Provides instant alarm silencing, acknowledgment, audible preference configuration,
  * and audio alarm testing.
  */
-public final class NotificationPanel extends JPanel {
+public final class NotificationPanel extends JPanel implements RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
     private final AlarmService alarms = AlarmService.get();
@@ -33,7 +34,6 @@ public final class NotificationPanel extends JPanel {
     private final JCheckBox audibleToggle = new JCheckBox("Enable Audible Alarms", true);
     private final JLabel alarmStatus = new JLabel("Alarm: Idle");
     private final JLabel footerStatus = new JLabel(" ");
-    private final Timer poll = new Timer(6000, e -> loadNotifications());
 
     public NotificationPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
@@ -50,7 +50,6 @@ public final class NotificationPanel extends JPanel {
 
         add(buildFooter(), BorderLayout.SOUTH);
 
-        poll.setCoalesce(true);
         loadNotifications();
     }
 
@@ -129,13 +128,16 @@ public final class NotificationPanel extends JPanel {
 
     @Override public void addNotify() {
         super.addNotify();
-        if (!poll.isRunning()) poll.start();
         loadNotifications();
     }
 
     @Override public void removeNotify() {
-        poll.stop();
         super.removeNotify();
+    }
+
+    @Override
+    public void refreshData() {
+        loadNotifications();
     }
 
     public void loadNotifications() {

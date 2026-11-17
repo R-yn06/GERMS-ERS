@@ -15,7 +15,7 @@ import java.awt.*;
  * Displays the responder's current squad, team leader, team contact,
  * deployment status, and fellow squad members.
  */
-public final class MyTeamPanel extends JPanel {
+public final class MyTeamPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
 
@@ -109,6 +109,7 @@ public final class MyTeamPanel extends JPanel {
                 statusLabel.setText("STANDBY");
                 memberModel.setRowCount(0);
             }
+
         }, err -> {
             teamNameLabel.setText("Could not query team: " + err.getMessage());
         });
@@ -131,6 +132,11 @@ public final class MyTeamPanel extends JPanel {
                 }
             }
         }, err -> {});
+    }
+
+    @Override
+    public void refreshData() {
+        loadTeam();
     }
 }
 

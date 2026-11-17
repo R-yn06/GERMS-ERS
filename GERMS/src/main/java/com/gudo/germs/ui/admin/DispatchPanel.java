@@ -21,7 +21,7 @@ import java.util.UUID;
  * responses (accepted, declined, pending), conflict-checked assignment confirmation,
  * cancellation, personnel requests, and incident resolution.
  */
-public final class DispatchPanel extends JPanel {
+public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
 
@@ -47,7 +47,6 @@ public final class DispatchPanel extends JPanel {
     private final JButton resolveIncident = new JButton("Resolve / Close Operation");
 
     private final JCheckBox overrideConflicts = new JCheckBox("Emergency Override (Allow Conflicting Assignments)", false);
-    private final Timer poll = new Timer(8000, e -> refreshResponses());
     private List<Incident> incidentRows = List.of();
 
     public DispatchPanel(AppContext ctx, Profile user) {
@@ -60,7 +59,6 @@ public final class DispatchPanel extends JPanel {
         add(buildSplit(), BorderLayout.CENTER);
         add(buildFooter(), BorderLayout.SOUTH);
 
-        poll.setCoalesce(true);
         loadIncidents();
     }
 
@@ -175,13 +173,16 @@ public final class DispatchPanel extends JPanel {
 
     @Override public void addNotify() {
         super.addNotify();
-        if (!poll.isRunning()) poll.start();
         loadIncidents();
     }
 
     @Override public void removeNotify() {
-        poll.stop();
         super.removeNotify();
+    }
+
+    @Override
+    public void refreshData() {
+        loadIncidents();
     }
 
     private void loadIncidents() {

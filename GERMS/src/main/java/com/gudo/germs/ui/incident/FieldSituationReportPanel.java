@@ -31,7 +31,6 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
-import javax.swing.Timer;
 import javax.swing.table.DefaultTableModel;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -49,7 +48,7 @@ import com.gudo.germs.utils.BackgroundTask;
  * and urgent resource/medical needs. Administrators review sitreps and deliver
  * feedback.
  */
-public final class FieldSituationReportPanel extends JPanel {
+public final class FieldSituationReportPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm")
             .withZone(ZoneId.systemDefault());
 
@@ -74,16 +73,13 @@ public final class FieldSituationReportPanel extends JPanel {
     private final JTextArea adminFeedbackArea = new JTextArea();
     private final JLabel headerLabel = new JLabel("Select a field situation report to inspect details.");
     private final JLabel statusMessage = new JLabel(" ");
-
-    private final Timer autoRefreshTimer;
+    private JButton feedbackButton;
 
     public FieldSituationReportPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
         this.user = user;
         this.isAdmin = user.role() == Role.ADMIN;
-        autoRefreshTimer = new Timer(8000, e -> loadReports());
-        autoRefreshTimer.setCoalesce(true);
         setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
         add(buildHeader(), BorderLayout.NORTH);
@@ -94,14 +90,12 @@ public final class FieldSituationReportPanel extends JPanel {
     @Override
     public void addNotify() {
         super.addNotify();
-        if (!autoRefreshTimer.isRunning()) autoRefreshTimer.start();
         loadReports();
     }
 
     @Override
-    public void removeNotify() {
-        autoRefreshTimer.stop();
-        super.removeNotify();
+    public void refreshData() {
+        loadReports();
     }
 
     private JPanel buildHeader() {
@@ -112,7 +106,7 @@ public final class FieldSituationReportPanel extends JPanel {
         JLabel title = new JLabel("Field Situation Reports (SITREP)");
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
         JLabel desc = new JLabel(isAdmin
-                ? "Review real-time intelligence submitted by deployed response teams, assess casualties, and provide feedback."
+                ? "Select a report to review field conditions and casualties, then reply to that team."
                 : "Submit operational field assessments, casualty counts, urgent medical requests, and situation updates.");
         desc.setForeground(GermsColors.SECONDARY_TEXT);
 
@@ -140,9 +134,11 @@ public final class FieldSituationReportPanel extends JPanel {
         actions.add(submitBtn);
         actions.add(Box.createHorizontalStrut(8));
         if (isAdmin) {
-            JButton feedbackBtn = new JButton("Add Command Feedback");
-            feedbackBtn.addActionListener(e -> showAddFeedbackDialog());
-            actions.add(feedbackBtn);
+            feedbackButton = new JButton("Reply to Selected SITREP");
+            feedbackButton.setEnabled(false);
+            feedbackButton.setToolTipText("Select a report first, then send command feedback to its reporter.");
+            feedbackButton.addActionListener(e -> showAddFeedbackDialog());
+            actions.add(feedbackButton);
             actions.add(Box.createHorizontalStrut(8));
         }
         actions.add(refreshBtn);
@@ -215,6 +211,12 @@ public final class FieldSituationReportPanel extends JPanel {
 
     public void loadReports() {
         statusMessage.setText("Loading situation reports...");
+        String selectedId = null;
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow >= 0) {
+            selectedId = String.valueOf(model.getValueAt(table.convertRowIndexToModel(selectedRow), 0));
+        }
+        String preserveId = selectedId;
         BackgroundTask.run(() -> {
             return ctx.rest.select("field_situation_reports",
                     "select=id,situation_description,field_conditions,affected_individuals,casualties_count,medical_needs,resource_needs,additional_observations,urgent,admin_feedback,created_at,incidents(incident_no,title),profiles!field_situation_reports_reporter_id_fkey(full_name)&order=created_at.desc");
@@ -251,14 +253,26 @@ public final class FieldSituationReportPanel extends JPanel {
                 }
             }
             statusMessage.setText(model.getRowCount() + " situation report(s) retrieved.");
-            if (table.getRowCount() > 0 && table.getSelectedRow() < 0) {
-                table.setRowSelectionInterval(0, 0);
+            if (table.getRowCount() > 0) {
+                int rowToSelect = 0;
+                if (preserveId != null) {
+                    for (int row = 0; row < model.getRowCount(); row++) {
+                        if (preserveId.equals(String.valueOf(model.getValueAt(row, 0)))) {
+                            rowToSelect = table.convertRowIndexToView(row);
+                            break;
+                        }
+                    }
+                }
+                table.setRowSelectionInterval(rowToSelect, rowToSelect);
             }
         }, err -> statusMessage.setText("Failed to load situation reports: " + err.getMessage()));
     }
 
     private void showDetail() {
         int r = table.getSelectedRow();
+        if (feedbackButton != null) {
+            feedbackButton.setEnabled(isAdmin && r >= 0);
+        }
         if (r < 0 || cachedRows == null) {
             headerLabel.setText("Select a field situation report to inspect details.");
             descriptionArea.setText("");
@@ -409,8 +423,12 @@ public final class FieldSituationReportPanel extends JPanel {
             return;
 
         BackgroundTask.run(() -> {
-            ctx.rest.patch("field_situation_reports", "id=eq." + reportId,
-                    Map.of("admin_feedback", feedback.trim(), "reviewed_by", user.id().toString()));
+            JsonNode updated = ctx.rest.patch("field_situation_reports", "id=eq." + reportId,
+                    Map.of("admin_feedback", feedback.trim(), "reviewed_by", user.id().toString(),
+                            "reviewed_at", Instant.now().toString()));
+            if (updated == null || !updated.isArray() || updated.isEmpty()) {
+                throw new IllegalStateException("The selected report was not updated. Refresh and try again.");
+            }
             return Boolean.TRUE;
         }, ok -> {
             loadReports();
