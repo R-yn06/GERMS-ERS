@@ -5,6 +5,7 @@ import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
+import com.gudo.germs.utils.ResponderClassificationCodes;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -22,7 +23,8 @@ import java.util.UUID;
 public final class UserManagementPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final DefaultTableModel model = new DefaultTableModel(
-            new String[] { "ID", "Name", "Email", "Role", "Classification", "Active", "Availability", "Deployment" },
+            new String[] { "ID", "Name", "Email", "Role", "Classification", "Active", "Availability", "Deployment",
+                    "Classification Code" },
             0) {
         @Override
         public boolean isCellEditable(int r, int c) {
@@ -94,7 +96,8 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         header.add(actions, BorderLayout.SOUTH);
         add(header, BorderLayout.NORTH);
 
-        table.removeColumn(table.getColumnModel().getColumn(0)); // Hide ID
+        table.removeColumn(table.getColumn("ID"));
+        table.removeColumn(table.getColumn("Classification Code"));
         table.setAutoCreateRowSorter(true);
         table.setRowHeight(26);
         add(new JScrollPane(table), BorderLayout.CENTER);
@@ -146,24 +149,27 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
                     }
                 }
 
-                String classificationName = "\u2014";
+                String classificationCode = "";
                 JsonNode clsNode = n.path("profile_classifications");
-                if (clsNode.isArray() && !clsNode.isEmpty()) {
+                if ("responder".equalsIgnoreCase(n.path("role").asText())
+                        && clsNode.isArray() && !clsNode.isEmpty()) {
                     JsonNode rc = clsNode.get(0).path("responder_classifications");
-                    if (!rc.isMissingNode() && rc.hasNonNull("name")) {
-                        classificationName = rc.get("name").asText();
-                    }
+                    classificationCode = rc.path("code").asText("");
                 }
+                String classificationInitials = classificationCode.isBlank()
+                        ? "\u2014"
+                        : ResponderClassificationCodes.initials(classificationCode);
 
                 model.addRow(new Object[] {
                         n.path("id").asText(),
                         n.path("full_name").asText(),
                         n.path("email").asText(),
                         n.path("role").asText().toUpperCase(Locale.ROOT),
-                        classificationName,
+                        classificationInitials,
                         n.path("is_active").asBoolean() ? "Active" : "Inactive",
                         availability.path("status").asText("available").toUpperCase(Locale.ROOT),
-                        deployed ? "DEPLOYED" : "AVAILABLE"
+                        deployed ? "DEPLOYED" : "AVAILABLE",
+                        classificationCode
                 });
             }
         }
@@ -302,6 +308,32 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         JTextField email = new JTextField(String.valueOf(model.getValueAt(row, 2)));
         JComboBox<String> role = new JComboBox<>(new String[] { "guest", "responder", "admin" });
         role.setSelectedItem(String.valueOf(model.getValueAt(row, 3)).toLowerCase());
+        JComboBox<ClassificationOption> classification = new JComboBox<>(new ClassificationOption[] {
+                new ClassificationOption("", "No classification"),
+                new ClassificationOption("EMS", "EMS - Emergency Medical Services"),
+                new ClassificationOption("ERU", "ERU - Emergency Response Unit"),
+                new ClassificationOption("EMR", "EMR - Emergency Medical Responder"),
+                new ClassificationOption("EMT", "EMT - Emergency Medical Technician"),
+                new ClassificationOption("DMS", "DMS - Disaster Management Services")
+        });
+        String currentCode = String.valueOf(model.getValueAt(row, 8));
+        if (!currentCode.isBlank()) {
+            String canonicalCode = ResponderClassificationCodes.canonicalCode(currentCode);
+            boolean found = false;
+            for (int i = 0; i < classification.getItemCount(); i++) {
+                if (classification.getItemAt(i).code().equals(canonicalCode)) {
+                    classification.setSelectedIndex(i);
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                classification.addItem(new ClassificationOption(currentCode, currentCode));
+                classification.setSelectedIndex(classification.getItemCount() - 1);
+            }
+        }
+        classification.setEnabled("responder".equals(role.getSelectedItem()));
+        role.addActionListener(e -> classification.setEnabled("responder".equals(role.getSelectedItem())));
         JCheckBox active = new JCheckBox("Active Account",
                 "Active".equalsIgnoreCase(String.valueOf(model.getValueAt(row, 5))));
 
@@ -312,6 +344,8 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         form.add(email);
         form.add(new JLabel("Role"));
         form.add(role);
+        form.add(new JLabel("Responder classification"));
+        form.add(classification);
         form.add(new JLabel("Status"));
         form.add(active);
 
@@ -320,18 +354,27 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
             return;
 
         BackgroundTask.run(() -> {
-            ctx.rest.rpc("update_profile_admin", Map.of(
+            ClassificationOption selectedClassification = (ClassificationOption) classification.getSelectedItem();
+            ctx.rest.rpc("update_profile_admin_with_classification", Map.of(
                     "p_profile", UUID.fromString(id),
                     "p_full_name", name.getText(),
                     "p_email", email.getText(),
                     "p_phone", "",
                     "p_role", role.getSelectedItem(),
-                    "p_active", active.isSelected()));
+                    "p_active", active.isSelected(),
+                    "p_classification_code", selectedClassification == null ? "" : selectedClassification.code()));
             return Boolean.TRUE;
         }, ok -> {
             state.setText("Account updated.");
             load();
         }, e -> JOptionPane.showMessageDialog(this, e.getMessage(), "Update failed", JOptionPane.ERROR_MESSAGE));
+    }
+
+    private record ClassificationOption(String code, String label) {
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     private void setAvailability() {

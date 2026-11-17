@@ -12,11 +12,13 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -31,6 +33,7 @@ import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
 import com.gudo.germs.models.IncidentStatus;
 import com.gudo.germs.models.Profile;
+import com.gudo.germs.utils.ResponderClassificationCodes;
 import com.gudo.germs.models.Role;
 import com.gudo.germs.services.IncidentService;
 import com.gudo.germs.ui.components.OpenStreetMapPanel;
@@ -53,6 +56,21 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
     private final AppContext ctx;
     private final IncidentService service;
     private final boolean isGuest;
+    private final Profile user;
+    private final boolean isResponder;
+    private static final ClassificationOption[] RESPONDER_CLASSIFICATIONS = {
+            new ClassificationOption("", "Select classification"),
+            new ClassificationOption("EMS", "EMS - Emergency Medical Services"),
+            new ClassificationOption("ERU", "ERU - Emergency Response Unit"),
+            new ClassificationOption("EMR", "EMR - Emergency Medical Responder"),
+            new ClassificationOption("EMT", "EMT - Emergency Medical Technician"),
+            new ClassificationOption("DMS", "DMS - Disaster Management Services")
+    };
+    private final JComboBox<ClassificationOption> classificationSelector = new JComboBox<>(
+            RESPONDER_CLASSIFICATIONS);
+    private final JButton saveClassificationButton = new JButton("Save Classification");
+    private final JLabel classificationStatus = new JLabel(" ");
+    private boolean classificationLoaded;
 
     // KPI Stat Cards
     private final StatCard totalIncidentsCard = new StatCard("Total Incidents", "\u2026", GermsColors.INFO);
@@ -91,6 +109,8 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         this.ctx = ctx;
         this.service = ctx.incidents;
         this.isGuest = user.role() == Role.GUEST;
+        this.user = user;
+        this.isResponder = user.role() == Role.RESPONDER;
 
         setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
 
@@ -112,6 +132,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
 
         JPanel titles = new JPanel(new GridLayout(0, 1, 0, 2));
         titles.setOpaque(false);
+        title.setText(isResponder ? "Responder Dashboard" : "Command Operations Dashboard");
         titles.add(title);
         titles.add(subtitle);
         header.add(titles, BorderLayout.NORTH);
@@ -128,7 +149,115 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         actions.add(Box.createHorizontalGlue()); // pushes buttons to the left
 
         header.add(actions, BorderLayout.CENTER);
+        if (isResponder) {
+            header.add(buildClassificationControls(), BorderLayout.SOUTH);
+        }
         return header;
+    }
+
+    private JPanel buildClassificationControls() {
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        controls.setOpaque(false);
+        controls.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+        controls.add(new JLabel("My responder classification:"));
+        classificationSelector.setEnabled(false);
+        classificationSelector.addActionListener(e -> updateClassificationSaveState());
+        controls.add(classificationSelector);
+
+        saveClassificationButton.setEnabled(false);
+        saveClassificationButton.addActionListener(e -> saveResponderClassification());
+        controls.add(saveClassificationButton);
+
+        JButton reload = new JButton("Load");
+        reload.setToolTipText("Load your current responder classification");
+        reload.addActionListener(e -> loadResponderClassification());
+        controls.add(reload);
+        controls.add(classificationStatus);
+        loadResponderClassification();
+        return controls;
+    }
+
+    private void loadResponderClassification() {
+        classificationLoaded = false;
+        classificationSelector.setEnabled(false);
+        saveClassificationButton.setEnabled(false);
+        classificationStatus.setForeground(GermsColors.SECONDARY_TEXT);
+        classificationStatus.setText("Loading...");
+        BackgroundTask.run(() -> ctx.rest.select("profiles",
+                "select=profile_classifications!profile_classifications_profile_id_fkey(responder_classifications(code))"
+                        + "&id=eq." + user.id()), rows -> {
+            ClassificationOption current = null;
+            if (rows != null && rows.isArray() && !rows.isEmpty()) {
+                JsonNode assignments = rows.get(0).path("profile_classifications");
+                if (assignments.isArray() && !assignments.isEmpty()) {
+                    String code = assignments.get(0).path("responder_classifications").path("code").asText();
+                    current = classificationFor(code);
+                }
+            }
+            classificationLoaded = true;
+            classificationSelector.setEnabled(true);
+            classificationSelector.setSelectedItem(current == null
+                    ? classificationSelector.getItemAt(0)
+                    : current);
+            updateClassificationSaveState();
+            classificationStatus.setText(current == null
+                    ? "Choose one option and save."
+                    : "Current classification loaded.");
+        }, error -> {
+            classificationLoaded = false;
+            classificationStatus.setForeground(GermsColors.CRITICAL);
+            classificationStatus.setText("Could not load: " + error.getMessage());
+        });
+    }
+
+    private ClassificationOption classificationFor(String code) {
+        String normalized = ResponderClassificationCodes.canonicalCode(code);
+        for (ClassificationOption option : RESPONDER_CLASSIFICATIONS) {
+            if (option.code().equals(normalized)) {
+                return option;
+            }
+        }
+        return null;
+    }
+
+    private void updateClassificationSaveState() {
+        ClassificationOption selected = (ClassificationOption) classificationSelector.getSelectedItem();
+        saveClassificationButton.setEnabled(classificationLoaded && selected != null && !selected.code().isBlank());
+    }
+
+    private void saveResponderClassification() {
+        ClassificationOption selected = (ClassificationOption) classificationSelector.getSelectedItem();
+        if (!classificationLoaded || selected == null || selected.code().isBlank()) return;
+
+        classificationLoaded = false;
+        classificationSelector.setEnabled(false);
+        saveClassificationButton.setEnabled(false);
+        classificationStatus.setForeground(GermsColors.SECONDARY_TEXT);
+        classificationStatus.setText("Saving...");
+        BackgroundTask.run(() -> {
+            ctx.rest.rpc("set_own_responder_classification", Map.of(
+                    "p_classification_code", selected.code()));
+            return Boolean.TRUE;
+        }, ok -> {
+            classificationLoaded = true;
+            classificationSelector.setEnabled(true);
+            updateClassificationSaveState();
+            classificationStatus.setForeground(GermsColors.SUCCESS);
+            classificationStatus.setText("Classification saved.");
+        }, error -> {
+            classificationLoaded = true;
+            classificationSelector.setEnabled(true);
+            updateClassificationSaveState();
+            classificationStatus.setForeground(GermsColors.CRITICAL);
+            classificationStatus.setText("Could not save: " + error.getMessage());
+        });
+    }
+
+    private record ClassificationOption(String code, String label) {
+        @Override
+        public String toString() {
+            return label;
+        }
     }
 
     private JPanel buildCenterContent() {

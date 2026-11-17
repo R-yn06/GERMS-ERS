@@ -9,6 +9,7 @@ import com.gudo.germs.ui.components.StatusBadge;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.ui.theme.ThemeManager;
 import com.gudo.germs.utils.BackgroundTask;
+import com.gudo.germs.utils.ResponderClassificationCodes;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -172,9 +173,10 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private int shownSignature;
     private JsonNode lastRows;
     private int lastBuildWidth;
-    /** Sender id -> {full name, raw role}, filled from staff_directory when the profile join returns nothing. */
+    /** Sender id -> full name, raw role, and classification code. */
     private final Map<String, String[]> directory = new ConcurrentHashMap<>();
     private final Set<String> triedSenders = ConcurrentHashMap.newKeySet();
+    private volatile long directoryRefreshAtMillis;
 
     public EmergencyCommunicationPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 16));
@@ -761,6 +763,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             // Who sent it: embedded profile first, then the staff directory, then (for our own messages) the session.
             String sid = senderId(m);
             JsonNode p = m.path("profiles");
+            String[] senderInfo = sid == null ? null : directory.get(sid);
             String sender = null;
             String roleRaw = "";
             if (p.hasNonNull("full_name")) {
@@ -770,12 +773,17 @@ public final class EmergencyCommunicationPanel extends JPanel {
                 sender = directory.get(sid)[0];
                 roleRaw = directory.get(sid)[1];
             }
+            String classificationCode = senderInfo != null && senderInfo.length > 2 ? senderInfo[2] : "";
             boolean mine = sid != null ? sid.equalsIgnoreCase(user.id().toString())
                                        : sender != null && sender.equals(user.fullName());
             String role = roleLabel(roleRaw);
             if (mine && sender == null) {
                 sender = user.fullName();
                 role = user.role().label();
+            }
+            if ("responder".equalsIgnoreCase(roleRaw) && !classificationCode.isBlank()) {
+                role = (role.isBlank() ? "Responder" : role) + " \u2022 "
+                        + ResponderClassificationCodes.initials(classificationCode);
             }
             if (sender == null) sender = "Unknown sender";
             String type = m.path("message_type").asText("regular");
@@ -829,33 +837,37 @@ public final class EmergencyCommunicationPanel extends JPanel {
         return null;
     }
 
-    /** Loads a channel's messages and, for senders whose profile the join could not return, looks them up by id. */
+    /** Loads messages and the authorized sender directory for the selected incident. */
     private JsonNode fetchMessages(String incidentId) throws Exception {
         JsonNode rows = ctx.rest.select("incident_messages",
                 "select=*,profiles(full_name,role)&incident_id=eq." + incidentId + "&order=created_at.asc");
         if (rows == null || !rows.isArray()) return rows;
+        long now = System.currentTimeMillis();
+        if (now - directoryRefreshAtMillis >= 30_000) {
+            directoryRefreshAtMillis = now;
+            directory.clear();
+            triedSenders.clear();
+        }
         Set<String> missing = new LinkedHashSet<>();
         for (JsonNode m : rows) {
             String sid = senderId(m);
-            if (sid != null && !m.path("profiles").hasNonNull("full_name")
-                    && !directory.containsKey(sid) && !triedSenders.contains(sid)) {
+            if (sid != null && !directory.containsKey(sid) && !triedSenders.contains(sid)) {
                 missing.add(sid);
             }
         }
         if (!missing.isEmpty()) {
-            triedSenders.addAll(missing); // ask once per sender; relaunch after installing staff_directory
-            try {
-                JsonNode people = ctx.rest.select("staff_directory",
-                        "select=id,full_name,role&id=in.(" + String.join(",", missing) + ")");
-                if (people != null && people.isArray()) {
-                    for (JsonNode person : people) {
-                        directory.put(person.path("id").asText(),
-                                new String[] {person.path("full_name").asText(), person.path("role").asText("")});
-                    }
+            JsonNode people = ctx.rest.rpc("incident_message_sender_directory", Map.of("p_incident", incidentId));
+            if (people != null && people.isArray()) {
+                for (JsonNode person : people) {
+                    directory.put(person.path("sender_id").asText(),
+                            new String[] {
+                                    person.path("full_name").asText(),
+                                    person.path("sender_role").asText(""),
+                                    person.path("classification_code").asText("")
+                            });
                 }
-            } catch (Exception ignored) {
-                // staff_directory not installed or not readable: those senders stay "Unknown sender"
             }
+            triedSenders.addAll(missing);
         }
         return rows;
     }

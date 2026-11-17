@@ -21,6 +21,9 @@ In the Supabase SQL Editor, execute the SQL migration scripts in exact numerical
 12. `database/migrations/012_incident_severity_updates.sql`
 13. `database/migrations/013_responder_alert_preferences.sql`
 14. `database/migrations/014_admin_notification_center.sql`
+15. `database/migrations/015_responder_self_classification.sql`
+16. `database/migrations/016_drop_unused_tables.sql` (drops unused tables; back up the database first)
+17. `database/migrations/017_admin_responder_classifications.sql`
 
 ## First Administrator Account
 1. In Supabase Dashboard, go to **Authentication > Users** and click **Add User**.

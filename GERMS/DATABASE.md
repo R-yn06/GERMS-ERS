@@ -16,7 +16,7 @@ Apply migrations in exact numeric order:
 
 ```text
 001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009
-     -> 010 -> 011 -> 012 -> 013 -> 014
+     -> 010 -> 011 -> 012 -> 013 -> 014 -> 015 -> 016 -> 017
 ```
 
 ## 2. Migration inventory
@@ -26,17 +26,20 @@ Apply migrations in exact numeric order:
 | `001_core_schema.sql` | Core types, identity, incidents, assignments, notifications, audit, and guest reports | `profiles`, `incidents`, `incident_updates`, `incident_responses`, `incident_assignments`, `assignment_status_history`, `notifications`, `notification_receipts`, `audit_logs`, `guest_reports` |
 | `002_rls_policies.sql` | Row Level Security and authorization helpers | `is_admin()`, `is_responder()`, `can_view_incident()`, `public_advisories`, table policies |
 | `003_rpc_functions.sql` | Core privileged incident/response operations | `create_incident`, `update_incident`, `publish_incident`, `set_incident_status`, `post_incident_update`, `respond_to_incident`, `assign_responder`, `update_assignment_status`, notification RPCs, response summary |
-| `004_reference_seed.sql` | Reference data and legal transition data | service divisions, classifications, certifications, command positions, incident/assignment status transitions |
+| `004_reference_seed.sql` | Reference data and legal transition data; certifications and command-position tables are later removed by migration 016 | service divisions, classifications, transition data |
 | `005_response_teams.sql` | Response teams and team assignment | `response_teams`, `assign_incident_team` |
-| `006_operations_resources.sql` | Evacuation centers and the original disaster-resource tables | `evacuation_centers`, `disaster_resources` |
+| `006_operations_resources.sql` | Evacuation centers and the original disaster-resource table, later removed by migration 016 | `evacuation_centers` |
 | `007_admin_management.sql` | Server-authorized profile administration | `update_profile_admin`, `deactivate_profile_admin` |
 | `008_responder_command.sql` | Responder readiness and individual deployment requests | `admin_set_responder_availability`, `request_responder_deployment` |
-| `009_phase3_operations.sql` | Guest-profile trigger, expanded notifications, teams, resources, SITREPs, messaging, contacts, announcements, and operational locations | `notification_preferences`, `team_members`, `resources`, `resource_allocations`, `field_situation_reports`, `incident_messages`, `emergency_contacts`, `emergency_announcements`; phase-3 RPCs |
+| `009_phase3_operations.sql` | Guest-profile trigger, expanded notifications, teams, resources, SITREPs, messaging, contacts, announcements, and operational locations; `notification_preferences` is later removed by migration 016 | `team_members`, `resources`, `resource_allocations`, `field_situation_reports`, `incident_messages`, `emergency_contacts`, `emergency_announcements`; phase-3 RPCs |
 | `010_fix_auth_registration_search_path.sql` | Makes Auth signup trigger type resolution and search path explicit | updated `handle_new_user` trigger |
 | `011_fix_profile_relationships.sql` | Fixes PostgREST profile relationships and audit actor embedding | profile/audit foreign-key relationship adjustments |
 | `012_incident_severity_updates.sql` | Allows authorized severity changes while preserving history and audit | `update_incident_severity` |
 | `013_responder_alert_preferences.sql` | Adds responder-controlled deployment-alert preferences and admin broadcast requests | `responder_notification_preferences`, `set_deployment_notification_preference`, `request_all_active_responder_deployments` |
 | `014_admin_notification_center.sql` | Adds a separate administrator acknowledgment for shared responder alerts | `admin_notification_receipts`, `admin_acknowledge_notification` |
+| `015_responder_self_classification.sql` | Adds responder-selectable classifications and a self-only update RPC | EMS, ERU, EMR, EMT, DMS classifications; `set_own_responder_classification` |
+| `016_drop_unused_tables.sql` | Drops tables with no active application or database-routine use; uses RESTRICT so unexpected dependencies abort the migration | `disaster_resources`, `notification_preferences`, `incident_command_assignments`, `incident_command_positions`, `certifications`, `responder_qualifications` |
+| `017_admin_responder_classifications.sql` | Adds admin classification editing, responder classification choices, and an incident-scoped sender directory for chat | `update_profile_admin_with_classification`, `set_own_responder_classification`, `incident_message_sender_directory` |
 
 ## 3. Enumerated domain values
 
@@ -84,10 +87,11 @@ profiles 1--1 responder_notification_preferences
 - `profiles` references `auth.users(id)` with cascade deletion.
 - A signup trigger creates a profile using Auth metadata and assigns the
   `guest` role after migration 009.
-- `service_divisions`, `responder_classifications`, and `certifications`
-  describe responder capability.
-- `profile_divisions`, `profile_classifications`, and
-  `responder_qualifications` connect people to those references.
+- `service_divisions` and `responder_classifications` describe responder
+  capability.
+- `profile_divisions` and `profile_classifications` connect people to those
+  references. Certification and qualification tables were removed in
+  migration 016 because the current application does not use them.
 - `responder_availability` stores readiness.
 - `responder_locations` stores the latest opt-in operational point, accuracy,
   source, sharing flag, and timestamp. It is not a continuous tracking log.
@@ -111,8 +115,8 @@ division/classification/headcount.
   responder and incident. Cross-incident conflict rules are additionally
   enforced by the assignment RPC and system settings.
 - `response_teams` and `team_members` represent squads, leaders, and rosters.
-- `incident_command_positions` and `incident_command_assignments` support
-  incident-command roles.
+- Incident-command position tables were removed in migration 016 because the
+  current application does not use them.
 
 ### Operations and public information
 
@@ -134,8 +138,6 @@ division/classification/headcount.
 - `notifications` stores recipient, incident, kind, priority, title, body,
   and creation time.
 - `notification_receipts` tracks observed and acknowledged state.
-- `notification_preferences` (migration 009) stores general audio/severity/
-  desktop notification settings.
 - `responder_notification_preferences` (migration 013) specifically controls
   whether a responder receives deployment requests.
 
@@ -150,8 +152,9 @@ different per data type:
 
 - Profiles: users can read/update their own allowed profile fields; admins
   can manage profiles through authorized operations.
-- Reference data: authenticated users can read divisions,
-  classifications, certifications, command positions, and transition data.
+- Reference data: authenticated users can read divisions, classifications,
+  and transition data. Certification and command-position tables were removed
+  by migration 016.
 - Availability/location: a responder can manage their own row; admins can
   read operational data where policy permits.
 - Incidents and incident history: visibility is controlled by
@@ -181,6 +184,7 @@ Privileged operations run as `SECURITY DEFINER` functions with a controlled
 - Responder response, assignment, assignment-status change, and cancellation.
 - Team assignment and responder promotion.
 - Availability changes and deployment requests.
+- Admin responder-classification changes and incident-scoped message sender details.
 - Resource allocation/release.
 - SITREP submission and incident messaging.
 - Responder location update.
@@ -210,7 +214,7 @@ atomically rather than relying on a client-side read-then-write sequence.
 ## 8. Backend setup and bootstrap
 
 1. Create a Supabase project.
-2. Run migrations `001` through `014` in order.
+2. Back up the database, then run migrations `001` through `017` in order.
 3. Create/confirm the first Auth user.
 4. Set that user's matching `profiles.role` to `admin` using the bootstrap
    SQL in `SETUP.md`.
