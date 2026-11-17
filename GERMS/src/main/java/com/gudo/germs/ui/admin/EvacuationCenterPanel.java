@@ -130,8 +130,9 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
     public void loadCenters() {
         statusLabel.setText("Loading evacuation centers from Supabase...");
         String filter = readOnly ? "&status=neq.closed" : "";
+        String columns = readOnly ? "id,name,address,capacity,occupancy,status,latitude,longitude" : "*";
         BackgroundTask.run(() -> {
-            return ctx.rest.select("evacuation_centers", "select=*&order=name.asc" + filter);
+            return ctx.rest.select("evacuation_centers", "select=" + columns + "&order=name.asc" + filter);
         }, rows -> {
             model.setRowCount(0);
             int totalCap = 0;
@@ -281,15 +282,14 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
         String newStatus = newOcc >= cap ? "full" : "open";
 
         BackgroundTask.run(() -> {
-            ctx.rest.select("evacuation_centers", "id=eq." + id); // check exists
-            // Update via Supabase Http or RPC
-            // PostgREST patch via SupabaseHttp
-            ctx.rest.insertMinimal("evacuation_centers", Map.of(
-                    "id", id,
-                    "occupancy", newOcc,
-                    "status", newStatus));
+            JsonNode updated = ctx.rest.patch("evacuation_centers", "id=eq." + id,
+                    Map.of("occupancy", newOcc, "status", newStatus));
+            if (!updated.isArray() || updated.isEmpty()) {
+                throw new IllegalStateException("The evacuation center was not updated.");
+            }
             return Boolean.TRUE;
-        }, ok -> loadCenters(), err -> loadCenters());
+        }, ok -> loadCenters(), err -> JOptionPane.showMessageDialog(this,
+                "Occupancy update failed: " + err.getMessage(), "Update failed", JOptionPane.ERROR_MESSAGE));
     }
 
     /** Displays change status dialog. */
@@ -304,9 +304,13 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
             return;
 
         BackgroundTask.run(() -> {
-            ctx.rest.insertMinimal("evacuation_centers", Map.of("id", id, "status", sel));
+            JsonNode updated = ctx.rest.patch("evacuation_centers", "id=eq." + id, Map.of("status", sel));
+            if (!updated.isArray() || updated.isEmpty()) {
+                throw new IllegalStateException("The evacuation center was not updated.");
+            }
             return Boolean.TRUE;
-        }, ok -> loadCenters(), err -> loadCenters());
+        }, ok -> loadCenters(), err -> JOptionPane.showMessageDialog(this,
+                "Status update failed: " + err.getMessage(), "Update failed", JOptionPane.ERROR_MESSAGE));
     }
 
     /** Refreshes data. */

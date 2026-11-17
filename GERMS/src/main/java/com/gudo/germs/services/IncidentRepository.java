@@ -21,7 +21,7 @@ public interface IncidentRepository {
     /** Creates and persists an incident. */
     Incident create(Incident incident) throws SupabaseException;
     /** Submits a guest report for staff review. */
-    Incident submitGuestReport(Incident report) throws SupabaseException;
+    Incident submitGuestReport(Incident report, String trackingToken) throws SupabaseException;
     /** Updates severity. */
     Incident updateSeverity(String id, String severity) throws SupabaseException;
     /** Assigns a response team to an incident. */

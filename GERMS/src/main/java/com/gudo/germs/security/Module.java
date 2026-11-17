@@ -25,6 +25,8 @@ public enum Module {
     CONTACTS("Emergency Contacts", 3, "Directory of hotlines, hospitals, LGUs, and rescue partners.", Role.ADMIN),
     REPORTS("Reports & Analytics", 3, "Operational incident analytics, trends, and data exports.", Role.ADMIN),
     AUDIT("Activity & Audit Logs", 2, "Append-only chronological audit trail of all command actions.", Role.ADMIN),
+    PUBLIC_REPORTS("Public Report Review", 2, "Review public and responder-submitted incident reports.", Role.ADMIN),
+    ANNOUNCEMENTS("Public Announcements", 2, "Publish official public safety advisories and warnings.", Role.ADMIN),
     SETTINGS("System Settings", 1, "Theme, audio alarm alerts, and operational preferences.", Role.ADMIN, Role.RESPONDER, Role.GUEST),
 
     // --- Dedicated Responder Modules ---

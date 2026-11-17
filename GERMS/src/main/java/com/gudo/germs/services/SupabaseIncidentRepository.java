@@ -107,7 +107,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
     }
 
     /** Submits a guest report through the public reporting endpoint. */
-    @Override public Incident submitGuestReport(Incident report) throws SupabaseException {
+    @Override public Incident submitGuestReport(Incident report, String trackingToken) throws SupabaseException {
         String description = report.title() + "\nType: " + report.type() + "\nSeverity: " + report.severity();
         if (description.length() > 2000) {
             throw new IllegalArgumentException("The report must be no longer than 2,000 characters.");
@@ -121,11 +121,17 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         Map<String, Object> values = new java.util.HashMap<>();
         values.put("id", report.id());
         values.put("reporter_name", report.reportedBy());
+        values.put("title", report.title());
+        values.put("category", categoryCode(report.type()));
+        values.put("severity", report.severity().toLowerCase(Locale.ROOT));
         values.put("description", description);
         values.put("location_text", report.location());
         if (report.latitude() != null) values.put("latitude", report.latitude());
         if (report.longitude() != null) values.put("longitude", report.longitude());
-        rest.insertMinimal("guest_reports", values);
+        Map<String, Object> args = new java.util.HashMap<>();
+        args.put("p_report", values);
+        args.put("p_tracking_token", trackingToken);
+        rest.rpc("submit_guest_report", args);
         return report.withIncidentNo("REPORT-" + report.id().substring(0, 8).toUpperCase());
     }
 

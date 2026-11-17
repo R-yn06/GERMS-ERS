@@ -85,15 +85,23 @@ public final class IncidentService {
     public synchronized Incident submitGuestReport(String title, String type, String location, String severity, String reporter,
                                                     Double lat, Double lon)
             throws SupabaseException {
+        return submitGuestReport(title, type, location, severity, reporter, lat, lon, null);
+    }
+
+    /** Submits a guest report with optional coordinates and an anonymous tracking token for staff review. */
+    public synchronized Incident submitGuestReport(String title, String type, String location, String severity,
+                                                    String reporter, Double lat, Double lon, String trackingToken)
+            throws SupabaseException {
+        String reportLocation = location == null || location.isBlank() ? "Location not provided" : location;
         Incident report = new IncidentBuilder()
                 .id(UUID.randomUUID().toString())
-                .title(title).type(type).location(location).severity(severity)
+                .title(title).type(type).location(reportLocation).severity(severity)
                 .reportedBy(reporter)
                 .status(IncidentStatus.DRAFT)
                 .latitude(lat).longitude(lon)
                 .note(reporter, "Preliminary report submitted for verification")
                 .build();
-        Incident saved = repo.submitGuestReport(report);
+        Incident saved = repo.submitGuestReport(report, trackingToken);
         bus.publish(new IncidentEvent(IncidentEvent.Type.CREATED, saved));
         return saved;
     }

@@ -9,9 +9,11 @@ import java.util.Base64;
 import static org.junit.jupiter.api.Assertions.*;
 
 class AccessPolicyTest {
-    @Test void adminSeesAllFifteenCoreModules() {
+    @Test void adminSeesAllSeventeenCoreModules() {
         long count = AccessPolicy.modulesFor(Role.ADMIN).stream().filter(m -> !m.name().startsWith("GUEST_") && !m.name().startsWith("MY_")).count();
-        assertEquals(15, count);
+        assertEquals(17, count);
+        assertTrue(AccessPolicy.modulesFor(Role.ADMIN).contains(Module.PUBLIC_REPORTS));
+        assertTrue(AccessPolicy.modulesFor(Role.ADMIN).contains(Module.ANNOUNCEMENTS));
     }
 
     @Test void responderCannotSeeAdministrativeModules() {
@@ -20,6 +22,8 @@ class AccessPolicyTest {
         assertFalse(modules.contains(Module.AUDIT));
         assertFalse(modules.contains(Module.DISPATCH));
         assertFalse(modules.contains(Module.TEAMS));
+        assertFalse(modules.contains(Module.PUBLIC_REPORTS));
+        assertFalse(modules.contains(Module.ANNOUNCEMENTS));
         assertTrue(modules.contains(Module.INCIDENTS));
         assertTrue(modules.contains(Module.MY_DEPLOYMENTS));
         assertTrue(modules.contains(Module.NOTIFICATIONS));

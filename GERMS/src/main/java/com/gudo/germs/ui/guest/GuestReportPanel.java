@@ -6,6 +6,7 @@ import com.gudo.germs.services.IncidentService;
 import com.gudo.germs.ui.components.LocationPickerDialog;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
+import com.gudo.germs.utils.GuestReportTracking;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -91,13 +92,20 @@ public final class GuestReportPanel extends JPanel {
 
     /** Submits the guest incident report. */
     private void send(Profile user) {
+        String t = title.getText().trim();
+        if (t.isEmpty()) {
+            message.setText("Enter a short description of what happened.");
+            message.setForeground(GermsColors.CRITICAL);
+            return;
+        }
         submit.setEnabled(false);
-        String t = title.getText(), l = location.getText();
+        String l = location.getText().trim();
         String ty = (String) type.getSelectedItem(), sv = (String) severity.getSelectedItem();
         Double latitude = selectedLocation == null ? null : selectedLocation.latitude();
         Double longitude = selectedLocation == null ? null : selectedLocation.longitude();
-        BackgroundTask.run(() -> service.submitGuestReport(t, ty, l, sv, user.fullName() + " (public report)",
-                latitude, longitude), i -> {
+        String trackingToken = GuestReportTracking.token();
+        BackgroundTask.run(() -> service.submitGuestReport(t, ty, l, sv, user.fullName(),
+                latitude, longitude, trackingToken), i -> {
             submit.setEnabled(true);
             title.setText("");
             location.setText("");

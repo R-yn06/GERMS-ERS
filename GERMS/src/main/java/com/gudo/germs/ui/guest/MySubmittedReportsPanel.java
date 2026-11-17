@@ -5,6 +5,7 @@ import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Profile;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
+import com.gudo.germs.utils.GuestReportTracking;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
@@ -70,14 +71,14 @@ public final class MySubmittedReportsPanel extends JPanel implements com.gudo.ge
     /** Loads reports. */
     public void loadReports() {
         statusLabel.setText("Checking verification status of your reports...");
-        String filter = "";
-        if (user.fullName() != null && !user.fullName().isBlank()) {
-            filter = "&reporter_name=eq." + user.fullName();
-        }
-
-        String finalFilter = filter;
         BackgroundTask.run(() -> {
-            return ctx.rest.select("guest_reports", "select=*&order=created_at.desc" + finalFilter);
+            if (user.role() == com.gudo.germs.models.Role.GUEST) {
+                return ctx.rest.rpc("my_guest_reports",
+                        java.util.Map.of("p_tracking_token", GuestReportTracking.token()));
+            }
+            return ctx.rest.select("guest_reports",
+                    "select=id,title,description,location_text,status,created_at,converted_incident_id"
+                            + "&reporter_id=eq." + user.id() + "&order=created_at.desc");
         }, rows -> {
             model.setRowCount(0);
             if (rows != null && rows.isArray()) {
@@ -85,17 +86,21 @@ public final class MySubmittedReportsPanel extends JPanel implements com.gudo.ge
                     String time = r.path("created_at").asText();
                     if (time.length() > 19) time = time.substring(0, 19).replace('T', ' ');
 
-                    String st = r.path("status").asText("unverified").toUpperCase();
+                    String status = r.path("status").asText("unverified");
+                    String st = status.toUpperCase();
                     if ("UNVERIFIED".equals(st)) st = "PENDING DISPATCHER VERIFICATION";
                     else if ("VERIFIED".equals(st)) st = "VERIFIED (DISPATCH IN PROGRESS)";
                     else if ("CONVERTED".equals(st)) st = "PUBLISHED OFFICIAL INCIDENT";
 
                     model.addRow(new Object[]{
-                            r.path("id").asText().substring(0, 8).toUpperCase(),
-                            r.path("description").asText(),
+                            r.path("id").asText().substring(0, Math.min(8, r.path("id").asText().length())).toUpperCase(),
+                            r.path("title").asText(r.path("description").asText()),
                             r.path("location_text").asText(""),
                             time,
-                            st
+                            "REJECTED".equals(status) ? "REJECTED" :
+                                    ("CONVERTED".equals(status) && r.hasNonNull("converted_incident_id")
+                                            ? "APPROVED — DRAFT " + r.path("converted_incident_id").asText().substring(0, 8).toUpperCase()
+                                            : st)
                     });
                 }
             }

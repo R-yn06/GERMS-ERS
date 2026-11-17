@@ -216,6 +216,7 @@ project. The checked-in `DATABASE.md` is the detailed entity/policy reference.
 | `015_responder_self_classification.sql` | **Empty in this checkout (0 bytes); applying it executes no SQL.** |
 | `016_drop_unused_tables.sql` | Explicitly removes unused legacy tables using dependency-safe `RESTRICT`; back up first. |
 | `017_admin_responder_classifications.sql` | Admin classification editing and incident-scoped message sender directory. |
+| `018_public_report_tracking.sql` | Secure public-report tracking, administrator review, and read-only public evacuation-center access. |
 
 The classification self-service/admin RPCs and classification seed data are in
 `017_admin_responder_classifications.sql`; older `DATABASE.md` text attributes

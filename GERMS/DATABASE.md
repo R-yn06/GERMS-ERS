@@ -40,6 +40,7 @@ Apply migrations in exact numeric order:
 | `015_responder_self_classification.sql` | Adds responder-selectable classifications and a self-only update RPC | EMS, ERU, EMR, EMT, DMS classifications; `set_own_responder_classification` |
 | `016_drop_unused_tables.sql` | Drops tables with no active application or database-routine use; uses RESTRICT so unexpected dependencies abort the migration | `disaster_resources`, `notification_preferences`, `incident_command_assignments`, `incident_command_positions`, `certifications`, `responder_qualifications` |
 | `017_admin_responder_classifications.sql` | Adds admin classification editing, responder classification choices, and an incident-scoped sender directory for chat | `update_profile_admin_with_classification`, `set_own_responder_classification`, `incident_message_sender_directory` |
+| `018_public_report_tracking.sql` | Adds secure guest report tracking, responder ownership, admin approval/rejection into incident drafts, and anonymous read access to open shelters | `submit_guest_report`, `my_guest_reports`, `review_guest_report`; `guest_reports` tracking fields and `evacuation_centers` public read policy |
 
 ## 3. Enumerated domain values
 

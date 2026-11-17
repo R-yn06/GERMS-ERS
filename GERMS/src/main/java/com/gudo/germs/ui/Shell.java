@@ -53,6 +53,7 @@ import com.gudo.germs.ui.admin.DashboardPanel;
 import com.gudo.germs.ui.admin.DispatchPanel;
 import com.gudo.germs.ui.admin.EvacuationCenterPanel;
 import com.gudo.germs.ui.admin.LiveOperationsMapPanel;
+import com.gudo.germs.ui.admin.PublicReportReviewPanel;
 import com.gudo.germs.ui.admin.ReportsAnalyticsPanel;
 import com.gudo.germs.ui.admin.ResourceManagementPanel;
 import com.gudo.germs.ui.admin.TeamManagementPanel;
@@ -491,6 +492,8 @@ public final class Shell extends JPanel {
             case CONTACTS -> new EmergencyContactDirectoryPanel(ctx, user, false);
             case REPORTS -> new ReportsAnalyticsPanel(ctx, user);
             case AUDIT -> new AuditLogPanel(ctx, user);
+            case PUBLIC_REPORTS -> new PublicReportReviewPanel(ctx, user);
+            case ANNOUNCEMENTS -> new PublicAnnouncementsPanel(ctx, user, false);
 
             // Responder Modules
             case MY_DEPLOYMENTS -> new MyDeploymentsPanel(ctx, user, this::notificationAcknowledged);

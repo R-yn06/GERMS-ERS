@@ -22,6 +22,7 @@ Emergency Responder Management System primarily intended for Red Cross emergency
    - `database/migrations/015_responder_self_classification.sql` (Responder-selected classification options and secured self-service RPC)
    - `database/migrations/016_drop_unused_tables.sql` (Drop tables unused by current code; back up before applying)
    - `database/migrations/017_admin_responder_classifications.sql` (Admin classification editing and responder labels in incident chat)
+   - `database/migrations/018_public_report_tracking.sql` (Secure report tracking/review and public shelter directory access)
 3. **First admin**: follow the bootstrap comments at the top of `database/seed_data.sql`.
 4. **Client config**: create `application.properties` in the project root, or set `GERMS_SUPABASE_URL` and `GERMS_SUPABASE_ANON_KEY`. Use the **anon/publishable** key only. The app refuses service-role or secret keys.
 5. **Run**: `mvn exec:java` (JDK 25).
