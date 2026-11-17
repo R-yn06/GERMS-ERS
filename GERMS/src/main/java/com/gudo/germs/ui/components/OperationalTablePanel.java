@@ -24,6 +24,7 @@ import java.util.List;
  * an unavailable table or an authorization failure.
  */
 public final class OperationalTablePanel extends JPanel {
+    /** Represents a column value. */
     public record Column(String label, String field) {}
 
     private final AppContext ctx;
@@ -33,6 +34,7 @@ public final class OperationalTablePanel extends JPanel {
     private final JLabel state = new JLabel("Loading...", SwingConstants.LEFT);
     private final DefaultTableModel model;
 
+    /** Creates an operational table panel instance. */
     public OperationalTablePanel(AppContext ctx, String title, String description,
                                  String table, String query, List<Column> columns) {
         super(new BorderLayout(0, 12));
@@ -59,6 +61,7 @@ public final class OperationalTablePanel extends JPanel {
         add(header, BorderLayout.NORTH);
 
         model = new DefaultTableModel(columns.stream().map(Column::label).toArray(), 0) {
+            /** Reports whether the table cell can be edited. */
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
         JTable tableView = new JTable(model);
@@ -71,11 +74,13 @@ public final class OperationalTablePanel extends JPanel {
         add(footer, BorderLayout.SOUTH);
     }
 
+    /** Loads the table when this panel becomes displayable. */
     @Override public void addNotify() {
         super.addNotify();
         load();
     }
 
+    /** Loads the configured table and displays any request error in the panel. */
     private void load() {
         state.setText("Loading " + table + "...");
         BackgroundTask.run(() -> ctx.rest.select(table, query), this::showRows, error -> {
@@ -85,6 +90,7 @@ public final class OperationalTablePanel extends JPanel {
         });
     }
 
+    /** Populates the table with returned rows and updates the record count. */
     private void showRows(JsonNode rows) {
         model.setRowCount(0);
         if (rows != null && rows.isArray()) {
@@ -97,6 +103,7 @@ public final class OperationalTablePanel extends JPanel {
         state.setText(model.getRowCount() + " record(s) loaded from Supabase.");
     }
 
+    /** Returns the value displayed for a cell, including formatted null values. */
     private static String display(JsonNode row, String field) {
         JsonNode value = row.path(field);
         if (value.isMissingNode() || value.isNull()) return "";

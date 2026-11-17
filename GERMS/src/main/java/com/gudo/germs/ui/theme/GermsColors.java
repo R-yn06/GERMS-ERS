@@ -4,6 +4,7 @@ import java.awt.Color;
 
 /** Single source of truth for brand colors. Theme-dependent values resolve through ThemeManager. */
 public final class GermsColors {
+    /** Prevents instantiation of this utility class. */
     private GermsColors() { }
 
     public static final Color PRIMARY_RED = Color.decode("#C8102E");
@@ -22,11 +23,16 @@ public final class GermsColors {
     public static final Color LIGHT_SURFACE = Color.decode("#FFFFFF");
     public static final Color LIGHT_TEXT = Color.decode("#202124");
 
+    /** Returns the background color for the active theme. */
     public static Color background() { return ThemeManager.isDark() ? DARK_BACKGROUND : LIGHT_BACKGROUND; }
+    /** Returns the surface color for the active theme. */
     public static Color surface() { return ThemeManager.isDark() ? DARK_SURFACE : LIGHT_SURFACE; }
+    /** Returns the primary text color for the active theme. */
     public static Color text() { return ThemeManager.isDark() ? DARK_TEXT : LIGHT_TEXT; }
+    /** Returns the border color for the active theme. */
     public static Color border() { return ThemeManager.isDark() ? Color.decode("#343843") : Color.decode("#E1E3E8"); }
 
+    /** Returns the color associated with an incident severity. */
     public static Color forSeverity(String severity) {
         return switch (severity == null ? "" : severity) {
             case "critical" -> CRITICAL;
@@ -36,6 +42,7 @@ public final class GermsColors {
         };
     }
 
+    /** Returns the color associated with an incident workflow status. */
     public static Color forIncidentStatus(String status) {
         return switch (status == null ? "" : status) {
             case "draft", "archived" -> SECONDARY_TEXT;

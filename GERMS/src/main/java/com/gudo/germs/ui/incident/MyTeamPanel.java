@@ -26,10 +26,12 @@ public final class MyTeamPanel extends JPanel implements com.gudo.germs.ui.Refre
 
     private final DefaultTableModel memberModel = new DefaultTableModel(
             new String[]{"Squad Member", "Role / Designation", "Contact Email"}, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable memberTable = new JTable(memberModel);
 
+    /** Creates a my team panel instance. */
     public MyTeamPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 14));
         this.ctx = ctx;
@@ -51,6 +53,7 @@ public final class MyTeamPanel extends JPanel implements com.gudo.germs.ui.Refre
         loadTeam();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel p = new JPanel(new BorderLayout(0, 12));
         p.setOpaque(false);
@@ -68,6 +71,7 @@ public final class MyTeamPanel extends JPanel implements com.gudo.germs.ui.Refre
         return p;
     }
 
+    /** Creates a styled panel containing the supplied content. */
     private JPanel styledBox(String title, JLabel value) {
         JPanel b = new JPanel(new BorderLayout(0, 4));
         b.setBorder(BorderFactory.createCompoundBorder(
@@ -82,6 +86,7 @@ public final class MyTeamPanel extends JPanel implements com.gudo.germs.ui.Refre
         return b;
     }
 
+    /** Loads team. */
     public void loadTeam() {
         BackgroundTask.run(() -> {
             // Find member's team
@@ -115,6 +120,7 @@ public final class MyTeamPanel extends JPanel implements com.gudo.germs.ui.Refre
         });
     }
 
+    /** Loads teammates. */
     private void loadTeammates(String teamId) {
         BackgroundTask.run(() -> {
             return ctx.rest.select("team_members",
@@ -134,6 +140,7 @@ public final class MyTeamPanel extends JPanel implements com.gudo.germs.ui.Refre
         }, err -> {});
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadTeam();

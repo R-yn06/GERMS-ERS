@@ -41,6 +41,7 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
             new String[] { "ID", "Contact Name", "Hotline / Phone", "Organization", "Category", "Availability",
                     "Address / Location" },
             0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -50,6 +51,7 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
     private final JTextField searchField = new JTextField(18);
     private final JLabel statusLabel = new JLabel(" ");
 
+    /** Creates an emergency contact directory panel instance. */
     public EmergencyContactDirectoryPanel(AppContext ctx, Profile user, boolean readOnly) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -68,6 +70,7 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
         loadContacts();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
@@ -124,6 +127,7 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
         return header;
     }
 
+    /** Loads contacts. */
     public void loadContacts() {
         statusLabel.setText("Querying emergency contacts...");
         String query = searchField.getText().trim();
@@ -157,6 +161,7 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
         });
     }
 
+    /** Displays add contact dialog. */
     private void showAddContactDialog() {
         JTextField name = new JTextField();
         JTextField number = new JTextField();
@@ -212,6 +217,7 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadContacts();

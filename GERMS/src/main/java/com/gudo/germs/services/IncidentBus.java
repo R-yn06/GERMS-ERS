@@ -19,6 +19,7 @@ public final class IncidentBus {
         return () -> listeners.remove(listener);
     }
 
+    /** Publishes an incident update to each registered listener. */
     void publish(IncidentEvent event) {
         SwingUtilities.invokeLater(() -> listeners.forEach(l -> l.accept(event)));
     }

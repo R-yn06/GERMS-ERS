@@ -19,6 +19,7 @@ import java.awt.Font;
 
 /** Settings available to every role, including responder deployment-alert preferences. */
 public final class SettingsPanel extends JPanel {
+    /** Creates a settings panel instance. */
     public SettingsPanel(AppContext ctx, Profile user) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(24, 28, 24, 28));

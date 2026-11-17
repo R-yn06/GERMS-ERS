@@ -28,8 +28,10 @@ public final class ThemeManager {
     private static boolean dark;
     private static final List<Consumer<Boolean>> listeners = new ArrayList<>();
 
+    /** Creates a theme manager instance. */
     private ThemeManager() { }
 
+    /** Reports whether this theme manager is dark. */
     public static boolean isDark() { 
         return dark; 
     }
@@ -41,14 +43,17 @@ public final class ThemeManager {
         }
     }
 
+    /** Removes theme listener. */
     public static void removeThemeListener(Consumer<Boolean> listener) {
         listeners.remove(listener);
     }
 
+    /** Applies the saved light/dark theme preference. */
     public static void installSaved() { 
         apply(PREFS.getBoolean(KEY_DARK, false)); 
     }
 
+    /** Switches between light and dark themes. */
     public static void toggle() {
         apply(!dark);
     }
@@ -91,6 +96,7 @@ public final class ThemeManager {
         });
     }
 
+    /** Returns the shared base font used by the application interface. */
     private static Font baseFont() {
         Set<String> available = new HashSet<>(Arrays.asList(
                 GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()));

@@ -54,6 +54,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
     // Deployment Tab Components
     private final DefaultTableModel deploymentModel = new DefaultTableModel(
             new String[] { "Assignment ID", "Incident", "Role", "Status", "Destination", "Assigned At" }, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -73,6 +74,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
             new String[] { "ID", "Incident ID", "Kind", "Priority", "Title", "Incident / Location", "Timestamp",
                     "Status" },
             0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -83,6 +85,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
     private final JLabel alarmStatus = new JLabel("Alarm: Idle");
     private final JLabel notifStatusMsg = new JLabel(" ");
 
+    /** Creates a my deployments panel instance. */
     public MyDeploymentsPanel(AppContext ctx, Profile user, Consumer<String> onAcknowledged) {
         super(new BorderLayout(0, 10));
         this.ctx = ctx;
@@ -101,6 +104,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         loadNotifications();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
@@ -150,6 +154,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         return header;
     }
 
+    /** Builds deployments tab. */
     private JPanel buildDeploymentsTab() {
         JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.setOpaque(false);
@@ -160,6 +165,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         deploymentTable.setAutoCreateRowSorter(true);
 
         DefaultTableCellRenderer statusRenderer = new DefaultTableCellRenderer() {
+            /** Returns table cell renderer component. */
             @Override
             public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r,
                     int c) {
@@ -224,6 +230,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         return panel;
     }
 
+    /** Builds notifications tab. */
     private JPanel buildNotificationsTab() {
         JPanel panel = new JPanel(new BorderLayout(0, 10));
         panel.setOpaque(false);
@@ -236,6 +243,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         notifTable.setAutoCreateRowSorter(true);
 
         DefaultTableCellRenderer prioRenderer = new DefaultTableCellRenderer() {
+            /** Returns table cell renderer component. */
             @Override
             public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r,
                     int c) {
@@ -324,6 +332,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         return p;
     }
 
+    /** Loads deployments and notifications when this panel is added to the hierarchy. */
     @Override
     public void addNotify() {
         super.addNotify();
@@ -331,6 +340,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         loadNotifications();
     }
 
+    /** Disables active location sharing when the panel is removed. */
     @Override
     public void removeNotify() {
         if (locationShareToggle.isSelected()) {
@@ -341,12 +351,14 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         super.removeNotify();
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadDeployments();
         loadNotifications();
     }
 
+    /** Loads deployments. */
     public void loadDeployments() {
         deploymentStatusMsg.setText("Loading missions...");
         BackgroundTask.run(() -> {
@@ -385,6 +397,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         }, err -> deploymentStatusMsg.setText("Could not load deployments: " + err.getMessage()));
     }
 
+    /** Loads notifications. */
     public void loadNotifications() {
         BackgroundTask.run(() -> {
             return ctx.rest.select("notifications",
@@ -437,6 +450,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         }, err -> notifStatusMsg.setText("Could not load notifications: " + err.getMessage()));
     }
 
+    /** Advances the selected deployment through its next allowed status. */
     private void advanceSelectedAssignment() {
         int r = deploymentTable.getSelectedRow();
         if (r < 0) {
@@ -485,6 +499,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Acknowledges the selected notification and refreshes the notification list. */
     private void acknowledgeSelected() {
         int r = notifTable.getSelectedRow();
         if (r < 0) {
@@ -505,6 +520,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         }, err -> notifStatusMsg.setText("Could not acknowledge notification: " + err.getMessage()));
     }
 
+    /** Accepts or declines the selected deployment request and refreshes notifications. */
     private void respondToSelectedIncident(String decision) {
         int selected = notifTable.getSelectedRow();
         if (selected < 0) {
@@ -532,6 +548,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         }, err -> notifStatusMsg.setText("Could not save response: " + err.getMessage()));
     }
 
+    /** Shares the selected responder location with the incident operations service. */
     private void transmitSelectedLocation() {
         if (!locationShareToggle.isSelected())
             return;
@@ -561,6 +578,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         });
     }
 
+    /** Opens the location picker and returns whether the user selected a location. */
     private boolean chooseLocation() {
         LocationPickerDialog.Selection picked = LocationPickerDialog.showDialog(
                 SwingUtilities.getWindowAncestor(this), "Choose Operational Location", selectedLocation);
@@ -573,6 +591,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         return true;
     }
 
+    /** Disables responder location sharing through the Supabase RPC. */
     private void disableLocationSharing() {
         BackgroundTask.run(() -> {
             ctx.rest.rpc("update_responder_location", Map.of(
@@ -591,16 +610,20 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         });
     }
 
+    /** Wraps FlowLayout rows when components exceed the available width. */
     private static final class WrapLayout extends FlowLayout {
+        /** Creates a wrap layout instance. */
         WrapLayout(int align, int hgap, int vgap) {
             super(align, hgap, vgap);
         }
 
+        /** Computes the preferred size needed to lay out the wrapped components. */
         @Override
         public Dimension preferredLayoutSize(Container target) {
             return layoutSize(target, true);
         }
 
+        /** Computes the minimum size needed to lay out the wrapped components. */
         @Override
         public Dimension minimumLayoutSize(Container target) {
             Dimension d = layoutSize(target, false);
@@ -608,6 +631,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
             return d;
         }
 
+        /** Calculates the wrapped component layout size for the requested sizing mode. */
         private Dimension layoutSize(Container target, boolean preferred) {
             synchronized (target.getTreeLock()) {
                 Container c = target;
@@ -645,6 +669,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
             }
         }
 
+        /** Adds row. */
         private void addRow(Dimension dim, int rowWidth, int rowHeight) {
             dim.width = Math.max(dim.width, rowWidth);
             if (dim.height > 0)

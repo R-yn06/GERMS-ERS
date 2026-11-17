@@ -43,6 +43,7 @@ public enum Module {
     private final String description;
     private final Set<Role> roles;
 
+    /** Creates a module instance. */
     Module(String title, int phase, String description, Role first, Role... rest) {
         this.title = title;
         this.phase = phase;
@@ -50,8 +51,12 @@ public enum Module {
         this.roles = EnumSet.of(first, rest);
     }
 
+    /** Returns the display title for this application module. */
     public String title() { return title; }
+    /** Returns the planned implementation phase for this module. */
     public int phase() { return phase; }
+    /** Returns the description shown for this module. */
     public String description() { return description; }
+    /** Determines whether s is allowed. */
     public boolean allows(Role role) { return roles.contains(role); }
 }

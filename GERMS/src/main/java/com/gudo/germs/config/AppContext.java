@@ -10,6 +10,7 @@ import com.gudo.germs.supabase.SessionManager;
 import com.gudo.germs.supabase.SupabaseHttp;
 
 
+/** Creates and exposes the shared application services and repositories. */
 public final class AppContext {
     private static AppContext instance;
 
@@ -19,6 +20,7 @@ public final class AppContext {
     public final AuthService auth;
     public final IncidentService incidents;
 
+    /** Creates an app context instance. */
     private AppContext(AppConfig config) {
         this.config = config;
         SupabaseHttp http = new SupabaseHttp(config);
@@ -28,11 +30,13 @@ public final class AppContext {
         this.incidents = new IncidentService(new SupabaseIncidentRepository(rest));
     }
 
+    /** Returns the shared application context, creating it on first access. */
     public static synchronized AppContext get() {
         if (instance == null) instance = new AppContext(AppConfig.load());
         return instance;
     }
 
    
+    /** Creates or returns the shared application context. */
     public static AppContext create() { return get(); }
 }

@@ -84,6 +84,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
     // Incident Pinpoint Table
     private final DefaultTableModel incidentModel = new DefaultTableModel(
             new String[] { "No.", "Title", "Severity", "Status", "Location", "Coordinates" }, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -94,6 +95,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
     // Deployed Responders Table
     private final DefaultTableModel responderModel = new DefaultTableModel(
             new String[] { "Responder Name", "Role / Task", "Incident", "Deployment Status", "Last Location" }, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -104,6 +106,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
     private final JLabel statusLabel = new JLabel("Synchronizing operational command data...");
     private Runnable busUnsubscribe;
 
+    /** Creates a dashboard panel instance. */
     public DashboardPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 10));
         this.ctx = ctx;
@@ -120,6 +123,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
 
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
@@ -155,6 +159,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         return header;
     }
 
+    /** Builds classification controls. */
     private JPanel buildClassificationControls() {
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         controls.setOpaque(false);
@@ -177,6 +182,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         return controls;
     }
 
+    /** Loads responder classification. */
     private void loadResponderClassification() {
         classificationLoaded = false;
         classificationSelector.setEnabled(false);
@@ -210,6 +216,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         });
     }
 
+    /** Returns the responder classification label for the supplied code. */
     private ClassificationOption classificationFor(String code) {
         String normalized = ResponderClassificationCodes.canonicalCode(code);
         for (ClassificationOption option : RESPONDER_CLASSIFICATIONS) {
@@ -220,11 +227,13 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         return null;
     }
 
+    /** Updates classification save state. */
     private void updateClassificationSaveState() {
         ClassificationOption selected = (ClassificationOption) classificationSelector.getSelectedItem();
         saveClassificationButton.setEnabled(classificationLoaded && selected != null && !selected.code().isBlank());
     }
 
+    /** Saves responder classification. */
     private void saveResponderClassification() {
         ClassificationOption selected = (ClassificationOption) classificationSelector.getSelectedItem();
         if (!classificationLoaded || selected == null || selected.code().isBlank()) return;
@@ -253,13 +262,16 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         });
     }
 
+    /** Represents a classification option value. */
     private record ClassificationOption(String code, String label) {
+        /** Returns a string representation of this value. */
         @Override
         public String toString() {
             return label;
         }
     }
 
+    /** Builds center content. */
     private JPanel buildCenterContent() {
         JPanel center = new JPanel(new BorderLayout(0, 12));
         center.setOpaque(false);
@@ -312,6 +324,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         incidentTable.setRowHeight(26);
         incidentTable.setAutoCreateRowSorter(true);
         DefaultTableCellRenderer sevRenderer = new DefaultTableCellRenderer() {
+            /** Returns table cell renderer component. */
             @Override
             public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r,
                     int c) {
@@ -324,6 +337,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
             }
         };
         DefaultTableCellRenderer statusRenderer = new DefaultTableCellRenderer() {
+            /** Returns table cell renderer component. */
             @Override
             public Component getTableCellRendererComponent(JTable t, Object val, boolean sel, boolean foc, int r,
                     int c) {
@@ -390,6 +404,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         return center;
     }
 
+    /** Builds footer. */
     private JPanel buildFooter() {
         JPanel footer = new JPanel(new BorderLayout());
         footer.setOpaque(false);
@@ -398,6 +413,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         return footer;
     }
 
+    /** Initializes dashboard data when the panel is added to the component hierarchy. */
     @Override
     public void addNotify() {
         super.addNotify();
@@ -406,6 +422,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         refreshAllData();
     }
 
+    /** Releases dashboard resources when the panel is removed from the component hierarchy. */
     @Override
     public void removeNotify() {
         if (busUnsubscribe != null) {
@@ -415,6 +432,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         super.removeNotify();
     }
 
+    /** Refreshes all data. */
     public void refreshAllData() {
         statusLabel.setText("Querying live command operations...");
 
@@ -527,6 +545,7 @@ public final class DashboardPanel extends JPanel implements com.gudo.germs.ui.Re
         });
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         refreshAllData();

@@ -42,6 +42,7 @@ public class Background3D extends JPanel {
     
 
     // Ripple effects
+    /** Draws a decorative ripple used in the animated background. */
     private static class Ripple {
         double x, y;
         double radius = 0;
@@ -53,6 +54,7 @@ public class Background3D extends JPanel {
     // Geometry: Floating 3D Polygonal Meshes
     private final List<Mesh3D> meshes = new ArrayList<>();
 
+    /** Creates the animated 3D background using the supplied theme and accent color. */
     public Background3D(boolean isDarkTheme, Color accentColor) {
         this.isDarkTheme = isDarkTheme;
         this.accentColor = accentColor;
@@ -62,6 +64,7 @@ public class Background3D extends JPanel {
 
         // Mouse listeners for Tilt, Drag Spin, and Click Ripples
         MouseAdapter mouseHandler = new MouseAdapter() {
+            /** Handles the mouse pressed event. */
             @Override
             public void mousePressed(MouseEvent e) {
                 lastMousePos = e.getPoint();
@@ -71,6 +74,7 @@ public class Background3D extends JPanel {
                 ripples.add(r);
             }
 
+            /** Handles the mouse dragged event. */
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (lastMousePos != null) {
@@ -84,6 +88,7 @@ public class Background3D extends JPanel {
                 }
             }
 
+            /** Handles the mouse moved event. */
             @Override
             public void mouseMoved(MouseEvent e) {
                 double cx = getWidth() / 2.0;
@@ -94,6 +99,7 @@ public class Background3D extends JPanel {
                 }
             }
 
+            /** Handles the mouse released event. */
             @Override
             public void mouseReleased(MouseEvent e) {
                 lastMousePos = null;
@@ -113,6 +119,7 @@ public class Background3D extends JPanel {
         renderTimer.start();
     }
 
+    /** Pauses or resumes the animation timer. */
     public void setPaused(boolean paused) {
         this.isPaused = paused;
         if (paused) {
@@ -122,10 +129,12 @@ public class Background3D extends JPanel {
         }
     }
 
+    /** Changes the accent color used by the background effects. */
     public void setAccentColor(Color accentColor) {
         this.accentColor = accentColor;
     }
 
+    /** Updates physics. */
     private void updatePhysics() {
         targetRotY += angularVelY;
         targetRotX += angularVelX;
@@ -147,12 +156,14 @@ public class Background3D extends JPanel {
         }
     }
 
+    /** Initializes geometries. */
     private void initGeometries() {
         meshes.add(createIcosahedron(0, 0, 0, 180));
         meshes.add(createFacetedRing(-260, -120, -100, 90));
         meshes.add(createFacetedRing(280, 140, -120, 110));
     }
 
+    /** Paints component. */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -171,6 +182,7 @@ public class Background3D extends JPanel {
         g2.dispose();
     }
 
+    /** Paints atmospheric gradient. */
     private void paintAtmosphericGradient(Graphics2D g2, int w, int h) {
         Point p1 = new Point(0, 0);
         Point p2 = new Point(w, h);
@@ -204,6 +216,7 @@ public class Background3D extends JPanel {
         g2.fillRect(0, 0, w, h);
     }
 
+    /** Projects and paints the rotating mesh scene. */
     private void renderScene3D(Graphics2D g2, int w, int h) {
         double fov = 650.0;
         double camDist = 580.0;
@@ -283,6 +296,7 @@ public class Background3D extends JPanel {
         }
     }
 
+    /** Paints ripples. */
     private void paintRipples(Graphics2D g2) {
         synchronized (ripples) {
             for (Ripple r : ripples) {
@@ -295,11 +309,33 @@ public class Background3D extends JPanel {
     }
 
     // Geometry Helpers
-    private static class Point3D { double x, y, z; Point3D(double x, double y, double z) { this.x = x; this.y = y; this.z = z; } }
-    private static class Face3D { int[] indices; Face3D(int... idx) { this.indices = idx; } }
-    private static class Mesh3D { Point3D[] vertices; Face3D[] faces; }
-    private static class FacePolygon { Path2D path; double avgZ; double diffuse; FacePolygon(Path2D p, double z, double d) { path = p; avgZ = z; diffuse = d; } }
+    /** Stores the three-dimensional coordinates of a mesh vertex. */
+    private static class Point3D {
+        double x, y, z;
 
+        /** Stores a mesh vertex's three-dimensional coordinates. */
+        Point3D(double x, double y, double z) { this.x = x; this.y = y; this.z = z; }
+    }
+    /** Stores the vertex indices that define a mesh face. */
+    private static class Face3D {
+        int[] indices;
+
+        /** Stores the indices of a mesh face's vertices. */
+        Face3D(int... idx) { this.indices = idx; }
+    }
+    /** Holds the vertices and faces used to render a three-dimensional mesh. */
+    private static class Mesh3D { Point3D[] vertices; Face3D[] faces; }
+    /** Stores a projected mesh face and its average depth for painter ordering. */
+    private static class FacePolygon {
+        Path2D path;
+        double avgZ;
+        double diffuse;
+
+        /** Stores the projected path and depth values of a mesh face. */
+        FacePolygon(Path2D p, double z, double d) { path = p; avgZ = z; diffuse = d; }
+    }
+
+    /** Builds an icosahedral mesh centered at the supplied position and scale. */
     private Mesh3D createIcosahedron(double ox, double oy, double oz, double scale) {
         Mesh3D m = new Mesh3D();
         double phi = (1.0 + Math.sqrt(5.0)) / 2.0;
@@ -321,6 +357,7 @@ public class Background3D extends JPanel {
         return m;
     }
 
+    /** Builds a faceted ring mesh centered at the supplied position and scale. */
     private Mesh3D createFacetedRing(double ox, double oy, double oz, double scale) {
         Mesh3D m = new Mesh3D();
         int segments = 8;
@@ -338,6 +375,7 @@ public class Background3D extends JPanel {
         }
         return m;
     }
+    /** Applies the selected light/dark theme to background rendering. */
     public void updateTheme(boolean isDark) {
         this.isDarkTheme = isDark;
         repaint();

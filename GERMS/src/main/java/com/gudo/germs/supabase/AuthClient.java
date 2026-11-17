@@ -9,13 +9,16 @@ import java.util.UUID;
 public final class AuthClient {
     private final SupabaseHttp http;
 
+    /** Creates an auth client instance. */
     public AuthClient(SupabaseHttp http) { this.http = http; }
 
+    /** Signs in. */
     public Session signIn(String email, String password) throws SupabaseException {
         String body = SupabaseHttp.JSON.createObjectNode().put("email", email).put("password", password).toString();
         return parse(http.send("POST", "/auth/v1/token?grant_type=password", body, null, null));
     }
 
+    /** Signs up. */
     public Session signUp(String email, String password, String fullName, String phone) throws SupabaseException {
         var dataNode = SupabaseHttp.JSON.createObjectNode()
                 .put("full_name", fullName == null ? "" : fullName.trim())
@@ -34,15 +37,18 @@ public final class AuthClient {
         return new Session("", "", Instant.now().plusSeconds(3600), uid, email.trim());
     }
 
+    /** Refreshes the access token using the session's refresh token. */
     public Session refresh(String refreshToken) throws SupabaseException {
         String body = SupabaseHttp.JSON.createObjectNode().put("refresh_token", refreshToken).toString();
         return parse(http.send("POST", "/auth/v1/token?grant_type=refresh_token", body, null, null));
     }
 
+    /** Signs out. */
     public void signOut(String accessToken) throws SupabaseException {
         http.send("POST", "/auth/v1/logout", null, accessToken, null);
     }
 
+    /** Parses a Supabase authentication response into a session. */
     private static Session parse(JsonNode n) throws SupabaseException {
         if (!n.hasNonNull("access_token") || !n.path("user").hasNonNull("id")) {
             throw new SupabaseException(500, "Unexpected response from Supabase Auth");

@@ -9,12 +9,14 @@ import java.util.function.Supplier;
 public class SurfacePanel extends JPanel {
     private Supplier<Color> background;
 
+    /** Creates a surface panel instance. */
     public SurfacePanel(LayoutManager layout, Supplier<Color> background) {
         super(layout);
         this.background = background;
         updateUI();
     }
 
+    /** Updates ui. */
     @Override public void updateUI() {
         super.updateUI();
         if (background != null) setBackground(background.get());

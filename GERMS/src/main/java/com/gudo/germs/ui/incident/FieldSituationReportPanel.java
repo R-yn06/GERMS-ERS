@@ -60,6 +60,7 @@ public final class FieldSituationReportPanel extends JPanel implements com.gudo.
             new String[] { "ID", "Incident", "Timestamp", "Reporter", "Conditions", "Affected", "Casualties",
                     "Urgent" },
             0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -75,6 +76,7 @@ public final class FieldSituationReportPanel extends JPanel implements com.gudo.
     private final JLabel statusMessage = new JLabel(" ");
     private JButton feedbackButton;
 
+    /** Creates a field situation report panel instance. */
     public FieldSituationReportPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -87,17 +89,20 @@ public final class FieldSituationReportPanel extends JPanel implements com.gudo.
         add(statusMessage, BorderLayout.SOUTH);
     }
 
+    /** Loads field reports when this panel is added to the component hierarchy. */
     @Override
     public void addNotify() {
         super.addNotify();
         loadReports();
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadReports();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
@@ -148,6 +153,7 @@ public final class FieldSituationReportPanel extends JPanel implements com.gudo.
         return header;
     }
 
+    /** Builds main split. */
     private JComponent buildMainSplit() {
         table.setRowHeight(25);
         table.removeColumn(table.getColumnModel().getColumn(0)); // Hide ID
@@ -193,6 +199,7 @@ public final class FieldSituationReportPanel extends JPanel implements com.gudo.
         return split;
     }
 
+    /** Creates a titled block containing the supplied content. */
     private JPanel titledBlock(String title, JTextArea area, int height) {
         JPanel p = new JPanel(new BorderLayout(0, 4));
         p.setOpaque(false);
@@ -209,6 +216,7 @@ public final class FieldSituationReportPanel extends JPanel implements com.gudo.
 
     private JsonNode cachedRows = null;
 
+    /** Loads reports. */
     public void loadReports() {
         statusMessage.setText("Loading situation reports...");
         String selectedId = null;
@@ -268,6 +276,7 @@ public final class FieldSituationReportPanel extends JPanel implements com.gudo.
         }, err -> statusMessage.setText("Failed to load situation reports: " + err.getMessage()));
     }
 
+    /** Displays detail. */
     private void showDetail() {
         int r = table.getSelectedRow();
         if (feedbackButton != null) {
@@ -303,6 +312,7 @@ public final class FieldSituationReportPanel extends JPanel implements com.gudo.
         adminFeedbackArea.setText(rowData.path("admin_feedback").asText("Pending command review"));
     }
 
+    /** Displays submit sitrep dialog. */
     private void showSubmitSitrepDialog() {
         BackgroundTask.run(() -> ctx.incidents.visibleTo(false), incidents -> {
             List<Incident> active = incidents.stream().filter(i -> i.status().isActive()).toList();
@@ -405,6 +415,7 @@ public final class FieldSituationReportPanel extends JPanel implements com.gudo.
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Displays add feedback dialog. */
     private void showAddFeedbackDialog() {
         int r = table.getSelectedRow();
         if (r < 0) {

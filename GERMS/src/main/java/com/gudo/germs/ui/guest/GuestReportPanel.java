@@ -34,6 +34,7 @@ public final class GuestReportPanel extends JPanel {
     private final JButton submit = new JButton("Submit report");
     private final JLabel message = new JLabel(" ");
 
+    /** Creates a guest report panel instance. */
     public GuestReportPanel(AppContext ctx, Profile user) {
         this.service = ctx.incidents;
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -88,6 +89,7 @@ public final class GuestReportPanel extends JPanel {
         add(Box.createVerticalGlue());
     }
 
+    /** Submits the guest incident report. */
     private void send(Profile user) {
         submit.setEnabled(false);
         String t = title.getText(), l = location.getText();

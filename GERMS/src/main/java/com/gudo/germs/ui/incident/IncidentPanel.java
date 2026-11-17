@@ -62,6 +62,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
 
     private final DefaultTableModel model = new DefaultTableModel(
             new String[] { "ID", "Incident", "Severity", "Status", "Team" }, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -85,6 +86,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
     private List<Incident> rows = List.of();
     private Runnable unsubscribe;
 
+    /** Creates an incident panel instance. */
     public IncidentPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
         this.service = ctx.incidents;
@@ -96,6 +98,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
         updateDetail();
     }
 
+    /** Builds header. */
     private JComponent buildHeader() {
         JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
@@ -130,6 +133,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
         return header;
     }
 
+    /** Builds split. */
     private JComponent buildSplit() {
         table.setRowHeight(30);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -148,6 +152,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
         table.getColumnModel().getColumn(0).setMinWidth(60);
 
         DefaultTableCellRenderer colored = new DefaultTableCellRenderer() {
+            /** Returns table cell renderer component. */
             @Override
             public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
                 super.getTableCellRendererComponent(t, v, sel, foc, r, c);
@@ -247,31 +252,37 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
      * stretches to its height when there is room.
      */
     private static final class DetailPanel extends JPanel implements Scrollable {
+        /** Creates a detail panel instance. */
         DetailPanel() {
             super(new BorderLayout(0, 4));
             setOpaque(false);
         }
 
+        /** Returns preferred scrollable viewport size. */
         @Override
         public Dimension getPreferredScrollableViewportSize() {
             return getPreferredSize();
         }
 
+        /** Returns scrollable unit increment. */
         @Override
         public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
             return 16;
         }
 
+        /** Returns scrollable block increment. */
         @Override
         public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
             return Math.max(40, r.height - 40);
         }
 
+        /** Returns scrollable tracks viewport width. */
         @Override
         public boolean getScrollableTracksViewportWidth() {
             return true;
         }
 
+        /** Returns scrollable tracks viewport height. */
         @Override
         public boolean getScrollableTracksViewportHeight() {
             return getParent() instanceof javax.swing.JViewport vp && vp.getHeight() > getPreferredSize().height;
@@ -291,6 +302,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
         refresh();
     }
 
+    /** Unsubscribes from incident updates when this panel is removed. */
     @Override
     public void removeNotify() {
         if (unsubscribe != null) {
@@ -300,6 +312,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
         super.removeNotify();
     }
 
+    /** Reloads the incident details and related operational data. */
     private void refresh() {
         String keep = selected() == null ? null : selected().id();
         BackgroundTask.run(() -> service.visibleTo(false), list -> {
@@ -320,11 +333,13 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
         }, err -> showMessage("Could not load incidents: " + err.getMessage(), true));
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         refresh();
     }
 
+    /** Loads teams. */
     private void loadTeams() {
         BackgroundTask.run(service::responseTeams, teams -> {
             teamBox.removeAllItems();
@@ -334,11 +349,13 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
         }, err -> showMessage("Could not load response teams: " + err.getMessage(), true));
     }
 
+    /** Returns the incident selected in the table, or null when none is selected. */
     private Incident selected() {
         int r = table.getSelectedRow();
         return r < 0 || r >= rows.size() ? null : rows.get(table.convertRowIndexToModel(r));
     }
 
+    /** Updates detail. */
     private void updateDetail() {
         Incident i = selected();
         if (i == null) {
@@ -411,6 +428,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
         assign.setEnabled(false);
     }
 
+    /** Advances the selected incident to its next workflow state. */
     private void doAdvance() {
         Incident i = selected();
         if (i == null)
@@ -432,6 +450,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
                 err -> showMessage(err.getMessage(), true));
     }
 
+    /** Updates the selected incident's severity. */
     private void doUpdateSeverity() {
         Incident incident = selected();
         if (incident == null)
@@ -456,6 +475,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
                 error -> showMessage("Severity was not updated: " + error.getMessage(), true));
     }
 
+    /** Assigns a response team to the selected incident. */
     private void doAssign() {
         Incident i = selected();
         if (i == null)
@@ -468,6 +488,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
                 err -> showMessage(err.getMessage(), true));
     }
 
+    /** Records a response decision for the selected incident. */
     private void doRespond(String decision) {
         Incident incident = selected();
         if (incident == null)
@@ -484,6 +505,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
                 err -> showMessage("Response was not recorded: " + err.getMessage(), true));
     }
 
+    /** Reports dialog. */
     private void reportDialog() {
         JTextField title = new JTextField(22);
         JTextField location = new JTextField(22);
@@ -547,6 +569,7 @@ public final class IncidentPanel extends JPanel implements com.gudo.germs.ui.Ref
         }
     }
 
+    /** Displays message. */
     private void showMessage(String text, boolean error) {
         message.setText(text);
         message.setForeground(error ? GermsColors.CRITICAL : GermsColors.SUCCESS);

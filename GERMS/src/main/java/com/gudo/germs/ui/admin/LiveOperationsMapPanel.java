@@ -53,6 +53,7 @@ public final class LiveOperationsMapPanel extends JPanel implements com.gudo.ger
 
     private final DefaultTableModel listModel = new DefaultTableModel(
             new String[] { "Type", "Title / Name", "Location / Details", "Lat", "Lon" }, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -63,6 +64,7 @@ public final class LiveOperationsMapPanel extends JPanel implements com.gudo.ger
 
     private final List<MapMarker> allMarkers = new ArrayList<>();
 
+    /** Creates a live operations map panel instance. */
     public LiveOperationsMapPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 10));
         this.ctx = ctx;
@@ -76,6 +78,7 @@ public final class LiveOperationsMapPanel extends JPanel implements com.gudo.ger
         loadData();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel p = new JPanel(new BorderLayout(0, 10));
         p.setOpaque(false);
@@ -112,6 +115,7 @@ public final class LiveOperationsMapPanel extends JPanel implements com.gudo.ger
         return p;
     }
 
+    /** Builds bottom bar. */
     private JPanel buildBottomBar() {
         JPanel bottom = new JPanel(new BorderLayout(0, 6));
         bottom.setOpaque(false);
@@ -160,6 +164,7 @@ public final class LiveOperationsMapPanel extends JPanel implements com.gudo.ger
         return g;
     }
 
+    /** Builds main split. */
     private JComponent buildMainSplit() {
         listTable.setRowHeight(24);
         listTable.setAutoCreateRowSorter(true);
@@ -187,6 +192,7 @@ public final class LiveOperationsMapPanel extends JPanel implements com.gudo.ger
         return split;
     }
 
+    /** Loads data. */
     public void loadData() {
         statusLabel.setText("Querying live operational coordinates...");
         BackgroundTask.run(() -> {
@@ -276,6 +282,7 @@ public final class LiveOperationsMapPanel extends JPanel implements com.gudo.ger
         });
     }
 
+    /** Applies the selected filters to the live operations map. */
     private void applyFilters() {
         boolean inc = showIncidents.isSelected();
         boolean resp = showResponders.isSelected();
@@ -310,6 +317,7 @@ public final class LiveOperationsMapPanel extends JPanel implements com.gudo.ger
         map.setMarkers(filtered);
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadData();

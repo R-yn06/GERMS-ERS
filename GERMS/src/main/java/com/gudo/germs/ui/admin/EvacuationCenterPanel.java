@@ -45,6 +45,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
             new String[] { "ID", "Shelter Name", "Address / Barangay", "Capacity", "Occupancy", "Available Space",
                     "Status", "Coordinates" },
             0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -53,6 +54,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
     private final JTable table = new JTable(model);
     private final JLabel statusLabel = new JLabel(" ");
 
+    /** Creates an evacuation center panel instance. */
     public EvacuationCenterPanel(AppContext ctx, Profile user, boolean readOnly) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -70,6 +72,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
         loadCenters();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
@@ -123,6 +126,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
         return header;
     }
 
+    /** Loads centers. */
     public void loadCenters() {
         statusLabel.setText("Loading evacuation centers from Supabase...");
         String filter = readOnly ? "&status=neq.closed" : "";
@@ -166,6 +170,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
         });
     }
 
+    /** Returns selected center id. */
     private String getSelectedCenterId() {
         int r = table.getSelectedRow();
         if (r < 0) {
@@ -176,6 +181,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
         return String.valueOf(model.getValueAt(table.convertRowIndexToModel(r), 0));
     }
 
+    /** Displays add center dialog. */
     private void showAddCenterDialog() {
         JTextField name = new JTextField();
         JTextField address = new JTextField();
@@ -248,6 +254,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Displays update occupancy dialog. */
     private void showUpdateOccupancyDialog() {
         String id = getSelectedCenterId();
         if (id == null)
@@ -285,6 +292,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
         }, ok -> loadCenters(), err -> loadCenters());
     }
 
+    /** Displays change status dialog. */
     private void showChangeStatusDialog() {
         String id = getSelectedCenterId();
         if (id == null)
@@ -301,6 +309,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
         }, ok -> loadCenters(), err -> loadCenters());
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadCenters();

@@ -9,6 +9,7 @@ public final class RestClient {
     private final SupabaseHttp http;
     private final SessionManager sessions;
 
+    /** Creates a rest client instance. */
     public RestClient(SupabaseHttp http, SessionManager sessions) {
         this.http = http;
         this.sessions = sessions;
@@ -20,11 +21,13 @@ public final class RestClient {
                 null, sessions.accessToken(), null);
     }
 
+    /** Calls a Supabase RPC with the supplied JSON arguments. */
     public JsonNode rpc(String function, Object args) throws SupabaseException {
         String body = args == null ? "{}" : SupabaseHttp.JSON.valueToTree(args).toString();
         return http.send("POST", "/rest/v1/rpc/" + function, body, sessions.accessToken(), null);
     }
 
+    /** Invokes a Supabase function with the supplied request body. */
     public JsonNode invokeFunction(String function, Object args) throws SupabaseException {
         String body = args == null ? "{}" : SupabaseHttp.JSON.valueToTree(args).toString();
         return http.send("POST", "/functions/v1/" + function, body, sessions.accessToken(), null);

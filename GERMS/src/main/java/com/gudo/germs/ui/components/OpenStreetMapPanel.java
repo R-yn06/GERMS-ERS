@@ -30,6 +30,7 @@ import java.util.function.Consumer;
  * incidents, active responders, evacuation shelters, and emergency resources.
  */
 public final class OpenStreetMapPanel extends JPanel {
+    /** Categorizes map markers by the operational entity they represent. */
     public enum MarkerType {
         INCIDENT(new Color(200, 16, 46), "Incident"),
         RESPONDER(new Color(0, 114, 206), "Responder"),
@@ -39,12 +40,14 @@ public final class OpenStreetMapPanel extends JPanel {
 
         public final Color color;
         public final String defaultLabel;
+        /** Creates a marker type instance. */
         MarkerType(Color color, String defaultLabel) {
             this.color = color;
             this.defaultLabel = defaultLabel;
         }
     }
 
+    /** Represents a map marker value. */
     public record MapMarker(String id, String title, double lat, double lon, MarkerType type, String details) {}
 
     private static final int TILE_SIZE = 256;
@@ -72,10 +75,12 @@ public final class OpenStreetMapPanel extends JPanel {
     private Point2D.Double selectedCoord = null;
     private MapMarker hoveredMarker = null;
 
+    /** Creates an OpenStreetMap panel centered on the default coordinates. */
     public OpenStreetMapPanel() {
         this(DEFAULT_LAT, DEFAULT_LON, DEFAULT_ZOOM);
     }
 
+    /** Creates an OpenStreetMap panel centered on the supplied coordinates and zoom level. */
     public OpenStreetMapPanel(double initialLat, double initialLon, int initialZoom) {
         this.centerLat = initialLat;
         this.centerLon = initialLon;
@@ -93,12 +98,14 @@ public final class OpenStreetMapPanel extends JPanel {
         initMouseControls();
     }
 
+    /** Enables or disables map pin placement and registers its coordinate callback. */
     public void setPinDropEnabled(boolean enabled, Consumer<Point2D.Double> onPicked) {
         this.pinDropEnabled = enabled;
         this.onCoordinatePicked = onPicked;
         setCursor(Cursor.getPredefinedCursor(enabled ? Cursor.CROSSHAIR_CURSOR : Cursor.HAND_CURSOR));
     }
 
+    /** Sets the geographic map center and zoom level. */
     public void setCenter(double lat, double lon, int newZoom) {
         this.centerLat = lat;
         this.centerLon = lon;
@@ -106,11 +113,13 @@ public final class OpenStreetMapPanel extends JPanel {
         repaint();
     }
 
+    /** Adds marker. */
     public void addMarker(MapMarker marker) {
         markers.add(marker);
         repaint();
     }
 
+    /** Replaces the displayed map markers with the supplied collection. */
     public void setMarkers(List<MapMarker> newMarkers) {
         markers.clear();
         if (newMarkers != null) {
@@ -119,26 +128,32 @@ public final class OpenStreetMapPanel extends JPanel {
         repaint();
     }
 
+    /** Clears markers. */
     public void clearMarkers() {
         markers.clear();
         repaint();
     }
 
+    /** Sets the selected geographic coordinate and repaints the map. */
     public void setSelectedCoordinate(double lat, double lon) {
         this.selectedCoord = new Point2D.Double(lat, lon);
         repaint();
     }
 
+    /** Returns selected coordinate. */
     public Point2D.Double getSelectedCoordinate() {
         return selectedCoord;
     }
 
+    /** Stops background map-tile loading when the map is no longer needed. */
     public void shutdownTileLoader() {
         tileLoader.shutdownNow();
     }
 
+    /** Initializes mouse controls. */
     private void initMouseControls() {
         addMouseListener(new MouseAdapter() {
+            /** Handles the mouse pressed event. */
             @Override
             public void mousePressed(MouseEvent e) {
                 if (SwingUtilities.isLeftMouseButton(e)) {
@@ -146,11 +161,13 @@ public final class OpenStreetMapPanel extends JPanel {
                 }
             }
 
+            /** Handles the mouse released event. */
             @Override
             public void mouseReleased(MouseEvent e) {
                 dragStart = null;
             }
 
+            /** Handles the mouse clicked event. */
             @Override
             public void mouseClicked(MouseEvent e) {
                 if (e.getClickCount() == 1 && pinDropEnabled) {
@@ -172,6 +189,7 @@ public final class OpenStreetMapPanel extends JPanel {
         });
 
         addMouseMotionListener(new MouseMotionAdapter() {
+            /** Handles the mouse dragged event. */
             @Override
             public void mouseDragged(MouseEvent e) {
                 if (dragStart != null) {
@@ -189,6 +207,7 @@ public final class OpenStreetMapPanel extends JPanel {
                 }
             }
 
+            /** Handles the mouse moved event. */
             @Override
             public void mouseMoved(MouseEvent e) {
                 // Check if hovering over any marker
@@ -227,6 +246,7 @@ public final class OpenStreetMapPanel extends JPanel {
         });
     }
 
+    /** Increases the map zoom level up to its supported maximum. */
     public void zoomIn() {
         if (zoom < 18) {
             zoom++;
@@ -234,6 +254,7 @@ public final class OpenStreetMapPanel extends JPanel {
         }
     }
 
+    /** Decreases the map zoom level down to its supported minimum. */
     public void zoomOut() {
         if (zoom > 2) {
             zoom--;
@@ -241,6 +262,7 @@ public final class OpenStreetMapPanel extends JPanel {
         }
     }
 
+    /** Resets view. */
     public void resetView() {
         this.centerLat = DEFAULT_LAT;
         this.centerLon = DEFAULT_LON;
@@ -248,6 +270,7 @@ public final class OpenStreetMapPanel extends JPanel {
         repaint();
     }
 
+    /** Paints component. */
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
@@ -306,6 +329,7 @@ public final class OpenStreetMapPanel extends JPanel {
         g2.dispose();
     }
 
+    /** Draws marker. */
     private void drawMarker(Graphics2D g2, MapMarker m, boolean hovered) {
         Point p = latLonToScreen(m.lat(), m.lon());
         if (p == null) return;
@@ -354,6 +378,7 @@ public final class OpenStreetMapPanel extends JPanel {
         }
     }
 
+    /** Draws custom pin. */
     private void drawCustomPin(Graphics2D g2, double lat, double lon, Color c, String label) {
         Point p = latLonToScreen(lat, lon);
         if (p == null) return;
@@ -384,6 +409,7 @@ public final class OpenStreetMapPanel extends JPanel {
         g2.drawString(text, bx + 4, by + 12);
     }
 
+    /** Draws overlay. */
     private void drawOverlay(Graphics2D g2, int width, int height) {
         // Attribution bar (bottom-right)
         String attr = "\u00A9 OpenStreetMap contributors | GERMS Emergency GIS";
@@ -414,6 +440,7 @@ public final class OpenStreetMapPanel extends JPanel {
         g2.setClip(null);
     }
 
+    /** Converts geographic coordinates to a point in the map component. */
     private Point latLonToScreen(double lat, double lon) {
         Point2D.Double p = latLonToPixel(lat, lon, zoom);
         Point2D.Double centerPx = latLonToPixel(centerLat, centerLon, zoom);
@@ -422,6 +449,7 @@ public final class OpenStreetMapPanel extends JPanel {
         return new Point(sx, sy);
     }
 
+    /** Converts a map-component point to geographic coordinates. */
     private Point2D.Double screenToLatLon(int sx, int sy) {
         Point2D.Double centerPx = latLonToPixel(centerLat, centerLon, zoom);
         double px = centerPx.x + (sx - (double) getWidth() / 2);
@@ -429,6 +457,7 @@ public final class OpenStreetMapPanel extends JPanel {
         return pixelToLatLon(px, py, zoom);
     }
 
+    /** Projects geographic coordinates to world-pixel coordinates at the given zoom. */
     private static Point2D.Double latLonToPixel(double lat, double lon, int zoom) {
         double x = (lon + 180.0) / 360.0 * (1 << zoom) * TILE_SIZE;
         double sinLat = Math.sin(Math.toRadians(lat));
@@ -437,6 +466,7 @@ public final class OpenStreetMapPanel extends JPanel {
         return new Point2D.Double(x, y);
     }
 
+    /** Converts world-pixel coordinates to geographic coordinates. */
     private static Point2D.Double pixelToLatLon(double px, double py, int zoom) {
         double mapSize = (double) (1 << zoom) * TILE_SIZE;
         double lon = (px / mapSize) * 360.0 - 180.0;
@@ -445,6 +475,7 @@ public final class OpenStreetMapPanel extends JPanel {
         return new Point2D.Double(lat, lon);
     }
 
+    /** Returns tile. */
     private BufferedImage getTile(int z, int x, int y) {
         String key = z + "/" + x + "/" + y;
         BufferedImage mem = memoryCache.get(key);
@@ -466,6 +497,7 @@ public final class OpenStreetMapPanel extends JPanel {
         return null;
     }
 
+    /** Fetches tile. */
     private void fetchTile(int z, int x, int y, String key, File diskFile) {
         try {
             String urlStr = String.format(Locale.ROOT, "https://tile.openstreetmap.org/%d/%d/%d.png", z, x, y);

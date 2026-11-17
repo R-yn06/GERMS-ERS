@@ -13,11 +13,13 @@ public final class AppConfig {
     private final String supabaseUrl;
     private final String anonKey;
 
+    /** Creates an app config instance. */
     private AppConfig(String supabaseUrl, String anonKey) {
         this.supabaseUrl = supabaseUrl;
         this.anonKey = anonKey;
     }
 
+    /** Loads Supabase settings from environment variables, a local properties file, or the classpath. */
     public static AppConfig load() {
         Properties props = new Properties();
         Path local = Path.of("application.properties");
@@ -40,11 +42,14 @@ public final class AppConfig {
         return new AppConfig(url.replaceAll("/+$", ""), key);
     }
 
+    /** Reports whether this app config is configured. */
     public boolean isConfigured() {
         return !supabaseUrl.isBlank() && !anonKey.isBlank() && !supabaseUrl.contains("YOUR-PROJECT-REF");
     }
 
+    /** Returns the configured Supabase project URL. */
     public String supabaseUrl() { return supabaseUrl; }
+    /** Returns the configured public Supabase anon key. */
     public String anonKey() { return anonKey; }
 
     /** Rejects service-role JWTs and new-style secret keys. */
@@ -61,6 +66,7 @@ public final class AppConfig {
         return false;
     }
 
+    /** Returns the first non-blank trimmed value, or an empty string when both are blank. */
     private static String firstNonBlank(String a, String b) {
         if (a != null && !a.isBlank()) return a.trim();
         return b == null ? "" : b.trim();

@@ -26,8 +26,10 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
 
     private final RestClient rest;
 
+    /** Creates a supabase incident repository instance. */
     public SupabaseIncidentRepository(RestClient rest) { this.rest = rest; }
 
+    /** Finds all. */
     @Override public List<Incident> findAll() throws SupabaseException {
         JsonNode rows = rest.select("incidents", "select=" + INCIDENT_FIELDS
                 + "&order=reported_at.desc&incident_updates.order=created_at.asc");
@@ -38,6 +40,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return List.copyOf(incidents);
     }
 
+    /** Finds public. */
     @Override public List<Incident> findPublic() throws SupabaseException {
         JsonNode rows = rest.select("public_advisories",
                 "select=id,incident_no,title,category,severity,status,barangay,district,city,public_summary,published_at"
@@ -69,12 +72,14 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return List.copyOf(incidents);
     }
 
+    /** Finds an incident by ID. */
     @Override public Optional<Incident> find(String id) throws SupabaseException {
         String uuid = UUID.fromString(id).toString();
         JsonNode rows = rest.select("incidents", "select=" + INCIDENT_FIELDS + "&id=eq." + uuid);
         return rows.isArray() && !rows.isEmpty() ? Optional.of(toIncident(rows.get(0))) : Optional.empty();
     }
 
+    /** Finds teams. */
     @Override public List<ResponseTeam> findTeams() throws SupabaseException {
         JsonNode rows = rest.select("response_teams", "select=id,name&is_active=eq.true&order=name.asc");
         List<ResponseTeam> teams = new ArrayList<>();
@@ -84,6 +89,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return List.copyOf(teams);
     }
 
+    /** Creates an incident through the secured Supabase endpoint. */
     @Override public Incident create(Incident incident) throws SupabaseException {
         Map<String, Object> values = new java.util.HashMap<>();
         values.put("title", incident.title());
@@ -100,6 +106,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return find(id).orElseThrow(() -> new SupabaseException(404, "The created incident could not be loaded."));
     }
 
+    /** Submits a guest report through the public reporting endpoint. */
     @Override public Incident submitGuestReport(Incident report) throws SupabaseException {
         String description = report.title() + "\nType: " + report.type() + "\nSeverity: " + report.severity();
         if (description.length() > 2000) {
@@ -122,6 +129,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return report.withIncidentNo("REPORT-" + report.id().substring(0, 8).toUpperCase());
     }
 
+    /** Updates severity. */
     @Override public Incident updateSeverity(String id, String severity) throws SupabaseException {
         rest.rpc("update_incident_severity", Map.of(
                 "p_incident", UUID.fromString(id).toString(),
@@ -129,6 +137,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return find(id).orElseThrow(() -> new SupabaseException(404, "The updated incident could not be loaded."));
     }
 
+    /** Assigns a response team through the secured Supabase RPC. */
     @Override public Incident assignTeam(String id, ResponseTeam team) throws SupabaseException {
         rest.rpc("assign_incident_team", Map.of(
                 "p_id", UUID.fromString(id).toString(),
@@ -136,6 +145,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return find(id).orElseThrow(() -> new SupabaseException(404, "The updated incident could not be loaded."));
     }
 
+    /** Advances the incident through the secured workflow RPC. */
     @Override public Incident advance(String id, IncidentStatus status, String note) throws SupabaseException {
         String uuid = UUID.fromString(id).toString();
         if (status == IncidentStatus.PUBLISHED) {
@@ -149,11 +159,13 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return find(id).orElseThrow(() -> new SupabaseException(404, "The updated incident could not be loaded."));
     }
 
+    /** Records an incident response through the secured RPC. */
     @Override public void respond(String id, String decision, String note) throws SupabaseException {
         rest.rpc("respond_to_incident", Map.of("p_incident", UUID.fromString(id).toString(),
                 "p_decision", decision, "p_note", note == null ? "" : note));
     }
 
+    /** Converts a Supabase incident row and its related data into an incident snapshot. */
     private static Incident toIncident(JsonNode row) {
         String id = row.path("id").asText();
         Instant reportedAt = Instant.parse(row.path("reported_at").asText());
@@ -204,6 +216,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
                 desc);
     }
 
+    /** Returns the nested JSON value as a display name. */
     private static String nestedName(JsonNode relation, String fallback) {
         if (relation.isArray()) {
             return relation.isEmpty() ? fallback : relation.get(0).path("full_name").asText(fallback);
@@ -211,6 +224,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         return relation.path("full_name").asText(fallback);
     }
 
+    /** Returns the responder classification code from the profile data. */
     private static String categoryCode(String type) {
         String normalized = type.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
         return switch (normalized) {
@@ -220,6 +234,7 @@ public final class SupabaseIncidentRepository implements IncidentRepository {
         };
     }
 
+    /** Returns the display label for the responder classification. */
     private static String categoryLabel(String category) {
         return switch (category) {
             case "vehicular_accident" -> "Vehicular accident";

@@ -28,12 +28,14 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
     private final JComboBox<Incident> incidents = new JComboBox<>();
     private final DefaultTableModel responseModel = new DefaultTableModel(
             new String[]{"Responder", "Decision", "Responded at", "Responder ID"}, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override public boolean isCellEditable(int row, int column) { return false; }
     };
     private final JTable responses = new JTable(responseModel);
 
     private final DefaultTableModel activeAssignmentsModel = new DefaultTableModel(
             new String[]{"Assignment ID", "Assigned Responder", "Role / Task", "Mission Status", "Assigned At"}, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override public boolean isCellEditable(int row, int column) { return false; }
     };
     private final JTable activeAssignmentsTable = new JTable(activeAssignmentsModel);
@@ -49,6 +51,7 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
     private final JCheckBox overrideConflicts = new JCheckBox("Emergency Override (Allow Conflicting Assignments)", false);
     private List<Incident> incidentRows = List.of();
 
+    /** Creates a dispatch panel instance. */
     public DispatchPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -62,6 +65,7 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
         loadIncidents();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
@@ -88,6 +92,7 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
         return header;
     }
 
+    /** Builds split. */
     private JComponent buildSplit() {
         responses.setAutoCreateRowSorter(true);
         responses.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
@@ -141,6 +146,7 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
         return centerPanel;
     }
 
+    /** Builds footer. */
     private JPanel buildFooter() {
         JPanel f = new JPanel(new BorderLayout(0, 8));
         f.setOpaque(false);
@@ -171,20 +177,24 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
         return f;
     }
 
+    /** Loads active incidents when this panel is added to the component hierarchy. */
     @Override public void addNotify() {
         super.addNotify();
         loadIncidents();
     }
 
+    /** Runs the superclass cleanup when this panel is removed from the component hierarchy. */
     @Override public void removeNotify() {
         super.removeNotify();
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadIncidents();
     }
 
+    /** Loads incidents. */
     private void loadIncidents() {
         BackgroundTask.run(() -> ctx.incidents.visibleTo(false), all -> {
             Incident selected = selectedIncident();
@@ -202,10 +212,12 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
         }, err -> showError("Could not load incidents: " + err.getMessage()));
     }
 
+    /** Returns the incident currently selected in the incident picker. */
     private Incident selectedIncident() {
         return (Incident) incidents.getSelectedItem();
     }
 
+    /** Refreshes responses. */
     private void refreshResponses() {
         Incident incident = selectedIncident();
         if (incident == null || !isDisplayable()) {
@@ -226,6 +238,7 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
                 err -> showError("Could not refresh dispatch responses: " + err.getMessage()));
     }
 
+    /** Renders responses. */
     private void renderResponses(Incident incident, JsonNode counts, JsonNode rows, JsonNode asgRows) {
         responseModel.setRowCount(0);
         int notified = counts.path("notified").asInt();
@@ -269,6 +282,7 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
         message.setText(" ");
     }
 
+    /** Confirms the selected response-team assignment. */
     private void confirmAssignment() {
         Incident incident = selectedIncident();
         int[] selectedRows = responses.getSelectedRows();
@@ -306,12 +320,14 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
                 err -> showError("Assignment failed: " + err.getMessage()));
     }
 
+    /** Reports whether any selected responder has accepted the deployment. */
     private boolean hasAcceptedSelection() {
         return java.util.Arrays.stream(responses.getSelectedRows())
                 .map(responses::convertRowIndexToModel)
                 .anyMatch(row -> "ACCEPTED".equals(String.valueOf(responseModel.getValueAt(row, 1))));
     }
 
+    /** Cancels the selected assignment after prompting for a reason. */
     private void cancelSelectedAssignment() {
         int r = activeAssignmentsTable.getSelectedRow();
         if (r < 0) return;
@@ -337,6 +353,7 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
         }, err -> showError("Cancel failed: " + err.getMessage()));
     }
 
+    /** Displays request personnel dialog. */
     private void showRequestPersonnelDialog() {
         Incident inc = selectedIncident();
         if (inc == null) return;
@@ -364,6 +381,7 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
         }, err -> showError("Request failed: " + err.getMessage()));
     }
 
+    /** Resolves the selected incident. */
     private void resolveSelectedIncident() {
         Incident inc = selectedIncident();
         if (inc == null) return;
@@ -381,6 +399,7 @@ public final class DispatchPanel extends JPanel implements com.gudo.germs.ui.Ref
         }, err -> showError("Resolution failed: " + err.getMessage()));
     }
 
+    /** Displays error. */
     private void showError(String text) {
         message.setForeground(GermsColors.CRITICAL);
         message.setText(text);

@@ -11,6 +11,7 @@ import java.awt.Font;
 
 /** Honest stand-in for modules scheduled for a later phase. Shows no fake data. */
 public final class ModulePlaceholderPanel extends JPanel {
+    /** Creates a module placeholder panel instance. */
     public ModulePlaceholderPanel(Module module) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(BorderFactory.createEmptyBorder(32, 32, 32, 32));

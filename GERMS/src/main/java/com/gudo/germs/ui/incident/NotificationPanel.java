@@ -30,6 +30,7 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
     private final DefaultTableModel model = new DefaultTableModel(
             new String[]{"ID", "Priority", "Alert", "Details", "Recipient", "Incident / Location",
                     "Responder Status", "Command Status", "Timestamp"}, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable table = new JTable(model);
@@ -40,6 +41,7 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
     private String activeAlertId;
     private String pendingNotificationId;
 
+    /** Creates a notification panel instance. */
     public NotificationPanel(AppContext ctx, Profile user, Consumer<String> onAcknowledged) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -58,6 +60,7 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
         add(buildFooter(), BorderLayout.SOUTH);
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
@@ -105,6 +108,7 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
         return header;
     }
 
+    /** Builds footer. */
     private JPanel buildFooter() {
         JPanel f = new JPanel(new BorderLayout());
         f.setOpaque(false);
@@ -133,25 +137,30 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
         return f;
     }
 
+    /** Loads notifications when this panel is added to the component hierarchy. */
     @Override public void addNotify() {
         super.addNotify();
         loadNotifications();
     }
 
+    /** Runs the superclass removal lifecycle for this notification panel. */
     @Override public void removeNotify() {
         super.removeNotify();
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadNotifications();
     }
 
+    /** Opens notification. */
     public void openNotification(String notificationId) {
         pendingNotificationId = notificationId;
         if (isDisplayable()) loadNotifications();
     }
 
+    /** Loads notifications. */
     public void loadNotifications() {
         BackgroundTask.run(() -> {
             String filter = isAdmin ? "" : "&recipient_id=eq." + user.id();
@@ -246,11 +255,13 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
         }, err -> footerStatus.setText("Could not load notifications: " + err.getMessage()));
     }
 
+    /** Reports whether a notification receipt contains an acknowledgement timestamp. */
     private static boolean receiptAcknowledged(JsonNode receipt) {
         if (receipt.isArray()) return !receipt.isEmpty() && receipt.get(0).hasNonNull("acknowledged_at");
         return receipt.isObject() && receipt.hasNonNull("acknowledged_at");
     }
 
+    /** Acknowledges the selected notification through Supabase and refreshes the list. */
     private void acknowledgeSelected() {
         int r = table.getSelectedRow();
         if (r < 0) {

@@ -7,10 +7,14 @@ public final class SessionManager {
     private final AuthClient auth;
     private Session session;
 
+    /** Creates a session manager instance. */
     public SessionManager(AuthClient auth) { this.auth = auth; }
 
+    /** Stores the current authenticated session in memory. */
     public synchronized void set(Session s) { this.session = s; }
+    /** Clears the current authenticated session. */
     public synchronized void clear() { this.session = null; }
+    /** Returns the current session, or null when signed out. */
     public synchronized Optional<Session> current() { return Optional.ofNullable(session); }
 
     /** @return a valid JWT, or null when nobody is signed in (anonymous/guest requests). */

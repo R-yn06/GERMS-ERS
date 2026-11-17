@@ -44,6 +44,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
     private final DefaultTableModel resourceModel = new DefaultTableModel(
             new String[] { "ID", "Resource Name", "Category", "Total", "Available", "Condition", "Status", "Location" },
             0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -53,6 +54,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
 
     private final DefaultTableModel allocModel = new DefaultTableModel(
             new String[] { "Allocation ID", "Incident", "Allocated Qty", "Allocated By", "Status", "Notes" }, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -62,6 +64,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
 
     private final JLabel statusLabel = new JLabel(" ");
 
+    /** Creates a resource management panel instance. */
     public ResourceManagementPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -75,6 +78,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
         loadResources();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
@@ -124,6 +128,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
         return header;
     }
 
+    /** Builds split. */
     private JComponent buildSplit() {
         resourceTable.setRowHeight(25);
         resourceTable.removeColumn(resourceTable.getColumnModel().getColumn(0)); // Hide ID
@@ -156,6 +161,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
         return split;
     }
 
+    /** Loads resources. */
     public void loadResources() {
         statusLabel.setText("Loading resource inventory...");
         BackgroundTask.run(() -> {
@@ -186,6 +192,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
         });
     }
 
+    /** Returns selected resource id. */
     private String getSelectedResourceId() {
         int r = resourceTable.getSelectedRow();
         if (r < 0)
@@ -193,6 +200,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
         return String.valueOf(resourceModel.getValueAt(resourceTable.convertRowIndexToModel(r), 0));
     }
 
+    /** Loads allocations for selected. */
     private void loadAllocationsForSelected() {
         String resId = getSelectedResourceId();
         if (resId == null) {
@@ -228,6 +236,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
         }, err -> statusLabel.setText("Failed to load allocations: " + err.getMessage()));
     }
 
+    /** Displays add resource dialog. */
     private void showAddResourceDialog() {
         JTextField name = new JTextField();
         JComboBox<String> category = new JComboBox<>(new String[] {
@@ -281,6 +290,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Allocates the selected resource. */
     private void allocateSelectedResource() {
         String resId = getSelectedResourceId();
         if (resId == null) {
@@ -346,6 +356,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Releases the selected resource allocation. */
     private void releaseSelectedAllocation() {
         int r = allocTable.getSelectedRow();
         if (r < 0) {
@@ -390,6 +401,7 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadResources();

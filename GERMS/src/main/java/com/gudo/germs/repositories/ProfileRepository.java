@@ -8,16 +8,20 @@ import com.gudo.germs.supabase.SupabaseException;
 import java.util.Optional;
 import java.util.UUID;
 
+/** Loads and updates user profiles through Supabase. */
 public final class ProfileRepository {
     private final RestClient rest;
 
+    /** Creates a profile repository instance. */
     public ProfileRepository(RestClient rest) { this.rest = rest; }
 
+    /** Finds by id. */
     public Optional<Profile> findById(UUID id) throws SupabaseException {
         JsonNode rows = rest.select("profiles", "select=id,full_name,email,role,is_active&id=eq." + id);
         return rows.isArray() && rows.size() > 0 ? Optional.of(Profile.fromJson(rows.get(0))) : Optional.empty();
     }
 
+    /** Ensures that the guest profile is available for the current session. */
     public Profile ensureGuestProfile(UUID id, String fullName, String email, String phone) {
         try {
             rest.insertMinimal("profiles", java.util.Map.of(

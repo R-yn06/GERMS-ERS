@@ -16,15 +16,19 @@ import java.util.Locale;
 
 /** Reusable map-based location picker for reports, facilities, and responder location sharing. */
 public final class LocationPickerDialog {
+    /** Represents a selection value. */
     public record Selection(double latitude, double longitude, String label, String source,
                             Double accuracyMeters) {}
 
+    /** Creates a location picker dialog instance. */
     private LocationPickerDialog() {}
 
+    /** Displays dialog. */
     public static Selection showDialog(Window owner, String title, Selection initialSelection) {
         return new Picker(owner, title, initialSelection).show();
     }
 
+    /** Owns the dialog state and controls used to select a map location. */
     private static final class Picker {
         private final JDialog dialog;
         private final OpenStreetMapPanel map;
@@ -36,6 +40,7 @@ public final class LocationPickerDialog {
         private Selection selection;
         private List<GeoLocationService.SearchResult> searchResults = List.of();
 
+        /** Creates a picker instance. */
         private Picker(Window owner, String title, Selection initialSelection) {
             dialog = new JDialog(owner, title, JDialog.ModalityType.APPLICATION_MODAL);
             dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
@@ -50,6 +55,7 @@ public final class LocationPickerDialog {
             map.setPinDropEnabled(true, this::pin);
         }
 
+        /** Displays the picker and returns the selected location, or null if canceled. */
         private Selection show() {
             JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 6));
             JButton find = new JButton("Search");
@@ -87,6 +93,7 @@ public final class LocationPickerDialog {
             dialog.pack();
             dialog.setLocationRelativeTo(dialog.getOwner());
             dialog.addWindowListener(new WindowAdapter() {
+                /** Handles the window closed event. */
                 @Override public void windowClosed(WindowEvent event) {
                     map.setPinDropEnabled(false, null);
                     map.shutdownTileLoader();
@@ -96,10 +103,12 @@ public final class LocationPickerDialog {
             return selection;
         }
 
+        /** Selects the clicked map location and looks up its street address. */
         private void pin(Point2D.Double point) {
             selection = new Selection(point.x, point.y, "Pinned map location", "manual", null);
             updateSelectionText();
             new SwingWorker<String, Void>() {
+                /** Looks up a street address for the selected map coordinates. */
                 @Override protected String doInBackground() {
                     try {
                         return GeoLocationService.reverseGeocode(point.x, point.y);
@@ -108,6 +117,7 @@ public final class LocationPickerDialog {
                     }
                 }
 
+                /** Updates the selected pin with the completed address lookup. */
                 @Override protected void done() {
                     if (!dialog.isDisplayable() || selection == null
                             || selection.latitude() != point.x || selection.longitude() != point.y) return;
@@ -124,6 +134,7 @@ public final class LocationPickerDialog {
             }.execute();
         }
 
+        /** Searches for the entered place name or address and updates the result list. */
         private void searchPlaces() {
             String query = search.getText().trim();
             if (query.length() < 2) {
@@ -132,10 +143,12 @@ public final class LocationPickerDialog {
             }
             status.setText("Searching OpenStreetMap and local landmarks...");
             new SwingWorker<GeoLocationService.SearchResponse, Void>() {
+                /** Searches OpenStreetMap and local landmarks for the query. */
                 @Override protected GeoLocationService.SearchResponse doInBackground() {
                     return GeoLocationService.search(query);
                 }
 
+                /** Displays search results and centers the map on the first match. */
                 @Override protected void done() {
                     try {
                         GeoLocationService.SearchResponse response = get();
@@ -159,6 +172,7 @@ public final class LocationPickerDialog {
             }.execute();
         }
 
+        /** Centers the map on the selected search result and selects its coordinates. */
         private void centerOnResult() {
             int index = results.getSelectedIndex();
             if (index < 0 || index >= searchResults.size()) return;
@@ -169,6 +183,7 @@ public final class LocationPickerDialog {
             updateSelectionText();
         }
 
+        /** Confirms and selects an approximate city-level location based on the public IP. */
         private void useApproximateLocation() {
             int confirm = JOptionPane.showConfirmDialog(dialog,
                     "This uses your internet connection's public IP address to estimate a city-level location. "
@@ -179,10 +194,12 @@ public final class LocationPickerDialog {
 
             status.setText("Requesting approximate network location...");
             new SwingWorker<GeoLocationService.GeoPoint, Void>() {
+                /** Detects an approximate city-level location from the public IP address. */
                 @Override protected GeoLocationService.GeoPoint doInBackground() throws IOException {
                     return GeoLocationService.detectApproximateLocationByIp();
                 }
 
+                /** Centers the map on the approximate location and displays it as selected. */
                 @Override protected void done() {
                     try {
                         GeoLocationService.GeoPoint point = get();
@@ -200,6 +217,7 @@ public final class LocationPickerDialog {
             }.execute();
         }
 
+        /** Updates selection text. */
         private void updateSelectionText() {
             if (selection == null) {
                 selectionText.setText("No location selected");

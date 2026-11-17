@@ -2,9 +2,12 @@ package com.gudo.germs.utils;
 
 import java.util.Locale;
 
+/** Provides responder classification codes and their display labels. */
 public final class ResponderClassificationCodes {
+    /** Prevents instantiation of this utility class. */
     private ResponderClassificationCodes() {}
 
+    /** Maps legacy responder classifications to their canonical code. */
     public static String canonicalCode(String code) {
         if (code == null || code.isBlank()) return "";
         return switch (code.trim().toUpperCase(Locale.ROOT)) {
@@ -17,6 +20,7 @@ public final class ResponderClassificationCodes {
         };
     }
 
+    /** Returns the canonical responder classification code. */
     public static String initials(String code) {
         return canonicalCode(code);
     }

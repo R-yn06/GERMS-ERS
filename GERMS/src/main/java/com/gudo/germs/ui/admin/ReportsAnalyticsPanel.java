@@ -34,6 +34,7 @@ public final class ReportsAnalyticsPanel extends JPanel implements com.gudo.germ
 
     private final DefaultTableModel breakdownModel = new DefaultTableModel(
             new String[]{"Incident #", "Title", "Category", "Severity", "Status", "Reported At", "Location"}, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable breakdownTable = new JTable(breakdownModel);
@@ -44,6 +45,7 @@ public final class ReportsAnalyticsPanel extends JPanel implements com.gudo.germ
 
     private JsonNode cachedIncidents = null;
 
+    /** Creates a reports analytics panel instance. */
     public ReportsAnalyticsPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 14));
         this.ctx = ctx;
@@ -57,6 +59,7 @@ public final class ReportsAnalyticsPanel extends JPanel implements com.gudo.germ
         loadAnalytics();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
@@ -96,6 +99,7 @@ public final class ReportsAnalyticsPanel extends JPanel implements com.gudo.germ
         return header;
     }
 
+    /** Builds center area. */
     private JComponent buildCenterArea() {
         JPanel center = new JPanel(new BorderLayout(0, 12));
         center.setOpaque(false);
@@ -118,6 +122,7 @@ public final class ReportsAnalyticsPanel extends JPanel implements com.gudo.germ
         return center;
     }
 
+    /** Loads analytics. */
     public void loadAnalytics() {
         analyticsSummary.setText("Computing operational metrics from database...");
         BackgroundTask.run(() -> {
@@ -161,6 +166,7 @@ public final class ReportsAnalyticsPanel extends JPanel implements com.gudo.germ
         });
     }
 
+    /** Filters the report data using the current selections. */
     private void filterData() {
         if (cachedIncidents == null || !cachedIncidents.isArray()) return;
 
@@ -191,6 +197,7 @@ public final class ReportsAnalyticsPanel extends JPanel implements com.gudo.germ
         }
     }
 
+    /** Exports the displayed report data as CSV. */
     private void exportCsv() {
         JFileChooser chooser = new JFileChooser();
         chooser.setSelectedFile(new File("GERMS_Operational_Report_" + System.currentTimeMillis() + ".csv"));
@@ -215,6 +222,7 @@ public final class ReportsAnalyticsPanel extends JPanel implements com.gudo.germ
         }
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadAnalytics();

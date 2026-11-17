@@ -14,6 +14,7 @@ public final class AuthService {
     private final ProfileRepository profiles;
     private volatile Profile current;
 
+    /** Creates an auth service instance. */
     public AuthService(AuthClient authClient, SessionManager sessions, ProfileRepository profiles) {
         this.authClient = authClient;
         this.sessions = sessions;
@@ -58,6 +59,7 @@ public final class AuthService {
         }
     }
 
+    /** Signs out the current user and clears the local session. */
     public void logout() {
         String token = sessions.current().map(Session::accessToken).orElse(null);
         sessions.clear();
@@ -67,5 +69,6 @@ public final class AuthService {
         }
     }
 
+    /** Returns the profile for the currently signed-in user. */
     public Profile currentProfile() { return current == null ? Profile.guest() : current; }
 }

@@ -29,6 +29,7 @@ public final class MainWindow extends JFrame {
     private LoginPanel loginPanel;
     private Shell shell;
 
+    /** Creates a main window instance. */
     public MainWindow(AppContext ctx) {
         super("GERMS \u2013 Gudo Emergency Response Management System");
         this.ctx = ctx;
@@ -43,6 +44,7 @@ public final class MainWindow extends JFrame {
         showLogin();
     }
 
+    /** Displays shell. */
     private void showShell(Profile user) {
         if (shell != null)
             root.remove(shell);
@@ -53,6 +55,7 @@ public final class MainWindow extends JFrame {
         root.repaint();
     }
 
+    /** Signs out. */
     private void signOut() {
         BackgroundTask.run(() -> {
             ctx.auth.logout();
@@ -60,6 +63,7 @@ public final class MainWindow extends JFrame {
         }, ok -> showLogin(), err -> showLogin());
     }
 
+    /** Displays login. */
     private void showLogin() {
         // Remove old login panel to discard any stale state and recreate fresh
         if (loginPanel != null) {

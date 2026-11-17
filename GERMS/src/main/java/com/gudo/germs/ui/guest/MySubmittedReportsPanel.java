@@ -21,11 +21,13 @@ public final class MySubmittedReportsPanel extends JPanel implements com.gudo.ge
 
     private final DefaultTableModel model = new DefaultTableModel(
             new String[]{"Report ID", "Description / Details", "Location", "Submission Time", "Verification Status"}, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable table = new JTable(model);
     private final JLabel statusLabel = new JLabel(" ");
 
+    /** Creates a my submitted reports panel instance. */
     public MySubmittedReportsPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -42,6 +44,7 @@ public final class MySubmittedReportsPanel extends JPanel implements com.gudo.ge
         loadReports();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
@@ -64,6 +67,7 @@ public final class MySubmittedReportsPanel extends JPanel implements com.gudo.ge
         return header;
     }
 
+    /** Loads reports. */
     public void loadReports() {
         statusLabel.setText("Checking verification status of your reports...");
         String filter = "";
@@ -101,6 +105,7 @@ public final class MySubmittedReportsPanel extends JPanel implements com.gudo.ge
         });
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadReports();

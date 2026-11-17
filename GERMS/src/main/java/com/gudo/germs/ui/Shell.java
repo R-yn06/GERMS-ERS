@@ -95,6 +95,7 @@ public final class Shell extends JPanel {
     private String lastNotificationId;
     private TrayIcon trayIcon;
 
+    /** Creates a shell instance. */
     public Shell(AppContext ctx, Profile user, Runnable onLogout) {
         super(new BorderLayout());
         this.ctx = ctx;
@@ -142,6 +143,7 @@ public final class Shell extends JPanel {
         pageRefresh.setCoalesce(true);
     }
 
+    /** Initializes the application shell when it is added to the component hierarchy. */
     @Override
     public void addNotify() {
         super.addNotify();
@@ -153,6 +155,7 @@ public final class Shell extends JPanel {
         if (!pageRefresh.isRunning()) pageRefresh.start();
     }
 
+    /** Releases application-shell resources when it is removed from the component hierarchy. */
     @Override
     public void removeNotify() {
         alertWatcher.stop();
@@ -162,6 +165,7 @@ public final class Shell extends JPanel {
         super.removeNotify();
     }
 
+    /** Checks emergency alerts. */
     private void checkEmergencyAlerts() {
         if (!alertCheckInProgress.compareAndSet(false, true)) return;
         BackgroundTask.run(() -> {
@@ -230,6 +234,7 @@ public final class Shell extends JPanel {
         });
     }
 
+    /** Reports whether a receipt JSON value contains an acknowledgement timestamp. */
     private static boolean receiptAcknowledged(JsonNode receipt) {
         if (receipt.isArray()) {
             return !receipt.isEmpty() && receipt.get(0).hasNonNull("acknowledged_at");
@@ -237,6 +242,7 @@ public final class Shell extends JPanel {
         return receipt.isObject() && receipt.hasNonNull("acknowledged_at");
     }
 
+    /** Displays notification toast. */
     private void showNotificationToast(JsonNode notification) {
         pendingNotificationId = notification.path("id").asText();
         lastNotificationId = pendingNotificationId;
@@ -255,6 +261,7 @@ public final class Shell extends JPanel {
         }
     }
 
+    /** Registers tray icon. */
     private void registerTrayIcon() {
         if (trayIcon != null) return;
         try {
@@ -274,6 +281,7 @@ public final class Shell extends JPanel {
         }
     }
 
+    /** Removes tray icon. */
     private void removeTrayIcon() {
         if (trayIcon != null) {
             try {
@@ -286,6 +294,7 @@ public final class Shell extends JPanel {
         }
     }
 
+    /** Opens notification. */
     private void openNotification(String id) {
         JComponent panel = built.get(Module.NOTIFICATIONS);
         if (panel == null) {
@@ -310,6 +319,7 @@ public final class Shell extends JPanel {
         }
     }
 
+    /** Clears alarm and notification tracking when an alert is acknowledged. */
     private void notificationAcknowledged(String id) {
         if (id.equals(activeAlertId)) {
             alarms.stopAlarm();
@@ -318,8 +328,10 @@ public final class Shell extends JPanel {
         if (id.equals(lastNotificationId)) lastNotificationId = null;
     }
 
+    /** Represents a alert snapshot value. */
     private record AlertSnapshot(JsonNode rows, boolean deploymentAlertsEnabled) {}
 
+    /** Builds top bar. */
     private JPanel buildTopBar(Runnable onLogout) {
         JPanel bar = new SurfacePanel(new BorderLayout(), GermsColors::surface);
         bar.setBorder(BorderFactory.createEmptyBorder(10, 16, 10, 16));
@@ -376,6 +388,7 @@ public final class Shell extends JPanel {
         return bar;
     }
 
+    /** Builds sidebar. */
     private JComponent buildSidebar(List<Module> modules) {
         JPanel list = new SurfacePanel(null, GermsColors::surface);
         list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
@@ -401,6 +414,7 @@ public final class Shell extends JPanel {
         return scroll;
     }
 
+    /** Displays the selected module, creating its screen on first visit. */
     private void show(Module module) {
         activeModule = module;
         JComponent panel = built.get(module);
@@ -414,6 +428,7 @@ public final class Shell extends JPanel {
         if (alreadyBuilt) refreshCurrentPage();
     }
 
+    /** Refreshes current page. */
     private void refreshCurrentPage() {
         JComponent panel = activeModule == null ? null : built.get(activeModule);
         if (panel instanceof RefreshablePanel refreshable) {
@@ -421,13 +436,16 @@ public final class Shell extends JPanel {
         }
     }
 
+    /** Paints the navigation menu icon. */
     private static final class MenuIcon implements Icon {
         private final int size;
 
+        /** Creates a menu icon instance. */
         MenuIcon(int size) {
             this.size = size;
         }
 
+        /** Paints icon. */
         @Override
         public void paintIcon(Component c, Graphics g, int x, int y) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -442,17 +460,20 @@ public final class Shell extends JPanel {
             g2.dispose();
         }
 
+        /** Returns icon width. */
         @Override
         public int getIconWidth() {
             return size;
         }
 
+        /** Returns icon height. */
         @Override
         public int getIconHeight() {
             return size;
         }
     }
 
+    /** Creates the screen associated with the selected application module. */
     private JComponent create(Module module) {
         return switch (module) {
             case DASHBOARD -> new DashboardPanel(ctx, user);

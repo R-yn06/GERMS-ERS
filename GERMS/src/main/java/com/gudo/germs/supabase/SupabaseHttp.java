@@ -19,6 +19,7 @@ public final class SupabaseHttp {
     private final AppConfig config;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
+    /** Creates a supabase http instance. */
     public SupabaseHttp(AppConfig config) { this.config = config; }
 
     /** @param path path beginning with "/", e.g. "/rest/v1/incidents?select=*"
@@ -53,6 +54,7 @@ public final class SupabaseHttp {
         }
     }
 
+    /** Extracts a human-readable error message from a Supabase response body. */
     private static String extractMessage(String body, int status) {
         try {
             JsonNode n = JSON.readTree(body);

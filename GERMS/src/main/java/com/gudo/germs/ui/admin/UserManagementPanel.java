@@ -26,6 +26,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
             new String[] { "ID", "Name", "Email", "Role", "Classification", "Active", "Availability", "Deployment",
                     "Classification Code" },
             0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -36,6 +37,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
     private final JComboBox<String> filterBox = new JComboBox<>(
             new String[] { "All Accounts", "Responders Only", "Guests / Users", "Administrators" });
 
+    /** Creates the user management screen. */
     public UserManagementPanel(AppContext ctx) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -106,6 +108,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         load();
     }
 
+    /** Loads user accounts from Supabase using the selected role filter. */
     private void load() {
         String sel = (String) filterBox.getSelectedItem();
         String filter = "";
@@ -124,11 +127,13 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
                 this::render, e -> state.setText("Could not load users: " + e.getMessage()));
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         load();
     }
 
+    /** Populates the user table with account, availability, and deployment data. */
     private void render(JsonNode rows) {
         model.setRowCount(0);
         if (rows != null && rows.isArray()) {
@@ -177,6 +182,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         state.setText(model.getRowCount() + " account(s) loaded.");
     }
 
+    /** Returns the selected account ID, or null when no account is selected. */
     private String selectedId() {
         int row = table.getSelectedRow();
         if (row < 0) {
@@ -187,6 +193,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         return String.valueOf(model.getValueAt(table.convertRowIndexToModel(row), 0));
     }
 
+    /** Promotes the selected account to the next permitted role. */
     private void promoteSelected() {
         String id = selectedId();
         if (id == null)
@@ -249,6 +256,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         });
     }
 
+    /** Adds account. */
     private void addAccount() {
         JTextField name = new JTextField();
         JTextField email = new JTextField();
@@ -299,6 +307,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Opens the editor for the selected account and saves its changes. */
     private void editSelected() {
         String id = selectedId();
         if (id == null)
@@ -370,13 +379,16 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         }, e -> JOptionPane.showMessageDialog(this, e.getMessage(), "Update failed", JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Represents a classification option value. */
     private record ClassificationOption(String code, String label) {
+        /** Returns a string representation of this value. */
         @Override
         public String toString() {
             return label;
         }
     }
 
+    /** Sets the selected responder's availability status through the admin RPC. */
     private void setAvailability() {
         String id = selectedId();
         if (id == null)
@@ -400,6 +412,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Sends deployment. */
     private void requestDeployment() {
         String id = selectedId();
         if (id == null)
@@ -444,6 +457,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Confirms and deactivates the selected account through the admin RPC. */
     private void deactivateSelected() {
         String id = selectedId();
         if (id == null)

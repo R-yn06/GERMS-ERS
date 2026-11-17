@@ -29,12 +29,14 @@ public final class PublicAnnouncementsPanel extends JPanel implements com.gudo.g
 
     private final DefaultTableModel model = new DefaultTableModel(
             new String[]{"ID", "Priority", "Title", "Advisory Summary", "Published Date", "Status"}, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override public boolean isCellEditable(int r, int c) { return false; }
     };
     private final JTable table = new JTable(model);
     private final JTextArea detailArea = new JTextArea();
     private final JLabel statusLabel = new JLabel(" ");
 
+    /** Creates a public announcements panel instance. */
     public PublicAnnouncementsPanel(AppContext ctx, Profile user, boolean readOnly) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -73,6 +75,7 @@ public final class PublicAnnouncementsPanel extends JPanel implements com.gudo.g
         loadAnnouncements();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
@@ -107,6 +110,7 @@ public final class PublicAnnouncementsPanel extends JPanel implements com.gudo.g
         return header;
     }
 
+    /** Loads announcements. */
     public void loadAnnouncements() {
         statusLabel.setText("Querying public announcements...");
         String filter = readOnly ? "&status=eq.published&is_public=eq.true" : "";
@@ -141,6 +145,7 @@ public final class PublicAnnouncementsPanel extends JPanel implements com.gudo.g
         });
     }
 
+    /** Displays create announcement dialog. */
     private void showCreateAnnouncementDialog() {
         JTextField titleField = new JTextField();
         JTextArea descArea = new JTextArea(5, 24);
@@ -178,6 +183,7 @@ public final class PublicAnnouncementsPanel extends JPanel implements com.gudo.g
         }, err -> JOptionPane.showMessageDialog(this, "Broadcast failed: " + err.getMessage(), "Error", JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadAnnouncements();

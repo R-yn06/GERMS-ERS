@@ -35,8 +35,10 @@ public final class AlarmService {
     private final Set<String> playedNotifications = Collections.synchronizedSet(new HashSet<>());
     private volatile SourceDataLine currentLine;
 
+    /** Creates an alarm service instance. */
     private AlarmService() {}
 
+    /** Returns the shared alarm service instance. */
     public static synchronized AlarmService get() {
         if (instance == null) {
             instance = new AlarmService();
@@ -44,10 +46,12 @@ public final class AlarmService {
         return instance;
     }
 
+    /** Reports whether this alarm service is muted. */
     public boolean isMuted() {
         return muted.get();
     }
 
+    /** Mutes or unmutes alarm playback. */
     public void setMuted(boolean mute) {
         this.muted.set(mute);
         if (mute) {
@@ -55,6 +59,7 @@ public final class AlarmService {
         }
     }
 
+    /** Reports whether this alarm service is playing. */
     public boolean isPlaying() {
         return playing.get();
     }
@@ -111,12 +116,14 @@ public final class AlarmService {
 
     // --- Sound Synthesis Engines ---
 
+    /** Plays low chime. */
     private void playLowChime() throws LineUnavailableException {
         // Single gentle 880Hz chime with smooth exponential decay (approx 350ms)
         byte[] p = generateTone(880, 350, 0.4f, true);
         playRawPcm(p, 44100);
     }
 
+    /** Plays moderate alert. */
     private void playModerateAlert() throws LineUnavailableException {
         // Two ascending alert chimes: 659Hz (E5) -> 880Hz (A5)
         byte[] tone1 = generateTone(659, 180, 0.5f, true);
@@ -130,6 +137,7 @@ public final class AlarmService {
         playRawPcm(out.toByteArray(), 44100);
     }
 
+    /** Plays high alarm. */
     private void playHighAlarm() throws LineUnavailableException {
         long deadline = System.nanoTime() + URGENT_ALARM_DURATION_NANOS;
         while (playing.get() && System.nanoTime() < deadline) {
@@ -141,6 +149,7 @@ public final class AlarmService {
         }
     }
 
+    /** Plays critical alarm. */
     private void playCriticalAlarm() throws LineUnavailableException {
         long deadline = System.nanoTime() + URGENT_ALARM_DURATION_NANOS;
         while (playing.get() && System.nanoTime() < deadline) {
@@ -162,6 +171,7 @@ public final class AlarmService {
         }
     }
 
+    /** Generates the tone. */
     private byte[] generateTone(int freqHz, int durationMs, float maxVolume, boolean decay) {
         int sampleRate = 44100;
         int numSamples = (sampleRate * durationMs) / 1000;
@@ -183,6 +193,7 @@ public final class AlarmService {
         return output;
     }
 
+    /** Plays raw pcm. */
     private synchronized void playRawPcm(byte[] pcmData, int sampleRate) throws LineUnavailableException {
         if (!playing.get() || muted.get()) return;
         AudioFormat format = new AudioFormat(sampleRate, 16, 1, true, false);

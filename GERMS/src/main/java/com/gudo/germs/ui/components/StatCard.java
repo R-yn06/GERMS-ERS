@@ -19,6 +19,7 @@ public final class StatCard extends JPanel {
     private JLabel valueLabel;
     private JLabel titleLabel;
 
+    /** Creates a stat card instance. */
     public StatCard(String title, String value, Color accent) {
         this.accent = accent;
         setLayout(new BorderLayout(0, 4));
@@ -33,14 +34,17 @@ public final class StatCard extends JPanel {
         updateUI();
     }
 
+    /** Updates the summary value displayed by this card. */
     public void setValue(String value) { valueLabel.setText(value); }
 
+    /** Updates ui. */
     @Override public void updateUI() {
         super.updateUI();
         if (titleLabel != null) titleLabel.setForeground(GermsColors.SECONDARY_TEXT);
         if (valueLabel != null) valueLabel.setForeground(GermsColors.text());
     }
 
+    /** Paints component. */
     @Override protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);

@@ -94,6 +94,7 @@ public final class LoginPanel extends JLayeredPane{
     // Theme Switcher Component
     private final ThemeToggleBar themeToggleBar = new ThemeToggleBar();
 
+    /** Creates a login panel instance. */
     public LoginPanel(AppContext ctx, Consumer<Profile> onLogin, Runnable onGuest) {
         this.ctx = ctx;
         this.onLogin = onLogin;
@@ -123,6 +124,7 @@ public final class LoginPanel extends JLayeredPane{
         }
     }
 
+    /** Builds split glass card. */
     private GlassCard buildSplitGlassCard() {
         GlassCard card = new GlassCard(22);
         card.setLayout(new GridLayout(1, 2, 0, 0));
@@ -138,8 +140,10 @@ public final class LoginPanel extends JLayeredPane{
     // ==========================================
     // LEFT PANEL: BRAND DETAILS & INITIAL LOGO
     // ==========================================
+    /** Builds left brand panel. */
     private JPanel buildLeftBrandPanel() {
         JPanel left = new JPanel(new GridBagLayout()) {
+            /** Paints component. */
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -187,6 +191,7 @@ public final class LoginPanel extends JLayeredPane{
         return left;
     }
 
+    /** Creates logo component. */
     private JComponent createLogoComponent() {
         URL logoUrl = getClass().getResource("/com/gudo/germs/ui/Images/Logo.png");
         if (logoUrl != null) {
@@ -203,6 +208,7 @@ public final class LoginPanel extends JLayeredPane{
         return fallback;
     }
 
+    /** Creates bullet badge. */
     private JPanel createBulletBadge(String text) {
         JPanel badge = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         badge.setOpaque(false);
@@ -217,6 +223,7 @@ public final class LoginPanel extends JLayeredPane{
     // ==========================================
     // RIGHT PANEL: FORM, CONTROLS & THEME TOGGLE
     // ==========================================
+    /** Builds right form panel. */
     private JPanel buildRightFormPanel() {
         JPanel right = new JPanel(new BorderLayout());
         right.setOpaque(false);
@@ -320,6 +327,7 @@ public final class LoginPanel extends JLayeredPane{
         return right;
     }
 
+    /** Creates aligned label row. */
     private JPanel createAlignedLabelRow(JLabel label) {
         JPanel row = new JPanel(new BorderLayout());
         row.setOpaque(false);
@@ -333,6 +341,7 @@ public final class LoginPanel extends JLayeredPane{
     // ==========================================
     // THEME HANDLING & HIGH-CONTRAST PALETTE
     // ==========================================
+    /** Applies the theme. */
     private void applyTheme() {
         // High-contrast explicitly forced: pure black/slate in light mode, pure white in dark mode
         Color textHeading = isDarkTheme ? new Color(248, 250, 252) : new Color(15, 23, 42);
@@ -361,6 +370,7 @@ public final class LoginPanel extends JLayeredPane{
         repaint();
     }
 
+    /** Unregisters the theme listener and pauses background animation when the panel is removed. */
     @Override
     public void removeNotify() {
         ThemeManager.removeThemeListener(themeListener);
@@ -370,12 +380,14 @@ public final class LoginPanel extends JLayeredPane{
         super.removeNotify();
     }
 
+    /** Briefly shakes a component to draw attention to a validation error. */
     private void shakeComponent(JComponent comp) {
         final Point origin = comp.getLocation();
         final int[] offsets = {-14, 14, -10, 10, -6, 6, -2, 2, 0};
         final Timer shakeTimer = new Timer(30, null);
         shakeTimer.addActionListener(new java.awt.event.ActionListener() {
             int step = 0;
+            /** Handles the action event raised by the associated control. */
             @Override
             public void actionPerformed(java.awt.event.ActionEvent e) {
                 if (step < offsets.length) {
@@ -391,6 +403,7 @@ public final class LoginPanel extends JLayeredPane{
         shakeTimer.start();
     }
 
+    /** Validates the entered credentials and starts an asynchronous sign-in request. */
     private void attemptLogin() {
         String email = emailField.getText().trim();
         char[] pw = passwordField.getPassword();
@@ -421,6 +434,7 @@ public final class LoginPanel extends JLayeredPane{
         });
     }
 
+    /** Displays register dialog. */
     private void showRegisterDialog() {
         Window parentWindow = SwingUtilities.getWindowAncestor(this);
         GlassRegistrationDialog dialog = new GlassRegistrationDialog(parentWindow, isDarkTheme, macAccentColor, (name, mail, phone, pass, onComplete, onError) -> {
@@ -437,6 +451,7 @@ public final class LoginPanel extends JLayeredPane{
         dialog.setVisible(true);
     }
 
+    /** Enables or disables the authentication controls while a request is running. */
     private void setBusy(boolean busy) {
         signInBtn.setEnabled(!busy);
         registerBtn.setEnabled(!busy);
@@ -446,15 +461,18 @@ public final class LoginPanel extends JLayeredPane{
         spinner.setActive(busy);
     }
 
+    /** Displays error. */
     private void showError(String msg) {
         inlineErrorLabel.setText(msg);
         inlineErrorLabel.setForeground(new Color(239, 68, 68));
     }
 
+    /** Clears error. */
     private void clearError() {
         inlineErrorLabel.setText(" ");
     }
 
+    /** Converts an authentication failure into a user-friendly message. */
     private static String friendly(Throwable t) {
         String msg = t.getMessage() == null ? "Authentication failed." : t.getMessage();
         if (msg.toLowerCase().contains("invalid login") || msg.toLowerCase().contains("invalid credentials")) {
@@ -463,6 +481,7 @@ public final class LoginPanel extends JLayeredPane{
         return msg;
     }
 
+    /** Creates label. */
     private static JLabel createLabel(String text, int size, int style, Color color) {
         JLabel l = new JLabel(text);
         l.setFont(new Font("SansSerif", style, size));
@@ -474,11 +493,14 @@ public final class LoginPanel extends JLayeredPane{
     // =========================================================================
     // MACOS LIQUID GLASS REGISTRATION DIALOG (PROPERLY CENTERED)
     // =========================================================================
+    /** Defines the contract for registration handler operations. */
     @FunctionalInterface
     public interface RegistrationHandler {
+        /** Starts registration with the supplied details and completion/error callbacks. */
         void handle(String name, String email, String phone, String password, Runnable onComplete, Consumer<String> onError);
     }
 
+    /** Presents a dialog for glass registration. */
     private class GlassRegistrationDialog extends JDialog {
         private final GlassCard modalGlassCard = new GlassCard(20);
         private final RoundedTextField nameField = new RoundedTextField("Juan Dela Cruz");
@@ -496,6 +518,7 @@ public final class LoginPanel extends JLayeredPane{
         private boolean isClosing = false;
         private final boolean isDark;
 
+        /** Creates a glass registration dialog instance. */
         public GlassRegistrationDialog(Window owner, boolean isDark, Color accent, RegistrationHandler handler) {
             super(owner, ModalityType.APPLICATION_MODAL);
             this.isDark = isDark;
@@ -503,6 +526,7 @@ public final class LoginPanel extends JLayeredPane{
             setBackground(new Color(0, 0, 0, 0));
 
             JPanel scrimPanel = new JPanel(new GridBagLayout()) {
+                /** Paints component. */
                 @Override
                 protected void paintComponent(Graphics g) {
                     Graphics2D g2 = (Graphics2D) g.create();
@@ -634,6 +658,7 @@ public final class LoginPanel extends JLayeredPane{
             }
 
             addWindowListener(new WindowAdapter() {
+                /** Handles the window opened event. */
                 @Override
                 public void windowOpened(WindowEvent e) {
                     startFadeIn();
@@ -641,6 +666,7 @@ public final class LoginPanel extends JLayeredPane{
             });
         }
 
+        /** Starts fade in. */
         private void startFadeIn() {
             animProgress = 0.0f;
             trySetWindowOpacity(0.0f);
@@ -670,6 +696,7 @@ public final class LoginPanel extends JLayeredPane{
             fadeTimer.start();
         }
 
+        /** Fades out the registration dialog before disposing it. */
         public void fadeOutAndDispose() {
             if (isClosing) return;
             isClosing = true;
@@ -698,6 +725,7 @@ public final class LoginPanel extends JLayeredPane{
             fadeTimer.start();
         }
 
+        /** Sets window opacity when the current platform supports translucency. */
         private void trySetWindowOpacity(float alpha) {
             float clamped = Math.max(0.0f, Math.min(1.0f, alpha));
             try {
@@ -709,6 +737,7 @@ public final class LoginPanel extends JLayeredPane{
             }
         }
 
+        /** Creates modal row. */
         private JPanel createModalRow(String labelText, JComponent field, Color labelColor) {
             JPanel p = new JPanel(new BorderLayout(0, 4));
             p.setOpaque(false);
@@ -724,6 +753,7 @@ public final class LoginPanel extends JLayeredPane{
             return p;
         }
 
+        /** Sets the dialog error value. */
         private void setDialogError(String msg) {
             modalErrorLabel.setText(msg);
             modalErrorLabel.setForeground(new Color(239, 68, 68));
@@ -733,10 +763,12 @@ public final class LoginPanel extends JLayeredPane{
     // =========================================================================
     // HIGH-CONTRAST SEGMENTED THEME TOGGLE BAR (LIGHT & DARK GUARANTEED)
     // =========================================================================
+    /** Displays controls for switching between light and dark themes. */
     private class ThemeToggleBar extends JPanel {
         private final JButton lightBtn = new JButton("Light");
         private final JButton darkBtn = new JButton("Dark");
 
+        /** Creates a theme toggle bar instance. */
         public ThemeToggleBar() {
             setLayout(new GridLayout(1, 2, 0, 0));
             setOpaque(false);
@@ -750,6 +782,7 @@ public final class LoginPanel extends JLayeredPane{
             refreshThemeState();
         }
 
+        /** Configures btn. */
         private void configureBtn(JButton btn, boolean targetsDark) {
             btn.setFont(new Font("SansSerif", Font.BOLD, 12));
             btn.setFocusPainted(false);
@@ -763,6 +796,7 @@ public final class LoginPanel extends JLayeredPane{
             });
         }
 
+        /** Refreshes theme state. */
         public void refreshThemeState() {
             if (isDarkTheme) {
                 // Dark mode: "Dark" is selected (crisp white), "Light" is muted
@@ -776,6 +810,7 @@ public final class LoginPanel extends JLayeredPane{
             repaint();
         }
 
+        /** Paints component. */
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -809,10 +844,12 @@ public final class LoginPanel extends JLayeredPane{
     // =========================================================================
     // ROUNDED TEXT BOXES WITH BULLETPROOF THEME SYNCHRONIZATION
     // =========================================================================
+    /** Text field with rounded styling and a built-in placeholder. */
     public static class RoundedTextField extends JPanel {
         private final JTextField field = new JTextField();
         private boolean isDark = false;
 
+        /** Creates a rounded text field instance. */
         public RoundedTextField(String placeholder) {
             setLayout(new BorderLayout());
             setOpaque(false);
@@ -826,9 +863,12 @@ public final class LoginPanel extends JLayeredPane{
             add(field, BorderLayout.CENTER);
         }
 
+        /** Returns text. */
         public String getText() { return field.getText(); }
+        /** Returns field. */
         public JTextField getField() { return field; }
 
+        /** Applies the selected light/dark theme to this component. */
         public void setTheme(boolean dark, Color fg) {
             this.isDark = dark;
             
@@ -848,6 +888,7 @@ public final class LoginPanel extends JLayeredPane{
             repaint();
         }
 
+        /** Paints component. */
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -870,12 +911,14 @@ public final class LoginPanel extends JLayeredPane{
         }
     }
 
+    /** Password field with rounded styling and a built-in placeholder. */
     public static class RoundedPasswordField extends JPanel {
         private final JPasswordField field = new JPasswordField();
         private final JButton textToggleBtn = new JButton("Show");
         private boolean isDark = false;
         private boolean isRevealed = false;
 
+        /** Creates a rounded password field instance. */
         public RoundedPasswordField() {
             setLayout(new BorderLayout(8, 0));
             setOpaque(false);
@@ -907,9 +950,12 @@ public final class LoginPanel extends JLayeredPane{
             add(textToggleBtn, BorderLayout.EAST);
         }
 
+        /** Returns password. */
         public char[] getPassword() { return field.getPassword(); }
+        /** Returns field. */
         public JPasswordField getField() { return field; }
 
+        /** Applies the selected light/dark theme to this component. */
         public void setTheme(boolean dark, Color fg) {
             this.isDark = dark;
             
@@ -931,6 +977,7 @@ public final class LoginPanel extends JLayeredPane{
             repaint();
         }
 
+        /** Paints component. */
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -955,20 +1002,24 @@ public final class LoginPanel extends JLayeredPane{
     // ==========================================
     // MACOS LIQUID GLASS CARD CONTAINER
     // ==========================================
+    /** Rounded translucent card used to group sign-in content. */
     private static class GlassCard extends JPanel {
         private final int radius;
         private boolean isDark = false;
 
+        /** Creates a glass card instance. */
         public GlassCard(int radius) {
             this.radius = radius;
             setOpaque(false);
         }
 
+        /** Applies the selected light/dark theme to this component. */
         public void setTheme(boolean dark) {
             this.isDark = dark;
             repaint();
         }
 
+        /** Paints component. */
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -1003,10 +1054,12 @@ public final class LoginPanel extends JLayeredPane{
     // ==========================================
     // MACOS BUTTONS
     // ==========================================
+    /** Rounded button styled for the sign-in and registration actions. */
     private class MacPillButton extends JButton {
         private final boolean isPrimary;
         private boolean isDark = false;
 
+        /** Creates a mac pill button instance. */
         public MacPillButton(String text, boolean isPrimary) {
             super(text);
             this.isPrimary = isPrimary;
@@ -1017,11 +1070,13 @@ public final class LoginPanel extends JLayeredPane{
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         }
 
+        /** Applies the selected light/dark theme to this component. */
         public void setTheme(boolean dark) {
             this.isDark = dark;
             repaint();
         }
 
+        /** Paints component. */
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -1056,11 +1111,13 @@ public final class LoginPanel extends JLayeredPane{
     // ==========================================
     // LOADING SPINNER
     // ==========================================
+    /** Animated spinner shown while an authentication request is running. */
     private static class LoadingSpinner extends JComponent {
         private final Timer timer;
         private int angle = 0;
         private boolean active = false;
 
+        /** Creates a loading spinner instance. */
         public LoadingSpinner() {
             setPreferredSize(new Dimension(16, 16));
             timer = new Timer(50, e -> {
@@ -1069,6 +1126,7 @@ public final class LoginPanel extends JLayeredPane{
             });
         }
 
+        /** Starts or stops the spinner animation. */
         public void setActive(boolean active) {
             this.active = active;
             if (active) timer.start();
@@ -1076,6 +1134,7 @@ public final class LoginPanel extends JLayeredPane{
             repaint();
         }
 
+        /** Paints component. */
         @Override
         protected void paintComponent(Graphics g) {
             if (!active) return;

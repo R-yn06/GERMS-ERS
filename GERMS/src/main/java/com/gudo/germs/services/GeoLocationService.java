@@ -21,10 +21,14 @@ public final class GeoLocationService {
     private static final ObjectMapper JSON = new ObjectMapper();
     private static final String USER_AGENT = "GERMS-Emergency-Response-System/1.0 (PRC Davao Operations)";
 
+    /** Represents a geo point value. */
     public record GeoPoint(double lat, double lon, String label) {}
+    /** Represents a search result value. */
     public record SearchResult(String displayName, double lat, double lon, String type) {
+        /** Returns a string representation of this value. */
         @Override public String toString() { return displayName; }
     }
+    /** Represents a search response value. */
     public record SearchResponse(List<SearchResult> results, boolean onlineSearchAvailable, String error) {}
 
     // Default Davao City coordinates (Red Cross Davao Chapter vicinity)
@@ -50,6 +54,7 @@ public final class GeoLocationService {
             new SearchResult("Bangkerohan Public Market", 7.0681, 125.6042, "Market / Junction")
     );
 
+    /** Creates a geo location service instance. */
     private GeoLocationService() {}
 
     /**
@@ -86,6 +91,7 @@ public final class GeoLocationService {
         }
     }
 
+    /** Reports whether the supplied latitude and longitude are valid coordinates. */
     public static boolean validCoordinates(double lat, double lon) {
         return Double.isFinite(lat) && Double.isFinite(lon)
                 && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;

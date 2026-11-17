@@ -34,6 +34,7 @@ public final class AuditLogPanel extends JPanel implements com.gudo.germs.ui.Ref
 
     private final DefaultTableModel model = new DefaultTableModel(
             new String[] { "ID", "Timestamp", "Actor", "Action", "Entity", "Target ID", "Details JSON" }, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -43,6 +44,7 @@ public final class AuditLogPanel extends JPanel implements com.gudo.germs.ui.Ref
     private final JTextField searchField = new JTextField(16);
     private final JLabel statusLabel = new JLabel(" ");
 
+    /** Creates an audit log panel instance. */
     public AuditLogPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -59,6 +61,7 @@ public final class AuditLogPanel extends JPanel implements com.gudo.germs.ui.Ref
         loadLogs();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
@@ -105,6 +108,7 @@ public final class AuditLogPanel extends JPanel implements com.gudo.germs.ui.Ref
         return header;
     }
 
+    /** Loads logs. */
     public void loadLogs() {
         statusLabel.setText("Querying audit trail...");
         String query = searchField.getText().trim();
@@ -147,6 +151,7 @@ public final class AuditLogPanel extends JPanel implements com.gudo.germs.ui.Ref
         });
     }
 
+    /** Displays the audit details for the selected entry. */
     private void inspectSelected() {
         int r = table.getSelectedRow();
         if (r < 0) {
@@ -165,6 +170,7 @@ public final class AuditLogPanel extends JPanel implements com.gudo.germs.ui.Ref
         JOptionPane.showMessageDialog(this, new JScrollPane(ta), "Audit Details: " + action, JOptionPane.PLAIN_MESSAGE);
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadLogs();

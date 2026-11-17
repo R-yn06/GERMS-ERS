@@ -43,6 +43,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
 
     private final DefaultTableModel teamModel = new DefaultTableModel(
             new String[] { "ID", "Team Name", "Leader", "Contact", "Status", "Members Count" }, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -52,6 +53,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
 
     private final DefaultTableModel memberModel = new DefaultTableModel(
             new String[] { "Member ID", "Name", "Email", "Role Title" }, 0) {
+        /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
             return false;
@@ -62,6 +64,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
     private final JLabel headerSummary = new JLabel("Select a team to view squad members.");
     private final JLabel statusMessage = new JLabel(" ");
 
+    /** Creates a team management panel instance. */
     public TeamManagementPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
@@ -75,6 +78,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         loadTeams();
     }
 
+    /** Builds header. */
     private JPanel buildHeader() {
         JPanel header = new JPanel(new BorderLayout(0, 10));
         header.setOpaque(false);
@@ -127,6 +131,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         return header;
     }
 
+    /** Builds body split. */
     private JComponent buildBodySplit() {
         teamTable.setRowHeight(26);
         teamTable.removeColumn(teamTable.getColumnModel().getColumn(0)); // Hide ID
@@ -157,6 +162,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         return split;
     }
 
+    /** Loads teams. */
     public void loadTeams() {
         statusMessage.setText("Loading teams...");
         BackgroundTask.run(() -> {
@@ -195,6 +201,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         });
     }
 
+    /** Returns selected team id. */
     private String getSelectedTeamId() {
         int r = teamTable.getSelectedRow();
         if (r < 0)
@@ -202,6 +209,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         return String.valueOf(teamModel.getValueAt(teamTable.convertRowIndexToModel(r), 0));
     }
 
+    /** Loads members for selected team. */
     private void loadMembersForSelectedTeam() {
         String teamId = getSelectedTeamId();
         if (teamId == null) {
@@ -235,6 +243,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         });
     }
 
+    /** Displays create team dialog. */
     private void showCreateTeamDialog() {
         JTextField nameField = new JTextField();
         JTextField contactField = new JTextField();
@@ -277,6 +286,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         });
     }
 
+    /** Displays add member dialog. */
     private void showAddMemberDialog() {
         String teamId = getSelectedTeamId();
         if (teamId == null) {
@@ -338,6 +348,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Removes selected member. */
     private void removeSelectedMember() {
         int r = memberTable.getSelectedRow();
         if (r < 0) {
@@ -364,6 +375,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         }, ok -> loadMembersForSelectedTeam(), err -> loadMembersForSelectedTeam());
     }
 
+    /** Dispatches selected team. */
     private void dispatchSelectedTeam() {
         String teamId = getSelectedTeamId();
         if (teamId == null) {
@@ -403,13 +415,16 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
                 JOptionPane.ERROR_MESSAGE));
     }
 
+    /** Represents a profile item value. */
     private record ProfileItem(String id, String display) {
+        /** Returns a string representation of this value. */
         @Override
         public String toString() {
             return display;
         }
     }
 
+    /** Refreshes data. */
     @Override
     public void refreshData() {
         loadTeams();

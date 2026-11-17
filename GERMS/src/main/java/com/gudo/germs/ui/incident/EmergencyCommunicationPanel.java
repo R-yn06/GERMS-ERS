@@ -60,6 +60,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 
+/** Displays incident communications and supports messages to authorized recipients. */
 public final class EmergencyCommunicationPanel extends JPanel {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter DAY_FMT = DateTimeFormatter.ofPattern("EEEE, MMM d");
@@ -70,25 +71,41 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private static final int HEADER_BTN = 48; // refresh and sidebar toggle
 
     
+    /** Resolves the communication panel's colors for the active theme. */
     private static final class Pal {
+        /** Reports whether the current theme is dark. */
         static boolean dark() { return ThemeManager.isDark(); }
 
+        /** Returns the top background color for the active theme. */
         static Color bgTop() { return dark() ? new Color(0x0A101C) : new Color(0xF4F7FC); }
+        /** Returns the bottom background color for the active theme. */
         static Color bgBottom() { return dark() ? new Color(0x131C2E) : new Color(0xE0E8F4); }
+        /** Returns the popup background color for the active theme. */
         static Color popup() { return dark() ? new Color(0x141C2C) : new Color(0xFAFBFE); }
+        /** Returns the title color for the active theme. */
         static Color title() { return dark() ? Color.WHITE : new Color(0x0F1726); }
+        /** Returns the primary text color for the active theme. */
         static Color text() { return dark() ? new Color(0xEEF2F9) : new Color(0x182234); }
+        /** Returns the dimmed text color for the active theme. */
         static Color dim() { return dark() ? new Color(0x93A4BF) : new Color(0x5B6B84); }
+        /** Returns the blue accent color for the active theme. */
         static Color blue() { return dark() ? new Color(0x4A9BE8) : new Color(0x2474C7); }
+        /** Returns the amber accent color for the active theme. */
         static Color amber() { return dark() ? new Color(0xF0B429) : new Color(0xB7791F); }
+        /** Returns the red accent color for the active theme. */
         static Color red() { return dark() ? new Color(0xF2545B) : new Color(0xD62828); }
+        /** Returns the green accent color for the active theme. */
         static Color green() { return dark() ? new Color(0x3DD68C) : new Color(0x218838); }
 
+        /** Returns the divider color for the active theme. */
         static Color line() { return dark() ? new Color(255, 255, 255, 36) : new Color(30, 50, 90, 34); }
+        /** Returns a border color with the requested opacity. */
         static Color edge(int a) { return dark() ? new Color(255, 255, 255, a) : new Color(30, 50, 90, Math.max(28, a - 14)); }
+        /** Returns the top glass color with theme-adjusted opacity. */
         static Color glassTop(int a) {
             return dark() ? new Color(255, 255, 255, a) : new Color(255, 255, 255, Math.min(235, 125 + a * 2));
         }
+        /** Returns the bottom glass color with theme-adjusted opacity. */
         static Color glassBottom(int a) {
             return dark() ? new Color(255, 255, 255, a) : new Color(255, 255, 255, Math.min(215, 92 + a * 2));
         }
@@ -96,14 +113,17 @@ public final class EmergencyCommunicationPanel extends JPanel {
         static int tint(int a) { return dark() ? a : a * 3 / 4; }
         /** Hover / pressed wash for transparent icon buttons. */
         static Color wash(int a) { return dark() ? new Color(255, 255, 255, a) : new Color(20, 40, 80, a); }
+        /** Returns the wash border color for the active theme and interaction state. */
         static Color washEdge(boolean active) {
             return dark() ? new Color(255, 255, 255, active ? 70 : 36) : new Color(30, 50, 90, active ? 80 : 44);
         }
+        /** Returns a shadow color for the requested layer. */
         static Color shadow(int i) {
             return dark() ? new Color(0, 0, 0, Math.max(0, 16 - i * 3)) : new Color(20, 40, 80, Math.max(0, 11 - i * 2));
         }
     }
 
+    /** Identifies the action represented by an emergency-communication icon. */
     private enum Kind { REFRESH, SEND, PANEL, MEGAPHONE, WARNING, MESSAGE }
 
     private final AppContext ctx;
@@ -178,6 +198,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private final Set<String> triedSenders = ConcurrentHashMap.newKeySet();
     private volatile long directoryRefreshAtMillis;
 
+    /** Creates an emergency communication panel instance. */
     public EmergencyCommunicationPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 16));
         this.ctx = ctx;
@@ -204,9 +225,11 @@ public final class EmergencyCommunicationPanel extends JPanel {
         add(body, BorderLayout.CENTER);
 
         feedScroll.getViewport().addComponentListener(new ComponentAdapter() {
+            /** Handles the component resized event. */
             @Override public void componentResized(ComponentEvent e) { resizeDebounce.restart(); }
         });
         addComponentListener(new ComponentAdapter() {
+            /** Handles the component resized event. */
             @Override public void componentResized(ComponentEvent e) {
                 boolean narrow = getWidth() < AUTO_COLLAPSE_WIDTH;
                 if (narrow != wasNarrow) {
@@ -258,6 +281,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // ------------------------------------------------------------------ painting
 
+    /** Paints component. */
     @Override protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
         int w = getWidth(), h = Math.max(1, getHeight());
@@ -269,20 +293,24 @@ public final class EmergencyCommunicationPanel extends JPanel {
         g2.dispose();
     }
 
+    /** Returns a color with a soft glow around the supplied accent. */
     private static void glow(Graphics2D g2, int w, int h, float cx, float cy, float radius, Color c) {
         g2.setPaint(new RadialGradientPaint(new Point2D.Float(cx, cy), Math.max(1f, radius), new float[] {0f, 1f},
                 new Color[] {c, new Color(c.getRed(), c.getGreen(), c.getBlue(), 0)}));
         g2.fillRect(0, 0, w, h);
     }
 
+    /** Returns the supplied color with the requested alpha value. */
     private static Color alpha(Color c, int a) {
         return new Color(c.getRed(), c.getGreen(), c.getBlue(), Math.max(0, Math.min(255, a)));
     }
 
+    /** Converts a hexadecimal color string to a color value. */
     private static String hex(Color c) {
         return String.format("#%02X%02X%02X", c.getRed(), c.getGreen(), c.getBlue());
     }
 
+    /** Creates a translucent glass color from the supplied base color. */
     private static void glass(Graphics2D g2, int x, int y, int w, int h, int arc,
                               Color top, Color bottom, Color border, float borderWidth) {
         g2.setPaint(new GradientPaint(x, y, top, x, y + Math.max(1, h), bottom));
@@ -294,12 +322,14 @@ public final class EmergencyCommunicationPanel extends JPanel {
         }
     }
 
+    /** Calculates a smooth interpolation value for the animation. */
     private static void smooth(Graphics2D g2) {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
     }
 
+    /** Returns the accent color for the selected message mode. */
     private static Color accentFor(String type) {
         return switch (type == null ? "" : type) {
             case "urgent" -> Pal.red();
@@ -310,6 +340,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // -------------------------------------------------------------------- layout
 
+    /** Builds channel popup. */
     private void buildChannelPopup() {
         incidentList.setCellRenderer(new IncidentCell());
         incidentList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -318,6 +349,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             if (!e.getValueIsAdjusting() && !updatingList) applySelection();
         });
         incidentList.addMouseListener(new MouseAdapter() {
+            /** Handles the mouse released event. */
             @Override public void mouseReleased(MouseEvent e) { channelPopup.setVisible(false); }
         });
 
@@ -346,6 +378,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         channelPopup.add(popupPanel);
     }
 
+    /** Builds header. */
     private JComponent buildHeader() {
         JPanel bar = new JPanel(new BorderLayout(16, 0));
         bar.setOpaque(false);
@@ -388,6 +421,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         return bar;
     }
 
+    /** Builds chat column. */
     private JComponent buildChatColumn() {
         JPanel col = new JPanel(new BorderLayout(0, 12));
         col.setOpaque(false);
@@ -429,6 +463,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         return col;
     }
 
+    /** Builds composer. */
     private JComponent buildComposer() {
         composer.setBorder(BorderFactory.createEmptyBorder(10, 18, 10, 10));
 
@@ -447,15 +482,21 @@ public final class EmergencyCommunicationPanel extends JPanel {
         input.getInputMap().put(KeyStroke.getKeyStroke("ENTER"), "send");
         input.getInputMap().put(KeyStroke.getKeyStroke("shift ENTER"), "insert-break");
         input.getActionMap().put("send", new AbstractAction() {
+            /** Handles the action event raised by the associated control. */
             @Override public void actionPerformed(ActionEvent e) { sendMessage(); }
         });
         input.getDocument().addDocumentListener(new DocumentListener() {
+            /** Handles the insert update event. */
             @Override public void insertUpdate(DocumentEvent e) { refreshSendState(); }
+            /** Removes update. */
             @Override public void removeUpdate(DocumentEvent e) { refreshSendState(); }
+            /** Handles the changed update event. */
             @Override public void changedUpdate(DocumentEvent e) { refreshSendState(); }
         });
         input.addFocusListener(new FocusAdapter() {
+            /** Handles the focus gained event. */
             @Override public void focusGained(FocusEvent e) { composer.setFocused(true, accentFor(mode)); }
+            /** Handles the focus lost event. */
             @Override public void focusLost(FocusEvent e) { composer.setFocused(false, accentFor(mode)); }
         });
 
@@ -482,6 +523,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         return composer;
     }
 
+    /** Builds options sidebar. */
     private JComponent buildOptionsSidebar() {
         GlassPanel card = new GlassPanel(new BorderLayout(), 22, 26, 12, 54);
         JPanel col = new JPanel();
@@ -520,6 +562,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // ------------------------------------------------------------------ lifecycle
 
+    /** Starts message polling, subscribes to incident updates, and loads available channels. */
     @Override public void addNotify() {
         super.addNotify();
         if (!pollTimer.isRunning()) pollTimer.start();
@@ -527,6 +570,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         loadIncidents();
     }
 
+    /** Stops polling, closes the channel popup, and unsubscribes from incident updates. */
     @Override public void removeNotify() {
         pollTimer.stop();
         channelPopup.setVisible(false);
@@ -536,6 +580,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // ----------------------------------------------------------------------- data
 
+    /** Loads incidents. */
     private void loadIncidents() {
         BackgroundTask.run(() -> ctx.incidents.visibleTo(false), all -> {
             setLive(true);
@@ -572,6 +617,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         }, err -> setLive(false));
     }
 
+    /** Loads messages. */
     private void loadMessages() {
         Incident inc = incidentList.getSelectedValue();
         if (inc == null) return;
@@ -592,6 +638,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         }, err -> setLive(false));
     }
 
+    /** Sends message. */
     private void sendMessage() {
         Incident inc = incidentList.getSelectedValue();
         String text = input.getText().trim();
@@ -629,6 +676,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         });
     }
 
+    /** Refreshes now. */
     private void refreshNow() {
         refreshButton.setSpinning(true);
         loadIncidents();
@@ -640,6 +688,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // ------------------------------------------------------------------ UI state
 
+    /** Applies the selection. */
     private void applySelection() {
         Incident inc = incidentList.getSelectedValue();
         activeId = inc == null ? null : inc.id();
@@ -657,6 +706,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         }
     }
 
+    /** Renders header. */
     private void renderHeader(Incident inc) {
         channelMeta.removeAll();
         if (inc == null) {
@@ -677,17 +727,20 @@ public final class EmergencyCommunicationPanel extends JPanel {
         channelButton.revalidate();
     }
 
+    /** Updates the live-connection indicator. */
     private void setLive(boolean ok) {
         liveOk = ok;
         liveLabel.setText(ok ? "\u25CF Online" : "\u25CF Reconnecting\u2026");
         liveLabel.setForeground(ok ? Pal.green() : Pal.amber());
     }
 
+    /** Refreshes send state. */
     private void refreshSendState() {
         boolean hasText = !input.getText().isBlank();
         sendBtn.setEnabled(channelSelected && !sending && hasText);
     }
 
+    /** Selects the message type and refreshes the send controls. */
     private void setMode(String key) {
         mode = key;
         Color c = accentFor(key);
@@ -704,6 +757,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // ---------------------------------------------------------- sidebar animation
 
+    /** Sets the sidebar open value. */
     private void setSidebarOpen(boolean open, boolean animate) {
         sidebarOpen = open;
         panelToggle.setActive(open);
@@ -719,6 +773,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         slideTimer.start();
     }
 
+    /** Advances the sidebar slide animation by one timer step. */
     private void stepSlide() {
         double f = Math.min(1.0, (System.nanoTime() - slideStart) / (SLIDE_MS * 1_000_000.0));
         double eased = 1 - Math.pow(1 - f, 3);
@@ -728,6 +783,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // ----------------------------------------------------------------------- feed
 
+    /** Handles feed resized. */
     private void onFeedResized() {
         int w = feedScroll.getViewport().getWidth();
         if (lastRows == null || placeholderActive || w <= 0 || Math.abs(w - lastBuildWidth) < 40) return;
@@ -736,12 +792,14 @@ public final class EmergencyCommunicationPanel extends JPanel {
         if (atBottom) scrollToBottom();
     }
 
+    /** Returns the maximum message text length shown in a bubble. */
     private int maxBubbleText() {
         int vw = feedScroll.getViewport().getWidth();
         if (vw <= 0) return MAX_BUBBLE_TEXT;
         return Math.max(220, Math.min(MAX_BUBBLE_TEXT, (int) (vw * 0.66)));
     }
 
+    /** Rebuilds the message feed from the latest message rows. */
     private void rebuildFeed(JsonNode rows) {
         lastRows = rows;
         lastBuildWidth = feedScroll.getViewport().getWidth();
@@ -796,6 +854,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         feed.repaint();
     }
 
+    /** Displays placeholder. */
     private void showPlaceholder(String head, String sub) {
         placeholderActive = true;
         phHead = head;
@@ -812,6 +871,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         feed.repaint();
     }
 
+    /** Creates a date separator row for the message feed. */
     private static JComponent dayRow(String text) {
         JLabel l = new JLabel(text);
         l.setForeground(Pal.dim());
@@ -820,6 +880,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         chip.setBorder(BorderFactory.createEmptyBorder(3, 12, 3, 12));
         chip.add(l);
         JPanel row = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0)) {
+            /** Returns maximum size. */
             @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); }
         };
         row.setOpaque(false);
@@ -830,6 +891,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     private static final String[] SENDER_COLUMNS = {"sender_id", "user_id", "profile_id", "created_by", "author_id", "posted_by"};
 
+    /** Sends er id. */
     private static String senderId(JsonNode m) {
         for (String c : SENDER_COLUMNS) {
             if (m.hasNonNull(c)) return m.get(c).asText();
@@ -872,6 +934,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         return rows;
     }
 
+    /** Returns the display label for a user's role. */
     private static String roleLabel(String raw) {
         if (raw == null || raw.isBlank()) return "";
         try {
@@ -881,6 +944,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         }
     }
 
+    /** Parses time. */
     private static ZonedDateTime parseTime(String raw) {
         try {
             return OffsetDateTime.parse(raw).atZoneSameInstant(ZoneId.systemDefault());
@@ -889,11 +953,13 @@ public final class EmergencyCommunicationPanel extends JPanel {
         }
     }
 
+    /** Reports whether this emergency communication panel is near bottom. */
     private boolean isNearBottom() {
         JScrollBar bar = feedScroll.getVerticalScrollBar();
         return bar.getMaximum() - (bar.getValue() + bar.getVisibleAmount()) < 90;
     }
 
+    /** Scrolls the message feed to its latest entry. */
     private void scrollToBottom() {
         SwingUtilities.invokeLater(() -> {
             JScrollBar bar = feedScroll.getVerticalScrollBar();
@@ -901,10 +967,12 @@ public final class EmergencyCommunicationPanel extends JPanel {
         });
     }
 
+    /** Escapes HTML-sensitive characters and converts newlines to HTML breaks. */
     private static String escape(String s) {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>");
     }
 
+    /** Shortens text to fit the available display width. */
     private static String elide(String s, FontMetrics fm, int width) {
         if (fm.stringWidth(s) <= width) return s;
         String t = s;
@@ -914,6 +982,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     // ------------------------------------------------------------------- icons
 
+    /** Draws icon. */
     private static void drawIcon(Graphics2D g2, Kind kind, double cx, double cy, double size, Color color, boolean filled) {
         Graphics2D g = (Graphics2D) g2.create();
         smooth(g);
@@ -987,11 +1056,16 @@ public final class EmergencyCommunicationPanel extends JPanel {
         g.dispose();
     }
 
+    /** Paints a small colored status dot. */
     private static final class DotIcon implements Icon {
         private final Color color;
+        /** Creates a dot icon instance. */
         DotIcon(Color color) { this.color = color; }
+        /** Returns icon width. */
         @Override public int getIconWidth() { return 12; }
+        /** Returns icon height. */
         @Override public int getIconHeight() { return 12; }
+        /** Paints icon. */
         @Override public void paintIcon(Component c, Graphics g, int x, int y) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
@@ -1020,6 +1094,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             repaint();
         });
 
+        /** Creates an icon button instance. */
         IconButton(Kind kind, boolean solid, int size, String tip) {
             this.kind = kind;
             this.solid = solid;
@@ -1037,14 +1112,18 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setMaximumSize(d); // box layouts would otherwise shrink an icon-only button
         }
 
+        /** Sets the accent color used to paint this icon. */
         void setAccent(Color c) { this.accent = c; repaint(); }
+        /** Marks the icon as active or inactive. */
         void setActive(boolean on) { this.active = on; repaint(); }
 
+        /** Starts or stops the refresh icon's spinning animation. */
         void setSpinning(boolean on) {
             if (on) { stopRequested = false; if (!spin.isRunning()) spin.start(); }
             else if (spin.isRunning()) stopRequested = true; // finish the current turn, then stop
         }
 
+        /** Paints component. */
         @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
@@ -1083,6 +1162,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private static final class GlassButton extends JButton {
         private Color accent; // null = neutral
 
+        /** Creates a glass button instance. */
         GlassButton() {
             setContentAreaFilled(false);
             setBorderPainted(false);
@@ -1094,10 +1174,13 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setIconTextGap(8);
         }
 
+        /** Sets the accent color used by this button. */
         void setAccent(Color c) { this.accent = c; repaint(); }
 
+        /** Returns maximum size. */
         @Override public Dimension getMaximumSize() { return getPreferredSize(); }
 
+        /** Paints component. */
         @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
@@ -1123,6 +1206,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         private boolean focused;
         private Color focusColor = Pal.blue();
 
+        /** Creates a glass panel instance. */
         GlassPanel(LayoutManager layout, int arc, int topAlpha, int bottomAlpha, int borderAlpha) {
             super(layout);
             this.arc = arc;
@@ -1132,12 +1216,14 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setOpaque(false);
         }
 
+        /** Updates the border to reflect whether the composer has focus. */
         void setFocused(boolean f, Color c) {
             this.focused = f;
             this.focusColor = c;
             repaint();
         }
 
+        /** Paints component. */
         @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
@@ -1149,9 +1235,12 @@ public final class EmergencyCommunicationPanel extends JPanel {
         }
     }
 
+    /** Paints a thin divider between communication panel sections. */
     private static final class Divider extends JComponent {
+        /** Returns preferred size. */
         @Override public Dimension getPreferredSize() { return new Dimension(1, 1); }
 
+        /** Paints component. */
         @Override protected void paintComponent(Graphics g) {
             g.setColor(Pal.line());
             g.fillRect(0, 0, getWidth(), 1);
@@ -1162,10 +1251,13 @@ public final class EmergencyCommunicationPanel extends JPanel {
     private static final class PlaceholderArea extends JTextArea {
         private String placeholder = "";
 
+        /** Creates a placeholder area instance. */
         PlaceholderArea(int rows, int cols) { super(rows, cols); }
 
+        /** Sets the placeholder text painted when the input is empty. */
         void setPlaceholder(String p) { this.placeholder = p; repaint(); }
 
+        /** Paints component. */
         @Override protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             if (getDocument().getLength() == 0 && !placeholder.isEmpty()) {
@@ -1182,16 +1274,22 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     /** Message column that always matches the viewport width. */
     private static final class FeedPanel extends JPanel implements Scrollable {
+        /** Creates a feed panel instance. */
         FeedPanel() {
             setOpaque(false);
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
             setBorder(BorderFactory.createEmptyBorder(14, 16, 14, 16));
         }
 
+        /** Returns preferred scrollable viewport size. */
         @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        /** Returns scrollable unit increment. */
         @Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 24; }
+        /** Returns scrollable block increment. */
         @Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return Math.max(40, r.height - 40); }
+        /** Returns scrollable tracks viewport width. */
         @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        /** Returns scrollable tracks viewport height. */
         @Override public boolean getScrollableTracksViewportHeight() { return false; }
     }
 
@@ -1200,6 +1298,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         private final int full;
         private double progress = 1;
 
+        /** Creates a slide container instance. */
         SlideContainer(JComponent content) {
             super(new BorderLayout());
             setOpaque(false);
@@ -1207,8 +1306,10 @@ public final class EmergencyCommunicationPanel extends JPanel {
             add(content, BorderLayout.EAST); // anchored to the right edge, so it slides rather than squashes
         }
 
+        /** Returns the current sidebar animation progress from zero to one. */
         double progress() { return progress; }
 
+        /** Clamps and applies the sidebar animation progress. */
         void setProgress(double p) {
             progress = Math.max(0, Math.min(1, p));
             setVisible(progress > 0.001);
@@ -1216,6 +1317,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             repaint();
         }
 
+        /** Returns preferred size. */
         @Override public Dimension getPreferredSize() {
             Dimension d = super.getPreferredSize();
             return new Dimension((int) Math.round(full * progress), d.height);
@@ -1224,6 +1326,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
 
     /** One chat line: own messages hug the right edge, everyone else's the left. */
     private static final class MessageRow extends JPanel {
+        /** Creates a message row instance. */
         MessageRow(JComponent block, boolean mine) {
             super(new BorderLayout());
             setOpaque(false);
@@ -1231,11 +1334,13 @@ public final class EmergencyCommunicationPanel extends JPanel {
             add(block, mine ? BorderLayout.EAST : BorderLayout.WEST);
         }
 
+        /** Returns maximum size. */
         @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE, getPreferredSize().height); }
     }
 
     /** One message: sender line above the bubble, a bubble holding only the text, and the time below it. */
     private static final class MessageBlock extends JPanel {
+        /** Creates a message block instance. */
         MessageBlock(String sender, String role, String time, String type, String text, boolean mine, int maxText) {
             setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
             setOpaque(false);
@@ -1283,6 +1388,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         private final boolean mine;
         private final String type;
 
+        /** Creates a message bubble instance. */
         MessageBubble(String type, String text, boolean mine, int maxText, float alignment) {
             super(new BorderLayout());
             this.mine = mine;
@@ -1300,12 +1406,15 @@ public final class EmergencyCommunicationPanel extends JPanel {
             add(body, BorderLayout.CENTER);
         }
 
+        /** Reports whether this message has the urgent type. */
         private boolean urgent() { return "urgent".equals(type); }
+        /** Reports whether this message is urgent or an announcement. */
         private boolean special() { return urgent() || "announcement".equals(type); }
 
         /** Stops the layout from stretching the bubble to the width of the name line. */
         @Override public Dimension getMaximumSize() { return getPreferredSize(); }
 
+        /** Paints component. */
         @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
@@ -1336,6 +1445,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         private final String title;
         private final String subtitle;
 
+        /** Creates a mode option instance. */
         ModeOption(String key, Kind kind, String title, String subtitle) {
             this.key = key;
             this.kind = kind;
@@ -1355,6 +1465,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             setAlignmentX(LEFT_ALIGNMENT);
         }
 
+        /** Paints component. */
         @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);
@@ -1398,6 +1509,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
         private Color stripe = Pal.blue();
         private boolean selected;
 
+        /** Creates an incident cell instance. */
         IncidentCell() {
             super(new BorderLayout(0, 3));
             setOpaque(false);
@@ -1412,6 +1524,7 @@ public final class EmergencyCommunicationPanel extends JPanel {
             add(title, BorderLayout.CENTER);
         }
 
+        /** Returns list cell renderer component. */
         @Override public Component getListCellRendererComponent(JList<? extends Incident> list, Incident inc,
                                                                  int index, boolean isSelected, boolean hasFocus) {
             stripe = GermsColors.forSeverity(inc.severity());
@@ -1425,11 +1538,13 @@ public final class EmergencyCommunicationPanel extends JPanel {
             return this;
         }
 
+        /** Returns preferred size. */
         @Override public Dimension getPreferredSize() {
             Dimension d = super.getPreferredSize();
             return new Dimension(10, Math.max(d.height, 58)); // narrow width keeps the list tracking the viewport
         }
 
+        /** Paints component. */
         @Override protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             smooth(g2);

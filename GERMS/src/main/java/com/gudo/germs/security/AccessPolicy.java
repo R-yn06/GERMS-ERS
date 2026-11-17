@@ -7,8 +7,10 @@ import java.util.List;
 
 /** UI-level navigation filter. NOT a security boundary: the database enforces the real rules through RLS and RPCs. */
 public final class AccessPolicy {
+    /** Creates an access policy instance. */
     private AccessPolicy() { }
 
+    /** Returns the modules available to the supplied role. */
     public static List<Module> modulesFor(Role role) {
         return Arrays.stream(Module.values()).filter(m -> m.allows(role)).toList();
     }

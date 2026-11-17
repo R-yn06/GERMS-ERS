@@ -11,6 +11,7 @@ public enum IncidentStatus {
     PUBLISHED("published", "Published"),
     ACKNOWLEDGED("acknowledged", "Acknowledged"),
     MOBILIZING("mobilizing", "Mobilizing") {
+        /** Returns the reason this status cannot be entered, or null when the transition is allowed. */
         @Override public String blocker(Incident i) {
             return i.team() == null ? "Assign a response team before mobilizing." : null;
         }
@@ -23,11 +24,15 @@ public enum IncidentStatus {
     private final String key;
     private final String label;
 
+    /** Creates an incident status instance. */
     IncidentStatus(String key, String label) { this.key = key; this.label = label; }
 
+    /** Returns the stable key used to store this incident status. */
     public String key() { return key; }
+    /** Returns the display label for this incident status. */
     public String label() { return label; }
 
+    /** Maps a persisted status key to its workflow state, defaulting unknown values to {@code DRAFT}. */
     public static IncidentStatus fromKey(String key) {
         if (key == null) return DRAFT;
         String normalized = key.trim().toLowerCase();
@@ -66,5 +71,6 @@ public enum IncidentStatus {
                 || this == ACTIVE_RESPONSE || this == STABILIZED;
     }
 
+    /** Reports whether this incident status is terminal. */
     public boolean isTerminal() { return next().isEmpty(); }
 }

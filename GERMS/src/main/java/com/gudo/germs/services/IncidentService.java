@@ -22,8 +22,10 @@ public final class IncidentService {
     private final IncidentRepository repo;
     private final IncidentBus bus = new IncidentBus();
 
+    /** Creates an incident service instance. */
     public IncidentService(IncidentRepository repo) { this.repo = repo; }
 
+    /** Returns the incident update bus used by this service. */
     public IncidentBus bus() { return bus; }
 
     /** Guest visibility is restricted by Supabase's public advisories view; staff visibility is RLS-filtered. */
@@ -31,10 +33,12 @@ public final class IncidentService {
         return guest ? repo.findPublic() : repo.findAll();
     }
 
+    /** Returns the response teams associated with the current workflow. */
     public List<ResponseTeam> responseTeams() throws SupabaseException {
         return repo.findTeams();
     }
 
+    /** Updates severity. */
     public synchronized Incident updateSeverity(String id, String severity) throws SupabaseException {
         if (id == null || id.isBlank()) throw new IllegalArgumentException("Incident is required.");
         if (severity == null || !SEVERITIES.contains(severity.trim().toLowerCase(Locale.ROOT))) {
@@ -49,11 +53,13 @@ public final class IncidentService {
         return updated;
     }
 
+    /** Creates an incident report through the repository and publishes the resulting event. */
     public synchronized Incident report(String title, String type, String location, String severity, String reporter)
             throws SupabaseException {
         return report(title, type, location, severity, reporter, null, null, "");
     }
 
+    /** Creates an incident report with optional coordinates and description, then publishes it. */
     public synchronized Incident report(String title, String type, String location, String severity, String reporter,
                                         Double lat, Double lon, String description)
             throws SupabaseException {
@@ -69,11 +75,13 @@ public final class IncidentService {
         return i;
     }
 
+    /** Submits a guest report for staff review and publishes the resulting event. */
     public synchronized Incident submitGuestReport(String title, String type, String location, String severity, String reporter)
             throws SupabaseException {
         return submitGuestReport(title, type, location, severity, reporter, null, null);
     }
 
+    /** Submits a guest report with optional coordinates for staff review and publishes it. */
     public synchronized Incident submitGuestReport(String title, String type, String location, String severity, String reporter,
                                                     Double lat, Double lon)
             throws SupabaseException {
@@ -90,6 +98,7 @@ public final class IncidentService {
         return saved;
     }
 
+    /** Assigns a response team to a non-terminal incident and publishes the update. */
     public synchronized Incident assignTeam(String id, ResponseTeam team) throws SupabaseException {
         Incident cur = get(id);
         if (cur.status().isTerminal()) throw new IllegalStateException("Incident is " + cur.status().label() + ".");
@@ -98,6 +107,7 @@ public final class IncidentService {
         return updated;
     }
 
+    /** Advances an incident to its next legal status and publishes the update. */
     public synchronized Incident advance(String id, String actor, String closureSummary) throws SupabaseException {
         Incident cur = get(id);
         IncidentStatus next = cur.status().next().orElseThrow(
@@ -118,6 +128,7 @@ public final class IncidentService {
         return updated;
     }
 
+    /** Records an accepted or declined response and publishes the incident update. */
     public synchronized void respond(String id, String decision, String note) throws SupabaseException {
         if (!"accepted".equals(decision) && !"declined".equals(decision)) {
             throw new IllegalArgumentException("Response must be accepted or declined.");
@@ -130,6 +141,7 @@ public final class IncidentService {
         bus.publish(new IncidentEvent(IncidentEvent.Type.UPDATED, incident));
     }
 
+    /** Finds an incident by ID through the repository. */
     private Incident get(String id) throws SupabaseException {
         return repo.find(id).orElseThrow(() -> new IllegalArgumentException("Incident not found: " + id));
     }
