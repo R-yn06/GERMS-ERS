@@ -146,7 +146,7 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
                     "select=id,priority,title,body,created_at,notification_receipts(acknowledged_at)&recipient_id=eq." + user.id() + "&order=created_at.desc&limit=50");
         }, rows -> {
             model.setRowCount(0);
-            boolean hasUnackedCritical = false;
+            boolean hasUnacknowledgedAlerts = false;
 
             if (rows != null && rows.isArray()) {
                 for (JsonNode n : rows) {
@@ -161,11 +161,8 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
 
                     String notifId = n.path("id").asText();
                     if (!acked) {
-                        if ("CRITICAL".equalsIgnoreCase(prio) || "HIGH".equalsIgnoreCase(prio)) {
-                            hasUnackedCritical = true;
-                            // Trigger severity alarm if unacknowledged
-                            alarms.triggerAlarm(notifId, prio, true, audibleToggle.isSelected());
-                        }
+                        hasUnacknowledgedAlerts = true;
+                        alarms.triggerAlarm(notifId, prio, true, audibleToggle.isSelected());
                     }
 
                     String date = n.path("created_at").asText();
@@ -181,7 +178,7 @@ public final class NotificationPanel extends JPanel implements RefreshablePanel 
                     });
                 }
             }
-            if (hasUnackedCritical) {
+            if (hasUnacknowledgedAlerts) {
                 alarmStatus.setText("Alarm: ACTIVE ALERT!");
                 alarmStatus.setForeground(GermsColors.CRITICAL);
             } else {

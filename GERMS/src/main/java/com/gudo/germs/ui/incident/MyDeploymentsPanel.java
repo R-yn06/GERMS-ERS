@@ -389,7 +389,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
                             + user.id() + "&order=created_at.desc&limit=50");
         }, rows -> {
             notifModel.setRowCount(0);
-            boolean hasUnackedCritical = false;
+            boolean hasUnacknowledgedAlerts = false;
 
             if (rows != null && rows.isArray()) {
                 for (JsonNode n : rows) {
@@ -404,10 +404,8 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
 
                     String notifId = n.path("id").asText();
                     if (!acked) {
-                        if ("CRITICAL".equalsIgnoreCase(prio) || "HIGH".equalsIgnoreCase(prio)) {
-                            hasUnackedCritical = true;
-                            alarms.triggerAlarm(notifId, prio, true, audibleToggle.isSelected());
-                        }
+                        hasUnacknowledgedAlerts = true;
+                        alarms.triggerAlarm(notifId, prio, true, audibleToggle.isSelected());
                     }
 
                     String date = n.path("created_at").asText();
@@ -426,7 +424,7 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
                     });
                 }
             }
-            if (hasUnackedCritical) {
+            if (hasUnacknowledgedAlerts) {
                 alarmStatus.setText("Alarm: ACTIVE ALERT!");
                 alarmStatus.setForeground(GermsColors.CRITICAL);
             } else {
