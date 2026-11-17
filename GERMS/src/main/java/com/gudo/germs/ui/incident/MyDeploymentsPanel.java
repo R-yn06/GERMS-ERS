@@ -9,7 +9,6 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.awt.Insets;
-import java.awt.Rectangle;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -25,8 +24,6 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
-import javax.swing.JViewport;
-import javax.swing.Scrollable;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -97,14 +94,7 @@ public final class MyDeploymentsPanel extends JPanel {
         tabbedPane.addTab("Active Deployments & Missions", buildDeploymentsTab());
         tabbedPane.addTab("Notifications & Emergency Alarms", buildNotificationsTab());
         tabbedPane.setFont(tabbedPane.getFont().deriveFont(Font.BOLD, 13f));
-        ScrollBody body = new ScrollBody();
-        body.add(tabbedPane, BorderLayout.CENTER);
-        JScrollPane pageScroll = new JScrollPane(body,
-                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
-                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
-        pageScroll.setBorder(null);
-        pageScroll.getVerticalScrollBar().setUnitIncrement(16);
-        add(pageScroll, BorderLayout.CENTER);
+        add(tabbedPane, BorderLayout.CENTER);
 
         notifPoll.setCoalesce(true);
         loadDeployments();
@@ -186,11 +176,8 @@ public final class MyDeploymentsPanel extends JPanel {
 
         panel.add(new JScrollPane(deploymentTable), BorderLayout.CENTER);
 
-        // Deployment Bottom Controls
-        JPanel bottom = new JPanel(new BorderLayout(0, 8));
-        bottom.setOpaque(false);
-
         JPanel trackingBox = new JPanel(new WrapLayout(FlowLayout.LEFT, 12, 6));
+        ;
         trackingBox.setOpaque(false);
 
         locationShareToggle.setOpaque(false);
@@ -227,15 +214,13 @@ public final class MyDeploymentsPanel extends JPanel {
         trackingBox.add(stepNextBtn);
         trackingBox.add(trackingStatus);
 
-        bottom.add(trackingBox, BorderLayout.NORTH);
+        panel.add(trackingBox, BorderLayout.NORTH); // controls now above the table
 
         JPanel statusRow = new JPanel(new BorderLayout());
         statusRow.setOpaque(false);
         deploymentStatusMsg.setForeground(GermsColors.SECONDARY_TEXT);
         statusRow.add(deploymentStatusMsg, BorderLayout.WEST);
-        bottom.add(statusRow, BorderLayout.SOUTH);
-
-        panel.add(bottom, BorderLayout.SOUTH);
+        panel.add(statusRow, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -320,18 +305,15 @@ public final class MyDeploymentsPanel extends JPanel {
         }
         testRow.add(Box.createHorizontalGlue());
 
-        JPanel controls = new JPanel();
+        JPanel controls = new JPanel(new GridLayout(0, 1, 0, 2));
         controls.setOpaque(false);
-        controls.setLayout(new BoxLayout(controls, BoxLayout.Y_AXIS));
         controls.add(actionsRow);
-        controls.add(Box.createVerticalStrut(6));
         controls.add(testRow);
 
-        JPanel footer = new JPanel(new BorderLayout(0, 8));
-        footer.setOpaque(false);
-        footer.add(controls, BorderLayout.NORTH);
+        panel.add(controls, BorderLayout.NORTH); // controls now above the table
 
-        panel.add(footer, BorderLayout.SOUTH);
+        notifStatusMsg.setForeground(GermsColors.SECONDARY_TEXT);
+        panel.add(notifStatusMsg, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -606,46 +588,6 @@ public final class MyDeploymentsPanel extends JPanel {
             trackingStatus.setText("Could not disable sharing: " + err.getMessage());
             trackingStatus.setForeground(GermsColors.CRITICAL);
         });
-    }
-
-    private static final class ScrollBody extends JPanel implements Scrollable {
-        private static final int MIN_HEIGHT = 800;
-
-        ScrollBody() {
-            super(new BorderLayout());
-            setOpaque(false);
-        }
-
-        @Override
-        public Dimension getPreferredSize() {
-            Dimension d = super.getPreferredSize();
-            return new Dimension(d.width, Math.max(d.height, MIN_HEIGHT));
-        }
-
-        @Override
-        public Dimension getPreferredScrollableViewportSize() {
-            return getPreferredSize();
-        }
-
-        @Override
-        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
-            return 16;
-        }
-
-        @Override
-        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
-            return Math.max(40, r.height - 40);
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportWidth() {
-            return true;
-        }
-
-        @Override
-        public boolean getScrollableTracksViewportHeight() {
-            return getParent() instanceof JViewport vp && vp.getHeight() >= MIN_HEIGHT;
-        }
     }
 
     private static final class WrapLayout extends FlowLayout {
