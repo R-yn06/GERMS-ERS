@@ -47,7 +47,7 @@ public final class DispatchPanel extends JPanel {
     private final JButton resolveIncident = new JButton("Resolve / Close Operation");
 
     private final JCheckBox overrideConflicts = new JCheckBox("Emergency Override (Allow Conflicting Assignments)", false);
-    private final Timer poll = new Timer(5000, e -> refreshResponses());
+    private final Timer poll = new Timer(8000, e -> refreshResponses());
     private List<Incident> incidentRows = List.of();
 
     public DispatchPanel(AppContext ctx, Profile user) {

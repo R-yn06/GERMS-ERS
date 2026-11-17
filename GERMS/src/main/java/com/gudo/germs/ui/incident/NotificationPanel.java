@@ -33,7 +33,7 @@ public final class NotificationPanel extends JPanel {
     private final JCheckBox audibleToggle = new JCheckBox("Enable Audible Alarms", true);
     private final JLabel alarmStatus = new JLabel("Alarm: Idle");
     private final JLabel footerStatus = new JLabel(" ");
-    private final Timer poll = new Timer(5000, e -> loadNotifications());
+    private final Timer poll = new Timer(6000, e -> loadNotifications());
 
     public NotificationPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));

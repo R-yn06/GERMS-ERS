@@ -84,6 +84,7 @@ public final class IncidentPanel extends JPanel {
 
     private List<Incident> rows = List.of();
     private Runnable unsubscribe;
+    private final javax.swing.Timer autoRefreshTimer = new javax.swing.Timer(10000, e -> refresh());
 
     public IncidentPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
@@ -287,12 +288,15 @@ public final class IncidentPanel extends JPanel {
         super.addNotify();
         if (unsubscribe == null)
             unsubscribe = service.bus().subscribe(e -> refresh());
+        autoRefreshTimer.setCoalesce(true);
+        if (!autoRefreshTimer.isRunning()) autoRefreshTimer.start();
         loadTeams();
         refresh();
     }
 
     @Override
     public void removeNotify() {
+        autoRefreshTimer.stop();
         if (unsubscribe != null) {
             unsubscribe.run();
             unsubscribe = null;

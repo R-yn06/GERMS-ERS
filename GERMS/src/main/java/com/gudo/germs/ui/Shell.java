@@ -10,9 +10,12 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
 import java.awt.RenderingHints;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -70,7 +73,7 @@ public final class Shell extends JPanel {
     private final JPanel content = new JPanel(cards);
     private final Map<Module, JComponent> built = new EnumMap<>(Module.class);
     private final AlarmService alarms = AlarmService.get();
-    private final Timer alertWatcher = new Timer(5000, e -> checkEmergencyAlerts());
+    private final Timer alertWatcher = new Timer(8000, e -> checkEmergencyAlerts());
 
     public Shell(AppContext ctx, Profile user, Runnable onLogout) {
         super(new BorderLayout());
@@ -176,6 +179,20 @@ public final class Shell extends JPanel {
         left.add(brand);
         left.add(org);
         bar.add(left, BorderLayout.WEST);
+
+        // Clock label in the center
+        DateTimeFormatter clockFmt = DateTimeFormatter.ofPattern("dd MMM yyyy \u00B7 HH:mm");
+        JLabel clockLabel = new JLabel(LocalDateTime.now().format(clockFmt));
+        clockLabel.setForeground(GermsColors.SECONDARY_TEXT);
+        clockLabel.setFont(clockLabel.getFont().deriveFont(11f));
+        clockLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        JPanel center = new JPanel();
+        center.setOpaque(false);
+        center.add(clockLabel);
+        bar.add(center, BorderLayout.CENTER);
+        Timer clockTimer = new Timer(60_000, e -> clockLabel.setText(LocalDateTime.now().format(clockFmt)));
+        clockTimer.setCoalesce(true);
+        clockTimer.start();
 
         JPanel right = new JPanel();
         right.setOpaque(false);

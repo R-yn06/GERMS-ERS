@@ -31,6 +31,7 @@ import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import javax.swing.table.DefaultTableModel;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -74,18 +75,33 @@ public final class FieldSituationReportPanel extends JPanel {
     private final JLabel headerLabel = new JLabel("Select a field situation report to inspect details.");
     private final JLabel statusMessage = new JLabel(" ");
 
+    private final Timer autoRefreshTimer;
+
     public FieldSituationReportPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 12));
         this.ctx = ctx;
         this.user = user;
         this.isAdmin = user.role() == Role.ADMIN;
+        autoRefreshTimer = new Timer(8000, e -> loadReports());
+        autoRefreshTimer.setCoalesce(true);
         setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
 
         add(buildHeader(), BorderLayout.NORTH);
         add(buildMainSplit(), BorderLayout.CENTER);
         add(statusMessage, BorderLayout.SOUTH);
+    }
 
+    @Override
+    public void addNotify() {
+        super.addNotify();
+        if (!autoRefreshTimer.isRunning()) autoRefreshTimer.start();
         loadReports();
+    }
+
+    @Override
+    public void removeNotify() {
+        autoRefreshTimer.stop();
+        super.removeNotify();
     }
 
     private JPanel buildHeader() {
@@ -393,10 +409,8 @@ public final class FieldSituationReportPanel extends JPanel {
             return;
 
         BackgroundTask.run(() -> {
-            ctx.rest.insertMinimal("field_situation_reports", Map.of(
-                    "id", reportId,
-                    "admin_feedback", feedback.trim(),
-                    "reviewed_by", user.id().toString()));
+            ctx.rest.patch("field_situation_reports", "id=eq." + reportId,
+                    Map.of("admin_feedback", feedback.trim(), "reviewed_by", user.id().toString()));
             return Boolean.TRUE;
         }, ok -> {
             loadReports();

@@ -129,33 +129,29 @@ public final class AlarmService {
     }
 
     private void playHighAlarm() throws LineUnavailableException {
-        // Urgent 3-pulse cadence alternating between 784Hz (G5) and 1046Hz (C6)
+        // Urgent 5-pulse cadence alternating between 784Hz and 1046Hz (~8 seconds total)
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        for (int i = 0; i < 3 && playing.get(); i++) {
-            out.writeBytes(generateTone(784, 150, 0.7f, false));
-            out.writeBytes(generateTone(1046, 180, 0.8f, false));
-            out.writeBytes(new byte[1200]);
+        for (int i = 0; i < 5 && playing.get(); i++) {
+            out.writeBytes(generateTone(784, 180, 0.80f, false));
+            out.writeBytes(generateTone(1046, 220, 0.85f, false));
+            out.writeBytes(new byte[1600]);
         }
         playRawPcm(out.toByteArray(), 44100);
     }
 
     private void playCriticalAlarm() throws LineUnavailableException {
-        // High priority warbling siren repeated up to 5 times unless acknowledged
-        for (int cycle = 0; cycle < 5 && playing.get(); cycle++) {
+        // High-priority warbling siren — runs up to 20 cycles (~20s) unless acknowledged
+        for (int cycle = 0; cycle < 20 && playing.get(); cycle++) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
-            for (int f = 900; f <= 1350; f += 45) {
-                out.writeBytes(generateTone(f, 25, 0.85f, false));
+            for (int f = 880; f <= 1400; f += 25) {
+                out.writeBytes(generateTone(f, 20, 0.92f, false));
             }
-            for (int f = 1350; f >= 900; f -= 45) {
-                out.writeBytes(generateTone(f, 25, 0.85f, false));
+            for (int f = 1400; f >= 880; f -= 25) {
+                out.writeBytes(generateTone(f, 20, 0.92f, false));
             }
-            out.writeBytes(new byte[2000]);
             playRawPcm(out.toByteArray(), 44100);
-            try {
-                Thread.sleep(150);
-            } catch (InterruptedException e) {
-                break;
-            }
+            if (!playing.get()) break;
+            try { Thread.sleep(80); } catch (InterruptedException e) { break; }
         }
     }
 

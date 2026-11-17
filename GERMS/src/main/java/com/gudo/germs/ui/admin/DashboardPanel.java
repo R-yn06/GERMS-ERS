@@ -1,7 +1,6 @@
 package com.gudo.germs.ui.admin;
 
 import java.awt.BorderLayout;
-import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -13,13 +12,11 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
@@ -27,7 +24,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
-import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.Timer;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -93,19 +89,11 @@ public final class DashboardPanel extends JPanel {
     };
     private final JTable responderTable = new JTable(responderModel);
 
-    // Broadcast Announcements Table
-    private final DefaultTableModel announcementModel = new DefaultTableModel(
-            new String[] { "Priority", "Advisory Title", "Broadcast Summary", "Published Date" }, 0) {
-        @Override
-        public boolean isCellEditable(int r, int c) {
-            return false;
-        }
-    };
-    private final JTable announcementTable = new JTable(announcementModel);
+    // Broadcast Announcements Table — REMOVED
 
     private final JLabel statusLabel = new JLabel("Synchronizing operational command data...");
     private Runnable busUnsubscribe;
-    private final Timer autoRefreshTimer = new Timer(15000, e -> refreshAllData());
+    private final Timer autoRefreshTimer = new Timer(8000, e -> refreshAllData());
 
     public DashboardPanel(AppContext ctx, Profile user) {
         super(new BorderLayout(0, 10));
@@ -147,16 +135,6 @@ public final class DashboardPanel extends JPanel {
         JPanel actions = new JPanel();
         actions.setOpaque(false);
         actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
-
-        if (isAdmin) {
-            JButton broadcastBtn = new JButton("+ Broadcast Announcement");
-            broadcastBtn.setBackground(GermsColors.PRIMARY_RED);
-            broadcastBtn.setForeground(Color.WHITE);
-            broadcastBtn.setFont(broadcastBtn.getFont().deriveFont(Font.BOLD));
-            broadcastBtn.addActionListener(e -> showBroadcastDialog());
-            actions.add(broadcastBtn);
-            actions.add(Box.createHorizontalStrut(8));
-        }
 
         JButton refreshBtn = new JButton("Refresh Dashboard");
         refreshBtn.addActionListener(e -> refreshAllData());
@@ -289,25 +267,6 @@ public final class DashboardPanel extends JPanel {
         });
         rightTabs.addTab("Deployed Responders", new JScrollPane(responderTable));
 
-        // Announcements Tab
-        announcementTable.setRowHeight(26);
-        announcementTable.setAutoCreateRowSorter(true);
-        announcementTable.getColumnModel().getColumn(0).setCellRenderer(sevRenderer);
-        JPanel annTab = new JPanel(new BorderLayout(0, 6));
-        annTab.setOpaque(false);
-        annTab.add(new JScrollPane(announcementTable), BorderLayout.CENTER);
-        if (isAdmin) {
-            JButton quickAnnounce = new JButton("+ Broadcast Public Early Warning / Advisory");
-            quickAnnounce.setBackground(GermsColors.PRIMARY_RED);
-            quickAnnounce.setForeground(Color.WHITE);
-            quickAnnounce.addActionListener(e -> showBroadcastDialog());
-            JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
-            p.setOpaque(false);
-            p.add(quickAnnounce);
-            annTab.add(p, BorderLayout.SOUTH);
-        }
-        rightTabs.addTab("Emergency Advisories & Announcements", annTab);
-
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, mapContainer, rightTabs);
         split.setResizeWeight(0.52);
         split.setBorder(null);
@@ -359,17 +318,12 @@ public final class DashboardPanel extends JPanel {
             JsonNode respLocations = ctx.rest.select("responder_locations",
                     "select=profile_id,latitude,longitude,recorded_at,source,profiles!responder_locations_profile_id_fkey(full_name)&sharing_enabled=eq.true");
 
-            // 4. Emergency Announcements
-            JsonNode announcements = ctx.rest.select("emergency_announcements",
-                    "select=*&order=published_at.desc&limit=25");
-
-            return new Object[] { incidents, assignments, respLocations, announcements };
+            return new Object[] { incidents, assignments, respLocations };
         }, result -> {
             @SuppressWarnings("unchecked")
             List<Incident> incidents = (List<Incident>) result[0];
             JsonNode assignments = (JsonNode) result[1];
             JsonNode respLocations = (JsonNode) result[2];
-            JsonNode announcements = (JsonNode) result[3];
 
             // --- Update KPI Cards ---
             long total = incidents.size();
@@ -454,25 +408,6 @@ public final class DashboardPanel extends JPanel {
 
             map.setMarkers(markers);
 
-            // 3. Announcements Feed
-            announcementModel.setRowCount(0);
-            if (announcements != null && announcements.isArray()) {
-                for (JsonNode an : announcements) {
-                    String date = an.path("published_at").asText();
-                    try {
-                        date = TIME_FMT.format(Instant.parse(date));
-                    } catch (Exception ignored) {
-                    }
-
-                    announcementModel.addRow(new Object[] {
-                            an.path("priority").asText("normal").toUpperCase(),
-                            an.path("title").asText(),
-                            an.path("description").asText(),
-                            date
-                    });
-                }
-            }
-
             statusLabel.setText("System status nominal. Last synchronized at " + TIME_FMT.format(Instant.now())
                     + " \u00B7 " + active + " active incidents \u00B7 " + deployedCount + " personnel deployed.");
         }, err -> {
@@ -480,48 +415,4 @@ public final class DashboardPanel extends JPanel {
         });
     }
 
-    private void showBroadcastDialog() {
-        JTextField titleField = new JTextField();
-        JTextArea descArea = new JTextArea(4, 24);
-        descArea.setLineWrap(true);
-        descArea.setWrapStyleWord(true);
-        JComboBox<String> priorityBox = new JComboBox<>(new String[] { "normal", "high", "critical" });
-
-        JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
-        form.add(new JLabel("Advisory Title:"));
-        form.add(titleField);
-        form.add(new JLabel("Priority Level:"));
-        form.add(priorityBox);
-        form.add(new JLabel("Broadcast Message / Instructions:"));
-        form.add(new JScrollPane(descArea));
-
-        int res = JOptionPane.showConfirmDialog(this, form, "Broadcast Incident Command Emergency Announcement",
-                JOptionPane.OK_CANCEL_OPTION);
-        if (res != JOptionPane.OK_OPTION)
-            return;
-
-        String title = titleField.getText().trim();
-        String desc = descArea.getText().trim();
-        if (title.isEmpty() || desc.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Title and description are required.", "Validation Error",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        BackgroundTask.run(() -> {
-            ctx.rest.insertMinimal("emergency_announcements", Map.of(
-                    "title", title,
-                    "description", desc,
-                    "priority", priorityBox.getSelectedItem(),
-                    "is_public", true,
-                    "status", "published",
-                    "created_by", user.id().toString()));
-            return Boolean.TRUE;
-        }, ok -> {
-            refreshAllData();
-            JOptionPane.showMessageDialog(this, "Emergency advisory broadcasted to all units and public channels.",
-                    "Broadcast Sent", JOptionPane.INFORMATION_MESSAGE);
-        }, err -> JOptionPane.showMessageDialog(this, "Broadcast error: " + err.getMessage(), "Error",
-                JOptionPane.ERROR_MESSAGE));
-    }
 }

@@ -35,4 +35,11 @@ public final class RestClient {
         http.send("POST", "/rest/v1/" + table, SupabaseHttp.JSON.valueToTree(row).toString(),
                 sessions.accessToken(), Map.of("Prefer", "return=minimal"));
     }
+
+    /** PATCH (update) rows matching the query filter. */
+    public void patch(String table, String query, Object body) throws SupabaseException {
+        http.send("PATCH", "/rest/v1/" + table + (query == null || query.isEmpty() ? "" : "?" + query),
+                SupabaseHttp.JSON.valueToTree(body).toString(), sessions.accessToken(),
+                java.util.Map.of("Prefer", "return=minimal"));
+    }
 }
