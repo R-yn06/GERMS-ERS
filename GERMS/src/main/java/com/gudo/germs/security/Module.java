@@ -12,7 +12,7 @@ import java.util.Set;
 public enum Module {
     // --- Administrator & Shared Operational Modules ---
     DASHBOARD("Command Dashboard", 2, "Operational overview and live status metrics.", Role.ADMIN, Role.RESPONDER),
-    NOTIFICATIONS("Notification Center & Sirens", 2, "Review alerts, acknowledge notifications, and manage audible alarms.", Role.ADMIN),
+    NOTIFICATIONS("Notifications & Alerts", 2, "Review notifications, acknowledge alerts, and manage audible alarms.", Role.ADMIN, Role.RESPONDER),
     INCIDENTS("Incident Management", 2, "Incident lifecycle, verification, and command.", Role.ADMIN, Role.RESPONDER),
     DISPATCH("Dispatch Center", 2, "Responder dispatching, deployments, and response coordination.", Role.ADMIN),
     MAP("Live Operations Map", 3, "Interactive OpenStreetMap view of incidents, responders, and resources.", Role.ADMIN, Role.RESPONDER),

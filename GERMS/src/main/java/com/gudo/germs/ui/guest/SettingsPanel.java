@@ -33,11 +33,11 @@ public final class SettingsPanel extends JPanel {
         add(theme);
         add(Box.createVerticalStrut(16));
         if (user.role() == Role.RESPONDER) {
-            JCheckBox deploymentAlerts = new JCheckBox("Receive deployment notifications and audible emergency alarms", true);
+            JCheckBox deploymentAlerts = new JCheckBox("Receive deployment request alerts and sounds", true);
             deploymentAlerts.setAlignmentX(LEFT_ALIGNMENT);
             add(deploymentAlerts);
             add(Box.createVerticalStrut(8));
-            JLabel alertHelp = new JLabel("Turn this off only when you do not want GERMS to call you for deployments.");
+            JLabel alertHelp = new JLabel("This setting affects deployment requests. Other urgent system alerts still sound.");
             alertHelp.setForeground(GermsColors.SECONDARY_TEXT);
             alertHelp.setAlignmentX(LEFT_ALIGNMENT);
             add(alertHelp);

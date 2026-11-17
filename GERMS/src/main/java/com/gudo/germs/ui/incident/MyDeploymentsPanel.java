@@ -12,6 +12,7 @@ import java.awt.Insets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -44,6 +45,7 @@ import com.gudo.germs.utils.BackgroundTask;
 public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
     private final Profile user;
+    private final Consumer<String> onAcknowledged;
     private final AlarmService alarms = AlarmService.get();
 
     // Tabs
@@ -81,10 +83,11 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
     private final JLabel alarmStatus = new JLabel("Alarm: Idle");
     private final JLabel notifStatusMsg = new JLabel(" ");
 
-    public MyDeploymentsPanel(AppContext ctx, Profile user) {
+    public MyDeploymentsPanel(AppContext ctx, Profile user, Consumer<String> onAcknowledged) {
         super(new BorderLayout(0, 10));
         this.ctx = ctx;
         this.user = user;
+        this.onAcknowledged = onAcknowledged;
         setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
 
         add(buildHeader(), BorderLayout.NORTH);
@@ -405,7 +408,6 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
                     String notifId = n.path("id").asText();
                     if (!acked) {
                         hasUnacknowledgedAlerts = true;
-                        alarms.triggerAlarm(notifId, prio, true, audibleToggle.isSelected());
                     }
 
                     String date = n.path("created_at").asText();
@@ -494,13 +496,13 @@ public final class MyDeploymentsPanel extends JPanel implements com.gudo.germs.u
         int modelRow = notifTable.convertRowIndexToModel(r);
         String notifId = String.valueOf(notifModel.getValueAt(modelRow, 0));
 
-        alarms.stopAlarm();
         BackgroundTask.run(() -> {
             ctx.rest.rpc("acknowledge_notification", Map.of("p_id", UUID.fromString(notifId)));
             return Boolean.TRUE;
         }, ok -> {
+            onAcknowledged.accept(notifId);
             loadNotifications();
-        }, err -> loadNotifications());
+        }, err -> notifStatusMsg.setText("Could not acknowledge notification: " + err.getMessage()));
     }
 
     private void respondToSelectedIncident(String decision) {
