@@ -22,6 +22,13 @@ import java.util.UUID;
  */
 public final class UserManagementPanel extends JPanel implements com.gudo.germs.ui.RefreshablePanel {
     private final AppContext ctx;
+    private static final ClassificationOption[] RESPONDER_CLASSIFICATIONS = {
+            new ClassificationOption("EMS", "EMS - Emergency Medical Services"),
+            new ClassificationOption("ERU", "ERU - Emergency Response Unit"),
+            new ClassificationOption("EMR", "EMR - Emergency Medical Responder"),
+            new ClassificationOption("EMT", "EMT - Emergency Medical Technician"),
+            new ClassificationOption("DMS", "DMS - Disaster Management Services")
+    };
     private final DefaultTableModel model = new DefaultTableModel(
             new String[] { "ID", "Name", "Email", "Role", "Classification", "Active", "Availability", "Deployment",
                     "Classification Code" },
@@ -208,23 +215,7 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
             return;
         }
 
-        String[] classifications = {
-                "DMS_SAR - Search and Rescue",
-                "DMS_FLOOD - Flood and Landslide Response",
-                "DMS_FIRE - Typhoon and Fire Response",
-                "DMS_ASSESS - Disaster Assessment",
-                "DMS_EVAC - Evacuation Operations",
-                "DMS_RELIEF - Relief Logistics",
-                "SAF_ERU - Emergency Response Unit",
-                "SAF_EMR - Emergency Medical Responder",
-                "SAF_EMT - Emergency Medical Technician",
-                "SAF_AMB - Ambulance Crew",
-                "SAF_FA - First Aid Team",
-                "VOL_143L - Red Cross 143 Leader",
-                "VOL_143V - Red Cross 143 Volunteer"
-        };
-
-        JComboBox<String> clsBox = new JComboBox<>(classifications);
+        JComboBox<ClassificationOption> clsBox = new JComboBox<>(RESPONDER_CLASSIFICATIONS);
         JPanel p = new JPanel(new GridLayout(0, 1, 6, 6));
         p.add(new JLabel("Promote " + name + " to Responder role."));
         p.add(new JLabel("Assign Initial Classification:"));
@@ -234,9 +225,9 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         if (res != JOptionPane.OK_OPTION)
             return;
 
-        String selected = (String) clsBox.getSelectedItem();
-        String code = selected != null ? selected.split(" - ")[0].trim() : "DMS_SAR";
-        String division = code.startsWith("SAF_") ? "SAFETY" : (code.startsWith("VOL_") ? "VOLUNTEER" : "DMS");
+        ClassificationOption selected = (ClassificationOption) clsBox.getSelectedItem();
+        String code = selected == null ? "" : selected.code();
+        String division = "DMS".equals(code) ? "DMS" : "SAFETY";
 
         state.setText("Promoting account...");
         BackgroundTask.run(() -> {
@@ -317,14 +308,11 @@ public final class UserManagementPanel extends JPanel implements com.gudo.germs.
         JTextField email = new JTextField(String.valueOf(model.getValueAt(row, 2)));
         JComboBox<String> role = new JComboBox<>(new String[] { "guest", "responder", "admin" });
         role.setSelectedItem(String.valueOf(model.getValueAt(row, 3)).toLowerCase());
-        JComboBox<ClassificationOption> classification = new JComboBox<>(new ClassificationOption[] {
-                new ClassificationOption("", "No classification"),
-                new ClassificationOption("EMS", "EMS - Emergency Medical Services"),
-                new ClassificationOption("ERU", "ERU - Emergency Response Unit"),
-                new ClassificationOption("EMR", "EMR - Emergency Medical Responder"),
-                new ClassificationOption("EMT", "EMT - Emergency Medical Technician"),
-                new ClassificationOption("DMS", "DMS - Disaster Management Services")
-        });
+        JComboBox<ClassificationOption> classification = new JComboBox<>();
+        classification.addItem(new ClassificationOption("", "No classification"));
+        for (ClassificationOption option : RESPONDER_CLASSIFICATIONS) {
+            classification.addItem(option);
+        }
         String currentCode = String.valueOf(model.getValueAt(row, 8));
         if (!currentCode.isBlank()) {
             String canonicalCode = ResponderClassificationCodes.canonicalCode(currentCode);

@@ -33,7 +33,6 @@ import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
 import com.gudo.germs.models.IncidentStatus;
 import com.gudo.germs.models.Profile;
-import com.gudo.germs.utils.ResponderClassificationCodes;
 import com.gudo.germs.models.Role;
 import com.gudo.germs.services.IncidentService;
 import com.gudo.germs.ui.components.OpenStreetMapPanel;
@@ -42,6 +41,7 @@ import com.gudo.germs.ui.components.OpenStreetMapPanel.MarkerType;
 import com.gudo.germs.ui.components.StatCard;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
+import com.gudo.germs.utils.ResponderClassificationCodes;
 
 /**
  * Command Dashboard & Central Operations Hub.

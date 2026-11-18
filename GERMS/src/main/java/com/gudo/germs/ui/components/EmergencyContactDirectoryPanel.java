@@ -10,6 +10,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -39,7 +40,7 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
 
     private final DefaultTableModel model = new DefaultTableModel(
             new String[] { "ID", "Contact Name", "Hotline / Phone", "Organization", "Category", "Availability",
-                    "Address / Location" },
+                    "Address / Location", "Notes", "Location Value", "Public" },
             0) {
         /** Reports whether the table cell can be edited. */
         @Override
@@ -63,6 +64,9 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
 
         table.setRowHeight(25);
         table.removeColumn(table.getColumnModel().getColumn(0)); // Hide ID
+        table.removeColumn(table.getColumn("Notes"));
+        table.removeColumn(table.getColumn("Location Value"));
+        table.removeColumn(table.getColumn("Public"));
         table.setAutoCreateRowSorter(true);
         add(new JScrollPane(table), BorderLayout.CENTER);
         add(statusLabel, BorderLayout.SOUTH);
@@ -116,7 +120,18 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
             addBtn.setBackground(GermsColors.PRIMARY_RED);
             addBtn.setForeground(Color.WHITE);
             addBtn.addActionListener(e -> showAddContactDialog());
+
+            JButton editBtn = new JButton("Edit Contact");
+            editBtn.addActionListener(e -> editSelectedContact());
+
+            JButton deleteBtn = new JButton("Delete Contact");
+            deleteBtn.addActionListener(e -> deleteSelectedContact());
+
             actions.add(addBtn);
+            actions.add(Box.createHorizontalStrut(8));
+            actions.add(editBtn);
+            actions.add(Box.createHorizontalStrut(8));
+            actions.add(deleteBtn);
             actions.add(Box.createHorizontalStrut(8));
         }
 
@@ -151,7 +166,10 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
                             c.path("organization").asText(),
                             c.path("category").asText(),
                             c.path("availability").asText("24/7"),
-                            c.path("address").asText(c.path("location").asText(""))
+                            c.path("address").asText(c.path("location").asText("")),
+                            c.path("notes").asText(""),
+                            c.path("location").asText(""),
+                            c.path("is_public").asBoolean(true)
                     });
                 }
             }
@@ -172,6 +190,9 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
         });
         JTextField availability = new JTextField("24/7");
         JTextField address = new JTextField();
+        JTextField location = new JTextField();
+        JTextField notes = new JTextField();
+        JCheckBox isPublic = new JCheckBox("Show in public directory", true);
 
         JPanel p = new JPanel(new GridLayout(0, 2, 8, 8));
         p.add(new JLabel("Contact / Facility Name:"));
@@ -186,6 +207,12 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
         p.add(availability);
         p.add(new JLabel("Address / Location:"));
         p.add(address);
+        p.add(new JLabel("Map / Area Location:"));
+        p.add(location);
+        p.add(new JLabel("Notes:"));
+        p.add(notes);
+        p.add(new JLabel("Visibility:"));
+        p.add(isPublic);
 
         int choice = JOptionPane.showConfirmDialog(this, p, "Add Emergency Contact", JOptionPane.OK_CANCEL_OPTION);
         if (choice != JOptionPane.OK_OPTION)
@@ -207,7 +234,9 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
                     "category", category.getSelectedItem(),
                     "availability", availability.getText().trim(),
                     "address", address.getText().trim(),
-                    "is_public", true));
+                    "location", location.getText().trim(),
+                    "notes", notes.getText().trim(),
+                    "is_public", isPublic.isSelected()));
             return Boolean.TRUE;
         }, ok -> {
             loadContacts();
@@ -215,6 +244,124 @@ public final class EmergencyContactDirectoryPanel extends JPanel implements com.
                     JOptionPane.INFORMATION_MESSAGE);
         }, err -> JOptionPane.showMessageDialog(this, "Failed to add contact: " + err.getMessage(), "Error",
                 JOptionPane.ERROR_MESSAGE));
+    }
+
+    /** Edits the selected emergency contact. */
+    private void editSelectedContact() {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(this, "Please select a contact first.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int row = table.convertRowIndexToModel(selectedRow);
+        String id = String.valueOf(model.getValueAt(row, 0));
+        JTextField name = new JTextField(String.valueOf(model.getValueAt(row, 1)));
+        JTextField number = new JTextField(String.valueOf(model.getValueAt(row, 2)));
+        JTextField org = new JTextField(String.valueOf(model.getValueAt(row, 3)));
+        JComboBox<String> category = new JComboBox<>(new String[] {
+                "Emergency Hotline", "Hospital / Medical", "Rescue Organization", "LGU / Government", "Partner Agency",
+                "Police / Security", "Fire Department"
+        });
+        String currentCategory = String.valueOf(model.getValueAt(row, 4));
+        boolean categoryFound = false;
+        for (int i = 0; i < category.getItemCount(); i++) {
+            if (category.getItemAt(i).equals(currentCategory)) {
+                category.setSelectedIndex(i);
+                categoryFound = true;
+                break;
+            }
+        }
+        if (!categoryFound) {
+            category.addItem(currentCategory);
+            category.setSelectedItem(currentCategory);
+        }
+        JTextField availability = new JTextField(String.valueOf(model.getValueAt(row, 5)));
+        JTextField address = new JTextField(String.valueOf(model.getValueAt(row, 6)));
+        JTextField notes = new JTextField(String.valueOf(model.getValueAt(row, 7)));
+        JTextField location = new JTextField(String.valueOf(model.getValueAt(row, 8)));
+        JCheckBox isPublic = new JCheckBox("Show in public directory",
+                Boolean.TRUE.equals(model.getValueAt(row, 9)));
+
+        JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
+        form.add(new JLabel("Contact / Facility Name:"));
+        form.add(name);
+        form.add(new JLabel("Contact Number:"));
+        form.add(number);
+        form.add(new JLabel("Organization:"));
+        form.add(org);
+        form.add(new JLabel("Category:"));
+        form.add(category);
+        form.add(new JLabel("Operational Availability:"));
+        form.add(availability);
+        form.add(new JLabel("Address:"));
+        form.add(address);
+        form.add(new JLabel("Map / Area Location:"));
+        form.add(location);
+        form.add(new JLabel("Notes:"));
+        form.add(notes);
+        form.add(new JLabel("Visibility:"));
+        form.add(isPublic);
+
+        if (JOptionPane.showConfirmDialog(this, form, "Edit Emergency Contact",
+                JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        String contactName = name.getText().trim();
+        String contactNumber = number.getText().trim();
+        if (contactName.isEmpty() || contactNumber.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Name and contact number are required.", "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        BackgroundTask.run(() -> {
+            JsonNode updated = ctx.rest.patch("emergency_contacts", "id=eq." + id, Map.of(
+                    "name", contactName,
+                    "contact_number", contactNumber,
+                    "organization", org.getText().trim(),
+                    "category", category.getSelectedItem(),
+                    "availability", availability.getText().trim(),
+                    "address", address.getText().trim(),
+                    "location", location.getText().trim(),
+                    "notes", notes.getText().trim(),
+                    "is_public", isPublic.isSelected()));
+            if (!updated.isArray() || updated.isEmpty()) {
+                throw new IllegalStateException("The emergency contact was not updated.");
+            }
+            return Boolean.TRUE;
+        }, ok -> loadContacts(), err -> JOptionPane.showMessageDialog(this,
+                "Contact update failed: " + err.getMessage(), "Update failed", JOptionPane.ERROR_MESSAGE));
+    }
+
+    /** Deletes the selected emergency contact. */
+    private void deleteSelectedContact() {
+        int selectedRow = table.getSelectedRow();
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(this, "Please select a contact first.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int row = table.convertRowIndexToModel(selectedRow);
+        String id = String.valueOf(model.getValueAt(row, 0));
+        String name = String.valueOf(model.getValueAt(row, 1));
+        if (JOptionPane.showConfirmDialog(this, "Delete emergency contact " + name + "? This cannot be undone.",
+                "Delete Emergency Contact", JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        BackgroundTask.run(() -> {
+            JsonNode deleted = ctx.rest.delete("emergency_contacts", "id=eq." + id);
+            if (!deleted.isArray() || deleted.isEmpty()) {
+                throw new IllegalStateException("The emergency contact was not deleted.");
+            }
+            return Boolean.TRUE;
+        }, ok -> loadContacts(), err -> JOptionPane.showMessageDialog(this,
+                "Contact deletion failed: " + err.getMessage(), "Delete failed", JOptionPane.ERROR_MESSAGE));
     }
 
     /** Refreshes data. */

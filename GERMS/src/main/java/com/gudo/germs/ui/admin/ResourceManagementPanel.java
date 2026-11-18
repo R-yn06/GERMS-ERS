@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
 import com.gudo.germs.models.Profile;
+import com.gudo.germs.models.Role;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
@@ -42,7 +43,8 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
     private final Profile user;
 
     private final DefaultTableModel resourceModel = new DefaultTableModel(
-            new String[] { "ID", "Resource Name", "Category", "Total", "Available", "Condition", "Status", "Location" },
+            new String[] { "ID", "Resource Name", "Category", "Total", "Available", "Condition", "Status",
+                    "Location", "Category Code", "Location Value" },
             0) {
         /** Reports whether the table cell can be edited. */
         @Override
@@ -102,6 +104,12 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
         addBtn.setForeground(Color.WHITE);
         addBtn.addActionListener(e -> showAddResourceDialog());
 
+        JButton editBtn = new JButton("Edit Resource");
+        editBtn.addActionListener(e -> editSelectedResource());
+
+        JButton deleteBtn = new JButton("Delete Resource");
+        deleteBtn.addActionListener(e -> deleteSelectedResource());
+
         JButton allocBtn = new JButton("Allocate to Incident");
         allocBtn.addActionListener(e -> allocateSelectedResource());
 
@@ -116,7 +124,9 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
         actions.setOpaque(false);
         actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
 
-        JButton[] buttons = { addBtn, allocBtn, releaseBtn, refreshBtn };
+        JButton[] buttons = user.role() == Role.ADMIN
+                ? new JButton[] { addBtn, editBtn, deleteBtn, allocBtn, releaseBtn, refreshBtn }
+                : new JButton[] { allocBtn, releaseBtn, refreshBtn };
         for (int i = 0; i < buttons.length; i++) {
             if (i > 0)
                 actions.add(Box.createHorizontalStrut(8));
@@ -132,6 +142,8 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
     private JComponent buildSplit() {
         resourceTable.setRowHeight(25);
         resourceTable.removeColumn(resourceTable.getColumnModel().getColumn(0)); // Hide ID
+        resourceTable.removeColumn(resourceTable.getColumn("Category Code"));
+        resourceTable.removeColumn(resourceTable.getColumn("Location Value"));
         resourceTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 loadAllocationsForSelected();
@@ -178,7 +190,9 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
                             r.path("available_quantity").asInt(),
                             r.path("condition").asText().toUpperCase(),
                             r.path("status").asText().toUpperCase(),
-                            r.path("location").asText("Central Warehouse")
+                            r.path("location").asText("Central Warehouse"),
+                            r.path("category").asText(),
+                            r.path("location").asText("")
                     });
                 }
 
@@ -288,6 +302,111 @@ public final class ResourceManagementPanel extends JPanel implements com.gudo.ge
                     JOptionPane.INFORMATION_MESSAGE);
         }, err -> JOptionPane.showMessageDialog(this, "Failed to add resource: " + err.getMessage(), "Error",
                 JOptionPane.ERROR_MESSAGE));
+    }
+
+    /** Edits the selected resource inventory record. */
+    private void editSelectedResource() {
+        int selectedRow = resourceTable.getSelectedRow();
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(this, "Please select a resource first.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int row = resourceTable.convertRowIndexToModel(selectedRow);
+        String id = String.valueOf(resourceModel.getValueAt(row, 0));
+        String nameValue = String.valueOf(resourceModel.getValueAt(row, 1));
+        int quantityValue = ((Number) resourceModel.getValueAt(row, 3)).intValue();
+        int availableValue = ((Number) resourceModel.getValueAt(row, 4)).intValue();
+        int allocatedQuantity = Math.max(0, quantityValue - availableValue);
+
+        JTextField name = new JTextField(nameValue);
+        JComboBox<String> category = new JComboBox<>(new String[] {
+                "first_aid", "medical_equipment", "ambulance", "rescue_equipment",
+                "emergency_supplies", "communication", "evacuation", "generator", "vehicle", "other"
+        });
+        category.setSelectedItem(String.valueOf(resourceModel.getValueAt(row, 8)));
+        JSpinner quantity = new JSpinner(
+                new SpinnerNumberModel(quantityValue, allocatedQuantity, Integer.MAX_VALUE, 1));
+        JComboBox<String> condition = new JComboBox<>(
+                new String[] { "new", "good", "fair", "needs_maintenance", "damaged" });
+        condition.setSelectedItem(String.valueOf(resourceModel.getValueAt(row, 5)).toLowerCase());
+        JComboBox<String> status = new JComboBox<>(
+                new String[] { "available", "reserved", "deployed", "under_maintenance", "unavailable", "retired" });
+        status.setSelectedItem(String.valueOf(resourceModel.getValueAt(row, 6)).toLowerCase());
+        JTextField location = new JTextField(String.valueOf(resourceModel.getValueAt(row, 9)));
+
+        JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
+        form.add(new JLabel("Equipment Name:"));
+        form.add(name);
+        form.add(new JLabel("Category:"));
+        form.add(category);
+        form.add(new JLabel("Total Quantity:"));
+        form.add(quantity);
+        form.add(new JLabel("Condition:"));
+        form.add(condition);
+        form.add(new JLabel("Status:"));
+        form.add(status);
+        form.add(new JLabel("Storage Location:"));
+        form.add(location);
+
+        if (JOptionPane.showConfirmDialog(this, form, "Edit Emergency Resource",
+                JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        String resourceName = name.getText().trim();
+        if (resourceName.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Name is required.", "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int newQuantity = (int) quantity.getValue();
+        int newAvailable = newQuantity - allocatedQuantity;
+        BackgroundTask.run(() -> {
+            JsonNode updated = ctx.rest.patch("resources", "id=eq." + id, Map.of(
+                    "name", resourceName,
+                    "category", category.getSelectedItem(),
+                    "quantity", newQuantity,
+                    "available_quantity", newAvailable,
+                    "condition", condition.getSelectedItem(),
+                    "status", status.getSelectedItem(),
+                    "location", location.getText().trim()));
+            if (!updated.isArray() || updated.isEmpty()) {
+                throw new IllegalStateException("The resource was not updated.");
+            }
+            return Boolean.TRUE;
+        }, ok -> loadResources(), err -> JOptionPane.showMessageDialog(this,
+                "Resource update failed: " + err.getMessage(), "Update failed", JOptionPane.ERROR_MESSAGE));
+    }
+
+    /** Deletes the selected resource after confirmation. */
+    private void deleteSelectedResource() {
+        int selectedRow = resourceTable.getSelectedRow();
+        if (selectedRow < 0) {
+            JOptionPane.showMessageDialog(this, "Please select a resource first.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int row = resourceTable.convertRowIndexToModel(selectedRow);
+        String id = String.valueOf(resourceModel.getValueAt(row, 0));
+        String name = String.valueOf(resourceModel.getValueAt(row, 1));
+        if (JOptionPane.showConfirmDialog(this,
+                "Delete " + name + "? Its allocation records and history will also be deleted.",
+                "Delete Resource", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        BackgroundTask.run(() -> {
+            JsonNode deleted = ctx.rest.delete("resources", "id=eq." + id);
+            if (!deleted.isArray() || deleted.isEmpty()) {
+                throw new IllegalStateException("The resource was not deleted.");
+            }
+            return Boolean.TRUE;
+        }, ok -> loadResources(), err -> JOptionPane.showMessageDialog(this,
+                "Resource deletion failed: " + err.getMessage(), "Delete failed", JOptionPane.ERROR_MESSAGE));
     }
 
     /** Allocates the selected resource. */

@@ -45,4 +45,10 @@ public final class RestClient {
                 SupabaseHttp.JSON.valueToTree(body).toString(), sessions.accessToken(),
                 Map.of("Prefer", "return=representation"));
     }
+
+    /** Deletes rows matching the query filter and returns the deleted records. */
+    public JsonNode delete(String table, String query) throws SupabaseException {
+        return http.send("DELETE", "/rest/v1/" + table + (query == null || query.isEmpty() ? "" : "?" + query),
+                null, sessions.accessToken(), Map.of("Prefer", "return=representation"));
+    }
 }

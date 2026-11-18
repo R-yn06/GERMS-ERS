@@ -4,6 +4,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.GridLayout;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import javax.swing.BorderFactory;
@@ -43,7 +44,7 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
 
     private final DefaultTableModel model = new DefaultTableModel(
             new String[] { "ID", "Shelter Name", "Address / Barangay", "Capacity", "Occupancy", "Available Space",
-                    "Status", "Coordinates" },
+                    "Status", "Coordinates", "Latitude", "Longitude", "Notes" },
             0) {
         /** Reports whether the table cell can be edited. */
         @Override
@@ -65,6 +66,9 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
         add(buildHeader(), BorderLayout.NORTH);
         table.setRowHeight(25);
         table.removeColumn(table.getColumnModel().getColumn(0)); // Hide ID
+        table.removeColumn(table.getColumn("Latitude"));
+        table.removeColumn(table.getColumn("Longitude"));
+        table.removeColumn(table.getColumn("Notes"));
         table.setAutoCreateRowSorter(true);
         add(new JScrollPane(table), BorderLayout.CENTER);
         add(statusLabel, BorderLayout.SOUTH);
@@ -109,7 +113,17 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
             JButton updateStatus = new JButton("Change Status");
             updateStatus.addActionListener(e -> showChangeStatusDialog());
 
+            JButton edit = new JButton("Edit Center");
+            edit.addActionListener(e -> showEditCenterDialog());
+
+            JButton delete = new JButton("Delete Center");
+            delete.addActionListener(e -> deleteSelectedCenter());
+
             actions.add(addBtn);
+            actions.add(Box.createHorizontalStrut(8));
+            actions.add(edit);
+            actions.add(Box.createHorizontalStrut(8));
+            actions.add(delete);
             actions.add(Box.createHorizontalStrut(8));
             actions.add(updateOccupancy);
             actions.add(Box.createHorizontalStrut(8));
@@ -159,7 +173,10 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
                             occ,
                             avail,
                             c.path("status").asText().toUpperCase(),
-                            coords
+                            coords,
+                            c.path("latitude").isNumber() ? c.path("latitude").asDouble() : null,
+                            c.path("longitude").isNumber() ? c.path("longitude").asDouble() : null,
+                            c.path("notes").asText("")
                     });
                 }
             }
@@ -253,6 +270,130 @@ public final class EvacuationCenterPanel extends JPanel implements com.gudo.germ
                     JOptionPane.INFORMATION_MESSAGE);
         }, err -> JOptionPane.showMessageDialog(this, "Registration failed: " + err.getMessage(), "Error",
                 JOptionPane.ERROR_MESSAGE));
+    }
+
+    /** Edits the selected evacuation center. */
+    private void showEditCenterDialog() {
+        String id = getSelectedCenterId();
+        if (id == null) {
+            return;
+        }
+
+        int row = table.convertRowIndexToModel(table.getSelectedRow());
+        String currentName = String.valueOf(model.getValueAt(row, 1));
+        String currentAddress = String.valueOf(model.getValueAt(row, 2));
+        int currentCapacity = ((Number) model.getValueAt(row, 3)).intValue();
+        int currentOccupancy = ((Number) model.getValueAt(row, 4)).intValue();
+        String currentStatus = String.valueOf(model.getValueAt(row, 6)).toLowerCase();
+        Object latitudeValue = model.getValueAt(row, 8);
+        Object longitudeValue = model.getValueAt(row, 9);
+        Double latitude = latitudeValue instanceof Number value ? value.doubleValue() : null;
+        Double longitude = longitudeValue instanceof Number value ? value.doubleValue() : null;
+        String currentNotes = String.valueOf(model.getValueAt(row, 10));
+
+        JTextField name = new JTextField(currentName);
+        JTextField address = new JTextField(currentAddress);
+        JSpinner capacity = new JSpinner(new SpinnerNumberModel(
+                currentCapacity, currentOccupancy, Math.max(50000, currentCapacity), 1));
+        JComboBox<String> status = new JComboBox<>(new String[] { "open", "full", "closed", "maintenance" });
+        status.setSelectedItem(currentStatus);
+        JTextField notes = new JTextField(currentNotes);
+        LocationPickerDialog.Selection initialLocation = latitude != null && longitude != null
+                ? new LocationPickerDialog.Selection(latitude, longitude, currentAddress, "existing", null)
+                : null;
+        LocationPickerDialog.Selection[] selectedLocation = new LocationPickerDialog.Selection[] { initialLocation };
+        JLabel selectedLocationText = new JLabel(latitude == null || longitude == null
+                ? "No map location selected"
+                : String.format(java.util.Locale.ROOT, "%.5f, %.5f", latitude, longitude));
+        JButton chooseLocation = new JButton("Pin / Search on Map");
+        chooseLocation.addActionListener(event -> {
+            LocationPickerDialog.Selection picked = LocationPickerDialog.showDialog(
+                    SwingUtilities.getWindowAncestor(this), "Select Evacuation Center Location", selectedLocation[0]);
+            if (picked != null) {
+                selectedLocation[0] = picked;
+                selectedLocationText.setText(String.format(java.util.Locale.ROOT, "%s (%.5f, %.5f)",
+                        picked.label(), picked.latitude(), picked.longitude()));
+                if (address.getText().isBlank()) {
+                    address.setText(picked.label());
+                }
+            }
+        });
+
+        JPanel locationPicker = new JPanel(new BorderLayout(8, 0));
+        locationPicker.add(chooseLocation, BorderLayout.WEST);
+        locationPicker.add(selectedLocationText, BorderLayout.CENTER);
+
+        JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
+        form.add(new JLabel("Center Name:"));
+        form.add(name);
+        form.add(new JLabel("Address / Barangay:"));
+        form.add(address);
+        form.add(new JLabel("Total Capacity:"));
+        form.add(capacity);
+        form.add(new JLabel("Map Location:"));
+        form.add(locationPicker);
+        form.add(new JLabel("Status:"));
+        form.add(status);
+        form.add(new JLabel("Notes:"));
+        form.add(notes);
+
+        if (JOptionPane.showConfirmDialog(this, form, "Edit Evacuation Center",
+                JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        String centerName = name.getText().trim();
+        String centerAddress = address.getText().trim();
+        if (centerName.isEmpty() || centerAddress.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Center name and address are required.", "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        Map<String, Object> updates = new LinkedHashMap<>();
+        updates.put("name", centerName);
+        updates.put("address", centerAddress);
+        updates.put("capacity", capacity.getValue());
+        updates.put("status", status.getSelectedItem());
+        updates.put("notes", notes.getText().trim());
+        if (selectedLocation[0] != null) {
+            updates.put("latitude", selectedLocation[0].latitude());
+            updates.put("longitude", selectedLocation[0].longitude());
+        }
+
+        BackgroundTask.run(() -> {
+            JsonNode updated = ctx.rest.patch("evacuation_centers", "id=eq." + id, updates);
+            if (!updated.isArray() || updated.isEmpty()) {
+                throw new IllegalStateException("The evacuation center was not updated.");
+            }
+            return Boolean.TRUE;
+        }, ok -> loadCenters(), err -> JOptionPane.showMessageDialog(this,
+                "Center update failed: " + err.getMessage(), "Update failed", JOptionPane.ERROR_MESSAGE));
+    }
+
+    /** Deletes the selected evacuation center. */
+    private void deleteSelectedCenter() {
+        String id = getSelectedCenterId();
+        if (id == null) {
+            return;
+        }
+
+        int row = table.convertRowIndexToModel(table.getSelectedRow());
+        String name = String.valueOf(model.getValueAt(row, 1));
+        if (JOptionPane.showConfirmDialog(this, "Delete evacuation center " + name + "? This cannot be undone.",
+                "Delete Evacuation Center", JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        BackgroundTask.run(() -> {
+            JsonNode deleted = ctx.rest.delete("evacuation_centers", "id=eq." + id);
+            if (!deleted.isArray() || deleted.isEmpty()) {
+                throw new IllegalStateException("The evacuation center was not deleted.");
+            }
+            return Boolean.TRUE;
+        }, ok -> loadCenters(), err -> JOptionPane.showMessageDialog(this,
+                "Center deletion failed: " + err.getMessage(), "Delete failed", JOptionPane.ERROR_MESSAGE));
     }
 
     /** Displays update occupancy dialog. */

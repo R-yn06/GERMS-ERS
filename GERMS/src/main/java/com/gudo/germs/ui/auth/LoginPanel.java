@@ -191,12 +191,12 @@ public final class LoginPanel extends JLayeredPane{
         return left;
     }
 
-    /** Creates logo component. */
+    /** Creates logo component. */ 
     private JComponent createLogoComponent() {
         URL logoUrl = getClass().getResource("/com/gudo/germs/ui/Images/Logo.png");
         if (logoUrl != null) {
             ImageIcon raw = new ImageIcon(logoUrl);
-            Image scaled = raw.getImage().getScaledInstance(100, 100, Image.SCALE_SMOOTH);
+            Image scaled = raw.getImage().getScaledInstance(200, 200, Image.SCALE_SMOOTH);
             JLabel logo = new JLabel(new ImageIcon(scaled));
             logo.setAlignmentX(LEFT_ALIGNMENT);
             return logo;

@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.gudo.germs.config.AppContext;
 import com.gudo.germs.models.Incident;
 import com.gudo.germs.models.Profile;
+import com.gudo.germs.models.Role;
 import com.gudo.germs.ui.theme.GermsColors;
 import com.gudo.germs.utils.BackgroundTask;
 
@@ -42,7 +43,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
     private final Profile user;
 
     private final DefaultTableModel teamModel = new DefaultTableModel(
-            new String[] { "ID", "Team Name", "Leader", "Contact", "Status", "Members Count" }, 0) {
+            new String[] { "ID", "Team Name", "Leader", "Contact", "Status", "Members Count", "Description" }, 0) {
         /** Reports whether the table cell can be edited. */
         @Override
         public boolean isCellEditable(int r, int c) {
@@ -102,6 +103,12 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         addTeam.setForeground(Color.WHITE);
         addTeam.addActionListener(e -> showCreateTeamDialog());
 
+        JButton editTeam = new JButton("Edit Team");
+        editTeam.addActionListener(e -> editSelectedTeam());
+
+        JButton deleteTeam = new JButton("Delete Team");
+        deleteTeam.addActionListener(e -> deleteSelectedTeam());
+
         JButton assignTeam = new JButton("Dispatch to Incident");
         assignTeam.addActionListener(e -> dispatchSelectedTeam());
 
@@ -119,7 +126,9 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         actions.setOpaque(false);
         actions.setLayout(new BoxLayout(actions, BoxLayout.X_AXIS));
 
-        JButton[] buttons = { addTeam, assignTeam, addMember, removeMember, refresh };
+        JButton[] buttons = user.role() == Role.ADMIN
+                ? new JButton[] { addTeam, editTeam, deleteTeam, assignTeam, addMember, removeMember, refresh }
+                : new JButton[] { assignTeam, addMember, removeMember, refresh };
         for (int i = 0; i < buttons.length; i++) {
             if (i > 0)
                 actions.add(Box.createHorizontalStrut(8));
@@ -135,6 +144,7 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
     private JComponent buildBodySplit() {
         teamTable.setRowHeight(26);
         teamTable.removeColumn(teamTable.getColumnModel().getColumn(0)); // Hide ID
+        teamTable.removeColumn(teamTable.getColumn("Description"));
         teamTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 loadMembersForSelectedTeam();
@@ -188,7 +198,8 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
                             leaderName,
                             n.path("contact_number").asText("N/A"),
                             n.path("status").asText("available").toUpperCase(),
-                            count + " member(s)"
+                            count + " member(s)",
+                            n.path("description").asText("")
                     });
                 }
             }
@@ -286,6 +297,87 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
         });
     }
 
+    /** Edits the selected response team. */
+    private void editSelectedTeam() {
+        String teamId = getSelectedTeamId();
+        if (teamId == null) {
+            JOptionPane.showMessageDialog(this, "Please select a team first.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int row = teamTable.convertRowIndexToModel(teamTable.getSelectedRow());
+        JTextField name = new JTextField(String.valueOf(teamModel.getValueAt(row, 1)));
+        JTextField contact = new JTextField(String.valueOf(teamModel.getValueAt(row, 3)));
+        JTextField description = new JTextField(String.valueOf(teamModel.getValueAt(row, 6)));
+        JComboBox<String> status = new JComboBox<>(new String[] { "available", "deployed", "standby", "offline" });
+        status.setSelectedItem(String.valueOf(teamModel.getValueAt(row, 4)).toLowerCase());
+
+        JPanel form = new JPanel(new GridLayout(0, 2, 8, 8));
+        form.add(new JLabel("Team Name:"));
+        form.add(name);
+        form.add(new JLabel("Contact Hotline:"));
+        form.add(contact);
+        form.add(new JLabel("Description / Specialty:"));
+        form.add(description);
+        form.add(new JLabel("Status:"));
+        form.add(status);
+
+        if (JOptionPane.showConfirmDialog(this, form, "Edit Response Team",
+                JOptionPane.OK_CANCEL_OPTION) != JOptionPane.OK_OPTION) {
+            return;
+        }
+
+        String teamName = name.getText().trim();
+        if (teamName.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Team name cannot be empty.", "Validation Error",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        BackgroundTask.run(() -> {
+            JsonNode updated = ctx.rest.patch("response_teams", "id=eq." + teamId, Map.of(
+                    "name", teamName,
+                    "contact_number", contact.getText().trim(),
+                    "description", description.getText().trim(),
+                    "status", status.getSelectedItem()));
+            if (!updated.isArray() || updated.isEmpty()) {
+                throw new IllegalStateException("The response team was not updated.");
+            }
+            return Boolean.TRUE;
+        }, ok -> loadTeams(), err -> JOptionPane.showMessageDialog(this,
+                "Team update failed: " + err.getMessage(), "Update failed", JOptionPane.ERROR_MESSAGE));
+    }
+
+    /** Deletes the selected response team. */
+    private void deleteSelectedTeam() {
+        String teamId = getSelectedTeamId();
+        if (teamId == null) {
+            JOptionPane.showMessageDialog(this, "Please select a team first.", "Notice",
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        int row = teamTable.convertRowIndexToModel(teamTable.getSelectedRow());
+        String teamName = String.valueOf(teamModel.getValueAt(row, 1));
+        if (JOptionPane.showConfirmDialog(this,
+                "Delete team " + teamName + "? Its roster will also be removed. Teams linked to operational records "
+                        + "cannot be deleted.",
+                "Delete Response Team", JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE) != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        BackgroundTask.run(() -> {
+            JsonNode deleted = ctx.rest.delete("response_teams", "id=eq." + teamId);
+            if (!deleted.isArray() || deleted.isEmpty()) {
+                throw new IllegalStateException("The response team was not deleted.");
+            }
+            return Boolean.TRUE;
+        }, ok -> loadTeams(), err -> JOptionPane.showMessageDialog(this,
+                "Team deletion failed: " + err.getMessage(), "Delete failed", JOptionPane.ERROR_MESSAGE));
+    }
+
     /** Displays add member dialog. */
     private void showAddMemberDialog() {
         String teamId = getSelectedTeamId();
@@ -364,15 +456,16 @@ public final class TeamManagementPanel extends JPanel implements com.gudo.germs.
             return;
 
         BackgroundTask.run(() -> {
-            ctx.rest.select("team_members", "id=eq." + memberRecordId); // check exists
-            // Delete via PostgREST
-            // Note: RestClient can delete via PostgREST or RPC
-            ctx.rest.rpc("assign_incident_team", Map.of("p_id", UUID.randomUUID(), "p_team", UUID.randomUUID())); // placeholder
-                                                                                                                  // RPC
-                                                                                                                  // or
-                                                                                                                  // delete
+            JsonNode deleted = ctx.rest.delete("team_members", "id=eq." + memberRecordId);
+            if (!deleted.isArray() || deleted.isEmpty()) {
+                throw new IllegalStateException("The team member was not removed.");
+            }
             return Boolean.TRUE;
-        }, ok -> loadMembersForSelectedTeam(), err -> loadMembersForSelectedTeam());
+        }, ok -> {
+            loadMembersForSelectedTeam();
+            loadTeams();
+        }, err -> JOptionPane.showMessageDialog(this, "Could not remove team member: " + err.getMessage(), "Error",
+                JOptionPane.ERROR_MESSAGE));
     }
 
     /** Dispatches selected team. */
