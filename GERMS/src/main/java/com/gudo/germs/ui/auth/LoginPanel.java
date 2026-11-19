@@ -29,7 +29,6 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JLabel;
@@ -84,7 +83,6 @@ public final class LoginPanel extends JLayeredPane{
     private final JLabel passLabel = new JLabel("Password");
     private final RoundedTextField emailField = new RoundedTextField("name@redcross.org.ph");
     private final RoundedPasswordField passwordField = new RoundedPasswordField();
-    private final JCheckBox rememberMeBox = new JCheckBox("Remember me");
     private final MacPillButton signInBtn = new MacPillButton("Sign In", true);
     private final MacPillButton registerBtn = new MacPillButton("Create New Account", false);
     private final JButton guestBtn = new JButton("Continue as Guest (Public Mode)");
@@ -273,16 +271,6 @@ public final class LoginPanel extends JLayeredPane{
         form.add(passwordField);
         form.add(Box.createVerticalStrut(8));
 
-        // Options Row: Remember Me
-        JPanel optionsRow = new JPanel(new BorderLayout());
-        optionsRow.setOpaque(false);
-        optionsRow.setMaximumSize(new Dimension(360, 26));
-        optionsRow.setAlignmentX(CENTER_ALIGNMENT);
-        rememberMeBox.setOpaque(false);
-        rememberMeBox.setFont(new Font("SansSerif", Font.PLAIN, 12));
-        optionsRow.add(rememberMeBox, BorderLayout.WEST);
-        form.add(optionsRow);
-
         // Status / Error row
         JPanel statusRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
         statusRow.setOpaque(false);
@@ -352,7 +340,6 @@ public final class LoginPanel extends JLayeredPane{
         formSubtitle.setForeground(textMuted);
         emailLabel.setForeground(textHeading);
         passLabel.setForeground(textHeading);
-        rememberMeBox.setForeground(textMuted);
         guestBtn.setForeground(textMuted);
 
         // Update fields directly
