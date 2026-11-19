@@ -149,6 +149,8 @@ public final class LoginPanel extends JLayeredPane{
                 Color c1 = new Color(macAccentColor.getRed(), macAccentColor.getGreen(), macAccentColor.getBlue(), 235);
                 Color c2 = new Color(Math.max(0, macAccentColor.getRed() - 55), 15, 25, 248);
                 g2.setPaint(new GradientPaint(0, 0, c1, getWidth(), getHeight(), c2));
+                g2.fill(new java.awt.geom.RoundRectangle2D.Float(0, 0, getWidth() + 40, getHeight() -2, 22, 22));
+                g2.setClip(0, 0, 0, 0);
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 g2.dispose();
                 super.paintComponent(g);
@@ -348,6 +350,8 @@ public final class LoginPanel extends JLayeredPane{
         registerBtn.setTheme(isDarkTheme);
         splitGlassCard.setTheme(isDarkTheme);
         themeToggleBar.refreshThemeState();
+        passwordField.getField().setBorder(null);
+        passwordField.getField().setOpaque(false);
 
         if (background3D != null) {
             background3D.updateTheme(isDarkTheme);
@@ -858,6 +862,9 @@ public final class LoginPanel extends JLayeredPane{
         /** Applies the selected light/dark theme to this component. */
         public void setTheme(boolean dark, Color fg) {
             this.isDark = dark;
+            field.setBorder(null);
+            field.setOpaque(false);
+
             
             // 1. Explicitly force text, caret, and selection colors on the inner Swing field
             field.setForeground(fg);
