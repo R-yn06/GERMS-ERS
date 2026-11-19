@@ -374,6 +374,7 @@ public final class Shell extends JPanel {
             else openNotification(notificationId);
         });
         JButton theme = new JButton("\u25D0 Theme");
+        theme.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 14));
         theme.addActionListener(e -> ThemeManager.toggle());
         JLabel who = new JLabel(user.fullName() + "  \u00B7  " + user.role().label());
         JButton out = new JButton(user.role().name().equals("GUEST") ? "Exit guest mode" : "Sign out");
